@@ -1,0 +1,1 @@
+VAR#>mvn exec:java -Dexec.mainClass="com.mycompany.mavenproject1.AppleBooksClone"
