@@ -286,233 +286,311 @@ public class AppleBooksClone extends Application {
         return books;
     }
 
-    @Override
-    public void start(Stage stage) {
-        // Carica i font di sistema che più si avvicinano ai font Apple
-        try {
-            Font.loadFont(getClass().getResource("/fonts/NewYorkExtraLarge-Heavy.otf").toExternalForm(), 14);
-            Font.loadFont(getClass().getResource("/fonts/NewYorkLarge-Medium.otf").toExternalForm(), 14);
-        } catch (Exception e) {
-            System.err.println("Impossibile caricare i font personalizzati");
-        }
+@Override
+public void start(Stage stage) {
+    // Carica i font di sistema che più si avvicinano ai font Apple
+    try {
+        Font.loadFont(getClass().getResource("/fonts/NewYorkExtraLarge-Heavy.otf").toExternalForm(), 14);
+        Font.loadFont(getClass().getResource("/fonts/NewYorkLarge-Medium.otf").toExternalForm(), 14);
+    } catch (Exception e) {
+        System.err.println("Impossibile caricare i font personalizzati");
+    }
 
-        BorderPane root = new BorderPane(); // Layout principale
+    BorderPane root = new BorderPane(); // Layout principale
 
-        // === SIDEBAR con stile migliorato ===
-        VBox sidebar = new VBox(15);
-        sidebar.setId("sidebar");
-        sidebar.setPrefWidth(200); // Leggermente più larga
-        sidebar.setPrefHeight(700);
-        sidebar.setStyle("-fx-background-color: #2c2c2e;");
+    // === SIDEBAR con stile migliorato ===
+    VBox sidebar = new VBox(15);
+    sidebar.setId("sidebar");
+    sidebar.setPrefWidth(200); // Leggermente più larga
+    sidebar.setPrefHeight(700);
+    sidebar.setStyle("-fx-background-color: #2c2c2e;");
 
-        // Intestazione sidebar
-        Label sidebarHeader = new Label("Libreria");
-        sidebarHeader.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 16));
-        sidebarHeader.setTextFill(Color.WHITE);
-        sidebarHeader.setPadding(new Insets(20, 0, 5, 20));
+    // Intestazione sidebar
+    Label sidebarHeader = new Label("Libreria");
+    sidebarHeader.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 16));
+    sidebarHeader.setTextFill(Color.WHITE);
+    sidebarHeader.setPadding(new Insets(20, 0, 5, 20));
 
-        // Menu items con icone
-        VBox menuItemsBox = new VBox(5);
-        menuItemsBox.setPadding(new Insets(10, 0, 0, 15));
-        menuItemsBox.setStyle("-fx-background-color: transparent;");
+    // Menu items con icone
+    VBox menuItemsBox = new VBox(5);
+    menuItemsBox.setPadding(new Insets(10, 0, 0, 15));
+    menuItemsBox.setStyle("-fx-background-color: transparent;");
 
-        String[] menuItems = {"Home", "Book Store", "Audiobook Store", "Tutto", "Da leggere", "Letti", "PDF"};
-        String[] menuIcons = {"home", "store", "audio", "books", "reading", "read", "pdf"};
+    String[] menuItems = {"Home", "Book Store", "Audiobook Store", "Tutto", "Da leggere", "Letti", "PDF"};
+    String[] menuIcons = {"home", "store", "audio", "books", "reading", "read", "pdf"};
+    
+    for (int i = 0; i < menuItems.length; i++) {
+        HBox itemBox = new HBox(10);
         
-        for (int i = 0; i < menuItems.length; i++) {
-            HBox itemBox = new HBox(10);
-            
-            // In un'implementazione reale, caricheresti icone vere
-            Label iconPlaceholder = new Label("•");
-            iconPlaceholder.setTextFill(Color.LIGHTGRAY);
-            
-            Label label = new Label(menuItems[i]);
-            label.setTextFill(Color.LIGHTGRAY);
-            label.setFont(Font.font("SF Pro Text", 14));
-            
-            itemBox.getChildren().addAll(iconPlaceholder, label);
-            itemBox.setAlignment(Pos.CENTER_LEFT);
-            itemBox.setPadding(new Insets(5, 10, 5, 10));
-            itemBox.getStyleClass().add("menu-item-box");
-            itemBox.setStyle("-fx-cursor: hand;");
-            
-            menuItemsBox.getChildren().add(itemBox);
-        }
-
-        // Seleziona il primo elemento come attivo
-        ((HBox)menuItemsBox.getChildren().get(0)).setStyle(
-            "-fx-background-color: #3a3a3c; -fx-background-radius: 5; -fx-cursor: hand;");
-        ((Label)((HBox)menuItemsBox.getChildren().get(0)).getChildren().get(1)).setTextFill(Color.WHITE);
-
-        menuItemsBox.setAlignment(Pos.TOP_LEFT);
-
-        // Avatar dell'utente migliorato
-        Image avatarImage = new Image(getClass().getResource("/logReg/white_logo.png").toExternalForm());
-        ImageView avatar = new ImageView(avatarImage);
-        avatar.setFitWidth(36);
-        avatar.setFitHeight(36);
-        avatar.setId("avatar");
+        // In un'implementazione reale, caricheresti icone vere
+        Label iconPlaceholder = new Label("•");
+        iconPlaceholder.setTextFill(Color.LIGHTGRAY);
         
-        // Clip circolare più definito
-        Circle clip = new Circle(18, 18, 18);
-        avatar.setClip(clip);
+        Label label = new Label(menuItems[i]);
+        label.setTextFill(Color.LIGHTGRAY);
+        label.setFont(Font.font("SF Pro Text", 14));
         
-        // Etichetta con il nome utente
-        Label userName = new Label("Utente");
-        userName.setTextFill(Color.WHITE);
-        userName.setFont(Font.font("SF Pro Text", 13));
+        itemBox.getChildren().addAll(iconPlaceholder, label);
+        itemBox.setAlignment(Pos.CENTER_LEFT);
+        itemBox.setPadding(new Insets(5, 10, 5, 10));
+        itemBox.getStyleClass().add("menu-item-box");
+        itemBox.setStyle("-fx-cursor: hand;");
         
-        // Avatar container
-        HBox avatarBox = new HBox(12);
-        avatarBox.getChildren().addAll(avatar, userName);
-        avatarBox.setAlignment(Pos.CENTER_LEFT);
-        avatarBox.setPadding(new Insets(10, 15, 15, 20));
-        avatarBox.setStyle("-fx-cursor: hand;");
+        menuItemsBox.getChildren().add(itemBox);
+    }
 
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
+    // Seleziona il primo elemento come attivo
+    ((HBox)menuItemsBox.getChildren().get(0)).setStyle(
+        "-fx-background-color: #3a3a3c; -fx-background-radius: 5; -fx-cursor: hand;");
+    ((Label)((HBox)menuItemsBox.getChildren().get(0)).getChildren().get(1)).setTextFill(Color.WHITE);
 
-        sidebar.getChildren().addAll(sidebarHeader, menuItemsBox, spacer, avatarBox);
-        root.setLeft(sidebar);
+    menuItemsBox.setAlignment(Pos.TOP_LEFT);
 
-        // === HEADER migliorato ===
-        HBox headerBox = new HBox();
-        headerBox.setAlignment(Pos.CENTER_LEFT);
-        headerBox.setPadding(new Insets(15));
-        headerBox.setStyle("-fx-background-color: #1e1e1e;");
-        
-        Label header = new Label("Book Store");
-        header.setId("header");
-        header.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 28));
-        header.setTextFill(Color.WHITE);
-        
-        // Aggiunta barra di ricerca
-        TextField searchField = new TextField();
-        searchField.setPromptText("Cerca");
-        searchField.setPrefWidth(240);
-        searchField.getStyleClass().add("search-field");
-        searchField.setStyle(
-            "-fx-background-color: #3a3a3c;" +
-            "-fx-text-fill: white;" +
-            "-fx-prompt-text-fill: gray;" +
-            "-fx-background-radius: 8;" +
-            "-fx-padding: 8 12;" 
-        );
-        
-        headerBox.getChildren().add(header);
-        Region headerSpacer = new Region();
-        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
-        headerBox.getChildren().addAll(headerSpacer, searchField);
+    // Avatar dell'utente migliorato
+    Image avatarImage = new Image(getClass().getResource("/logReg/white_logo.png").toExternalForm());
+    ImageView avatar = new ImageView(avatarImage);
+    avatar.setFitWidth(36);
+    avatar.setFitHeight(36);
+    avatar.setId("avatar");
+    
+    // Clip circolare più definito
+    Circle clip = new Circle(18, 18, 18);
+    avatar.setClip(clip);
+    
+    // Etichetta con il nome utente
+    Label userName = new Label("Utente");
+    userName.setTextFill(Color.WHITE);
+    userName.setFont(Font.font("SF Pro Text", 13));
+    
+    // Avatar container
+    HBox avatarBox = new HBox(12);
+    avatarBox.getChildren().addAll(avatar, userName);
+    avatarBox.setAlignment(Pos.CENTER_LEFT);
+    avatarBox.setPadding(new Insets(10, 15, 15, 20));
+    avatarBox.setStyle("-fx-cursor: hand;");
 
-        // === CONTENUTO CENTRALE migliorato ===
-        VBox content = new VBox(20);
-        content.setId("content");
-        content.setPadding(new Insets(15, 20, 30, 20));
-        content.setStyle("-fx-background-color: #1e1e1e;");
+    Region spacer = new Region();
+    VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        List<Book> books = fetchBooksFromDB();
-        int splitIndex = Math.min(8, books.size());
+    sidebar.getChildren().addAll(sidebarHeader, menuItemsBox, spacer, avatarBox);
+    root.setLeft(sidebar);
 
-        // Categorie con immagini più curate
-        List<Category> categories = List.of(
-            new Category("Thriller", "/categories/Thriller_Gialli.jpg", getClass().getResource("/categories/Thriller_Gialli.jpg").toExternalForm()),
-            new Category("Romance", "/categories/Romanzi_Rosa.jpg", getClass().getResource("/categories/Romanzi_Rosa.jpg").toExternalForm()),
-            new Category("Horror", "/categories/Narrativa_Letteratura.jpg", getClass().getResource("/categories/Narrativa_Letteratura.jpg").toExternalForm()),
-            new Category("Sci-Fi", "/categories/Saggistica.jpg", getClass().getResource("/categories/Saggistica.jpg").toExternalForm()),
-            new Category("Fantasy", "/categories/Fantascienza_Fantasy.jpg", getClass().getResource("/categories/Fantascienza_Fantasy.jpg").toExternalForm())
-        );
+    // === HEADER migliorato ===
+    HBox headerBox = new HBox();
+    headerBox.setAlignment(Pos.CENTER_LEFT);
+    headerBox.setPadding(new Insets(15));
+    headerBox.setStyle("-fx-background-color: #1e1e1e;");
+    
+    Label header = new Label("Book Store");
+    header.setId("header");
+    header.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 28));
+    header.setTextFill(Color.WHITE);
+    
+    // Aggiunta barra di ricerca
+    TextField searchField = new TextField();
+    searchField.setPromptText("Cerca");
+    searchField.setPrefWidth(240);
+    searchField.getStyleClass().add("search-field");
+    searchField.setStyle(
+        "-fx-background-color: #3a3a3c;" +
+        "-fx-text-fill: white;" +
+        "-fx-prompt-text-fill: gray;" +
+        "-fx-background-radius: 8;" +
+        "-fx-padding: 8 12;" 
+    );
+    
+    headerBox.getChildren().add(header);
+    Region headerSpacer = new Region();
+    HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+    headerBox.getChildren().addAll(headerSpacer, searchField);
 
-        // === OVERLAY PANNELLO DETTAGLI LIBRO ===
-        StackPane mainStack = new StackPane();
-        VBox centerBox = new VBox(headerBox, new ScrollPane(content));
-        centerBox.setStyle("-fx-background-color: #1e1e1e;");
-        mainStack.getChildren().add(centerBox);
+    // === CONTENUTO CENTRALE migliorato ===
+    VBox content = new VBox(20);
+    content.setId("content");
+    content.setPadding(new Insets(15, 20, 30, 20));
+    content.setStyle("-fx-background-color: #1e1e1e;");
 
-        Consumer<Book> clickHandler = selectedBook -> {
-            BoxBlur blur = new BoxBlur(30, 30, 3);
-            centerBox.setEffect(blur);
+    List<Book> books = fetchBooksFromDB();
+    int splitIndex = Math.min(8, books.size());
 
-            StackPane overlay = new StackPane();
-            overlay.setStyle("-fx-background-color: rgba(0,0,0,0.35);");
-            overlay.setPickOnBounds(true);
-            overlay.setPrefSize(Double.MAX_VALUE, Double.MAX_VALUE);
+    // Categorie con immagini più curate
+    List<Category> categories = List.of(
+        new Category("Thriller", "/categories/Thriller_Gialli.jpg", getClass().getResource("/categories/Thriller_Gialli.jpg").toExternalForm()),
+        new Category("Romance", "/categories/Romanzi_Rosa.jpg", getClass().getResource("/categories/Romanzi_Rosa.jpg").toExternalForm()),
+        new Category("Horror", "/categories/Narrativa_Letteratura.jpg", getClass().getResource("/categories/Narrativa_Letteratura.jpg").toExternalForm()),
+        new Category("Sci-Fi", "/categories/Saggistica.jpg", getClass().getResource("/categories/Saggistica.jpg").toExternalForm()),
+        new Category("Fantasy", "/categories/Fantascienza_Fantasy.jpg", getClass().getResource("/categories/Fantascienza_Fantasy.jpg").toExternalForm())
+    );
 
-            // Creare una chiusura da usare per onClose
-            Runnable closePopup = () -> {
-                mainStack.getChildren().remove(overlay);
-                centerBox.setEffect(null);
-            };
+    // === OVERLAY PANNELLO DETTAGLI LIBRO ===
+    StackPane mainStack = new StackPane();
+    VBox centerBox = new VBox(headerBox, new ScrollPane(content));
+    centerBox.setStyle("-fx-background-color: #1e1e1e;");
+    mainStack.getChildren().add(centerBox);
 
-            // Modificato per passare tre parametri: libro selezionato, collection completa e chiusura
-            StackPane detailsPane = BookDetailsPopup.create(selectedBook, books, closePopup);
-            
-            overlay.setOnMouseClicked(e -> {
-                if (!detailsPane.getBoundsInParent().contains(e.getX(), e.getY())) {
-                    closePopup.run();
-                }
-            });
+    Consumer<Book> clickHandler = selectedBook -> {
+        BoxBlur blur = new BoxBlur(30, 30, 3);
+        centerBox.setEffect(blur);
 
-            overlay.getChildren().add(detailsPane);
-            StackPane.setAlignment(detailsPane, Pos.CENTER);
-            mainStack.getChildren().add(overlay);
+        StackPane overlay = new StackPane();
+        overlay.setStyle("-fx-background-color: rgba(0,0,0,0.35);");
+        overlay.setPickOnBounds(true);
+        overlay.setPrefSize(Double.MAX_VALUE, Double.MAX_VALUE);
+
+        // Creare una chiusura da usare per onClose
+        Runnable closePopup = () -> {
+            mainStack.getChildren().remove(overlay);
+            centerBox.setEffect(null);
         };
 
-        // Sezioni principali
-        VBox featuredBooks = createFeatureSection(books.subList(0, Math.min(1, books.size())));
+        // Modificato per passare tre parametri: libro selezionato, collection completa e chiusura
+        StackPane detailsPane = BookDetailsPopup.create(selectedBook, books, closePopup);
         
-        // === AGGIUNGI SEZIONI AL CONTENUTO ===
-        content.getChildren().addAll(
-            featuredBooks,
-            createBookSection("Libri gratuiti", books.subList(0, splitIndex), clickHandler),
-            createBookSection("Nuove uscite", books.subList(splitIndex > 0 ? splitIndex-1 : 0, books.size()), clickHandler),
-            createCategorySection("Scopri per genere", categories)
-        );
-
-        ScrollPane scrollPane = new ScrollPane(content);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background-color: transparent;");
-        scrollPane.getStyleClass().add("edge-to-edge");
-        centerBox.getChildren().set(1, scrollPane);
-        root.setCenter(mainStack);
-
-        // === ACCOUNT POPUP ===
-        Stage accountStage = new Stage();
-        accountStage.initStyle(StageStyle.DECORATED);
-        accountStage.initModality(Modality.NONE);
-        accountStage.setTitle("Account");
-        accountStage.setMinWidth(320);
-        accountStage.setMinHeight(280);
-
-        AccountPanel accountPanel = new AccountPanel();
-        Scene accountScene = new Scene(accountPanel, 320, 280);
-        accountStage.setScene(accountScene);
-
-        avatar.setOnMouseClicked(e -> {
-            if (accountStage.isShowing()) {
-                accountStage.hide();
-            } else {
-                accountStage.show();
+        overlay.setOnMouseClicked(e -> {
+            if (!detailsPane.getBoundsInParent().contains(e.getX(), e.getY())) {
+                closePopup.run();
             }
         });
 
-        // === SCENA PRINCIPALE ===
-        Scene scene = new Scene(root, 1100, 750);
-        scene.getStylesheets().add(getClass().getResource("/css/scrollbar.css").toExternalForm());
-        scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
-        
-        // Aggiungi CSS personalizzato
-        String customCss = 
-            ".see-all-button { -fx-background-color: transparent; -fx-text-fill: #0a84ff; -fx-border-color: transparent; }" +
-            ".edge-to-edge { -fx-background-insets: 0; -fx-padding: 0; }" +
-            ".menu-item-box:hover { -fx-background-color: #3a3a3c; -fx-background-radius: 5; }";
-        scene.getStylesheets().add("data:text/css," + customCss.replaceAll(" ", "%20"));
-        
-        stage.setScene(scene);
-        stage.setTitle("Apple Books");
-        stage.show();
+        overlay.getChildren().add(detailsPane);
+        StackPane.setAlignment(detailsPane, Pos.CENTER);
+        mainStack.getChildren().add(overlay);
+    };
+
+    // Sezioni principali
+    VBox featuredBooks = createFeatureSection(books.subList(0, Math.min(1, books.size())));
+    
+    // === AGGIUNGI SEZIONI AL CONTENUTO ===
+    content.getChildren().addAll(
+        featuredBooks,
+        createBookSection("Libri gratuiti", books.subList(0, splitIndex), clickHandler),
+        createBookSection("Nuove uscite", books.subList(splitIndex > 0 ? splitIndex-1 : 0, books.size()), clickHandler),
+        createCategorySection("Scopri per genere", categories)
+    );
+
+    ScrollPane scrollPane = new ScrollPane(content);
+    scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+    scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+    scrollPane.setFitToWidth(true);
+    scrollPane.setStyle("-fx-background-color: transparent;");
+    scrollPane.getStyleClass().add("edge-to-edge");
+    centerBox.getChildren().set(1, scrollPane);
+    root.setCenter(mainStack);
+
+    // === ACCOUNT POPUP (MIGLIORATO) ===
+    // Creiamo uno Stage separato per il nuovo pannello di autenticazione
+    Stage authStage = new Stage();
+    authStage.initStyle(StageStyle.UNDECORATED); // Rimuoviamo la decorazione standard per uno stile più pulito
+    authStage.initModality(Modality.NONE); // Non blocca l'interazione con la finestra principale
+
+    // Creiamo il nuovo AuthPanel invece dell'AccountPanel
+    AuthPanel authPanel = new AuthPanel();
+    
+    // Aggiungiamo un handler per chiudere il pannello se si clicca al di fuori
+    StackPane authRoot = new StackPane(authPanel);
+    authRoot.setPadding(new Insets(0));
+    
+    // Aggiungiamo un pulsante di chiusura discreto nell'angolo superiore destro
+    Button closeButton = new Button("✕");
+    closeButton.setStyle(
+        "-fx-background-color: transparent;" +
+        "-fx-text-fill: #9e9e9e;" +
+        "-fx-font-size: 16px;" +
+        "-fx-cursor: hand;" +
+        "-fx-padding: 5 10;"
+    );
+    closeButton.setOnAction(e -> authStage.hide());
+    
+    // Effetti hover sul pulsante di chiusura
+    closeButton.setOnMouseEntered(e -> 
+        closeButton.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: white;" +
+            "-fx-font-size: 16px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 5 10;"
+        )
+    );
+    closeButton.setOnMouseExited(e -> 
+        closeButton.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: #9e9e9e;" +
+            "-fx-font-size: 16px;" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 5 10;"
+        )
+    );
+    
+    StackPane.setAlignment(closeButton, Pos.TOP_RIGHT);
+    authRoot.getChildren().add(closeButton);
+    
+    // Creazione e configurazione della scena
+    Scene authScene = new Scene(authRoot);
+    
+    // Caricamento dei CSS per le tab di autenticazione
+    try {
+        authScene.getStylesheets().add(getClass().getResource("/css/auth-tabs.css").toExternalForm());
+    } catch (Exception e) {
+        System.err.println("Impossibile caricare il foglio di stile per le tab di autenticazione");
+        // Fallback nel caso il file non sia trovato
+        String inlineTabsCss = 
+            ".tab-pane {-fx-tab-min-width: 120px; -fx-tab-max-width: 120px; -fx-tab-min-height: 40px;}" +
+            ".tab-pane .tab-header-area {-fx-padding: 0 0 10 0;}" +
+            ".tab-pane .tab-header-background {-fx-background-color: #1e1e1e; -fx-effect: null; -fx-border-width: 0 0 1 0; -fx-border-color: #3a3a3a;}" +
+            ".tab {-fx-focus-color: transparent; -fx-faint-focus-color: transparent; -fx-background-color: transparent; -fx-border-width: 0 0 2 0; -fx-border-color: transparent; -fx-padding: 0 20 0 20;}" +
+            ".tab .tab-label {-fx-text-fill: #9e9e9e; -fx-font-size: 14px; -fx-font-weight: normal;}" +
+            ".tab:selected {-fx-background-color: transparent; -fx-border-width: 0 0 2 0; -fx-border-color: #4a86e8;}" +
+            ".tab:selected .tab-label {-fx-text-fill: #ffffff; -fx-font-weight: bold;}" +
+            ".tab:hover .tab-label {-fx-text-fill: #ffffff;}" +
+            ".tab-pane:focused .tab-header-area .headers-region .tab:selected .focus-indicator {-fx-focus-color: transparent; -fx-border-width: 0;}" +
+            ".tab-content-area {-fx-background-color: #1e1e1e;}";
+        authScene.getStylesheets().add("data:text/css," + inlineTabsCss.replaceAll(" ", "%20"));
     }
+
+    // Impostiamo la scena e le dimensioni per il pannello di autenticazione
+    authStage.setScene(authScene);
+    authStage.setWidth(400);  // Larghezza leggermente maggiore rispetto alla precedente
+    authStage.setHeight(550); // Altezza maggiore per ospitare tutti i campi
+    
+    // Configuriamo il posizionamento del pannello quando viene mostrato
+    authStage.setOnShowing(e -> {
+        // Posizionamento al centro della finestra principale
+        double centerX = stage.getX() + stage.getWidth()/2 - authStage.getWidth()/2;
+        double centerY = stage.getY() + stage.getHeight()/2 - authStage.getHeight()/2;
+        authStage.setX(centerX);
+        authStage.setY(centerY);
+    });
+    
+    // Gestiamo il click sull'avatar per mostrare/nascondere il pannello di autenticazione
+    avatar.setOnMouseClicked(e -> {
+        if (authStage.isShowing()) {
+            authStage.hide();
+        } else {
+            authStage.show();
+        }
+    });
+    
+    // Anche il nome utente può mostrare/nascondere il pannello
+    userName.setOnMouseClicked(avatar.getOnMouseClicked());
+    // Rendiamo esplicito che il box dell'avatar è cliccabile
+    avatarBox.setOnMouseClicked(avatar.getOnMouseClicked());
+
+    // === SCENA PRINCIPALE ===
+    Scene scene = new Scene(root, 1100, 750);
+    scene.getStylesheets().add(getClass().getResource("/css/scrollbar.css").toExternalForm());
+    scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+    
+    // Aggiungi CSS personalizzato
+    String customCss = 
+        ".see-all-button { -fx-background-color: transparent; -fx-text-fill: #0a84ff; -fx-border-color: transparent; }" +
+        ".edge-to-edge { -fx-background-insets: 0; -fx-padding: 0; }" +
+        ".menu-item-box:hover { -fx-background-color: #3a3a3c; -fx-background-radius: 5; }";
+    scene.getStylesheets().add("data:text/css," + customCss.replaceAll(" ", "%20"));
+    
+    stage.setScene(scene);
+    stage.setTitle("Apple Books");
+    stage.show();
+}
     
     /**
      * Crea una sezione evidenziata con libro in primo piano.
