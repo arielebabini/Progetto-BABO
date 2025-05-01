@@ -1,6 +1,6 @@
-com/mycompany/mavenproject1/BookDetailsPopup.class
-com/mycompany/mavenproject1/AppleBooksClone.class
-com/mycompany/mavenproject1/DominantColorExtractor.class
-com/mycompany/mavenproject1/AccountPanel.class
-com/mycompany/mavenproject1/Category.class
-com/mycompany/mavenproject1/Book.class
+com\mycompany\mavenproject1\AccountPanel.class
+com\mycompany\mavenproject1\Category.class
+com\mycompany\mavenproject1\DominantColorExtractor.class
+com\mycompany\mavenproject1\BookDetailsPopup.class
+com\mycompany\mavenproject1\Book.class
+com\mycompany\mavenproject1\AppleBooksClone.class
