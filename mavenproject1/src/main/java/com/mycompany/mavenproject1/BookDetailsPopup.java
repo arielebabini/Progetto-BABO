@@ -35,11 +35,17 @@ public class BookDetailsPopup {
     private static int currentBookIndex = 0;
     private static StackPane bookDisplayPane;
     private static VBox nextBookPreview;
+    private static VBox prevBookPreview; 
     private static Timeline slideAnimation;
+    private static Runnable closeHandler;
+    private static boolean isTransitioning = false;
+    private static Button leftArrowButton;
+    private static Button rightArrowButton;
     
     public static StackPane create(Book book, List<Book> collection, Runnable onClose) {
         // Store the book collection for pagination
         booksCollection = collection;
+        closeHandler = onClose;
         
         // Find current book index
         currentBookIndex = collection.indexOf(book);
@@ -60,23 +66,29 @@ public class BookDetailsPopup {
         blurLayer.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
         blurLayer.setEffect(new BoxBlur(20, 20, 3));
         blurLayer.setOnMouseClicked((MouseEvent e) -> {
-            onClose.run();
+            // Close popup when clicking on background
+            if (closeHandler != null) {
+                closeHandler.run();
+            }
         });
         
-        // Book display pane (for current and next book sliding)
+        // Book display pane (for current and book previews sliding)
         bookDisplayPane = new StackPane();
         
         // --- CURRENT BOOK CONTAINER ---
         VBox currentBookContent = createBookContent(book, backgroundColor);
         
-        // --- NEXT BOOK PREVIEW ---
-        nextBookPreview = createNextBookPreview();
-        nextBookPreview.setTranslateX(1200); // Start off-screen
+        // --- PREVIEW CONTAINERS ---
+        nextBookPreview = createBookPreview(currentBookIndex + 1);
+        nextBookPreview.setTranslateX(1200); // Start off-screen right
         
-        // Add both to the book display pane
-        bookDisplayPane.getChildren().addAll(currentBookContent, nextBookPreview);
+        prevBookPreview = createBookPreview(currentBookIndex - 1);
+        prevBookPreview.setTranslateX(-1200); // Start off-screen left
         
-        // Add hover detection zones
+        // Add books to the display pane
+        bookDisplayPane.getChildren().addAll(prevBookPreview, currentBookContent, nextBookPreview);
+        
+        // Add edge detection zones for previewing
         addEdgeDetection(bookDisplayPane);
         
         // Add navigation controls
@@ -112,9 +124,9 @@ public class BookDetailsPopup {
             "-fx-cursor: hand;"
         );
         closeButton.setOnAction(e -> {
-            // Check if we have a parent with a close handler
-            if (root.getParent() != null && root.getParent().getUserData() instanceof Runnable) {
-                ((Runnable)root.getParent().getUserData()).run();
+            // Execute close handler
+            if (closeHandler != null) {
+                closeHandler.run();
             }
         });
         
@@ -327,22 +339,28 @@ public class BookDetailsPopup {
         scrollContent.getChildren().addAll(detailsSection, publisherSection, reviewsSection, similarBooksSection);
         contentScroll.setContent(scrollContent);
         
+        // Prevent clicks on the content from closing the popup
+        contentScroll.setOnMouseClicked(e -> e.consume());
+        
         // Add everything to main popup
         popupContent.getChildren().addAll(topBar, contentScroll);
         
         return popupContent;
     }
     
-    private static VBox createNextBookPreview() {
-        if (booksCollection == null || booksCollection.isEmpty() || currentBookIndex >= booksCollection.size() - 1) {
-            return new VBox(); // Empty preview if there's no next book
+    private static VBox createBookPreview(int bookIndex) {
+        // Validate book index
+        if (bookIndex < 0 || booksCollection == null || bookIndex >= booksCollection.size()) {
+            VBox emptyPreview = new VBox();
+            emptyPreview.setVisible(false); // Make invisible if invalid
+            return emptyPreview;
         }
         
-        // Get the next book
-        Book nextBook = booksCollection.get(currentBookIndex + 1);
+        // Get the book
+        Book previewBook = booksCollection.get(bookIndex);
         
-        // Create a simplified preview of the next book
-        Image coverImage = loadCoverImage(nextBook.imageUrl);
+        // Create a simplified preview of the book
+        Image coverImage = loadCoverImage(previewBook.imageUrl);
         Color dominantColor = extractDominantColor(coverImage);
         Color darkenedColor = darkenColor(dominantColor, 0.7);
         String backgroundColor = toHexString(darkenedColor);
@@ -367,7 +385,7 @@ public class BookDetailsPopup {
         detailsSection.setAlignment(Pos.TOP_LEFT);
         
         // Book cover with rounded corners
-        ImageView cover = createSafeImageView(nextBook.imageUrl, 180, 270);
+        ImageView cover = createSafeImageView(previewBook.imageUrl, 180, 270);
         Rectangle coverClip = new Rectangle(180, 270);
         coverClip.setArcWidth(8);
         coverClip.setArcHeight(8);
@@ -381,13 +399,13 @@ public class BookDetailsPopup {
         infoBox.setAlignment(Pos.TOP_LEFT);
         
         // Title
-        Label title = new Label(nextBook.getTitle());
+        Label title = new Label(previewBook.getTitle());
         title.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 26));
         title.setTextFill(Color.WHITE);
         title.setWrapText(true);
         
         // Author
-        Label author = new Label(nextBook.getAuthor());
+        Label author = new Label(previewBook.getAuthor());
         author.setFont(Font.font("SF Pro Text", 18));
         author.setTextFill(Color.LIGHTGRAY);
         
@@ -421,33 +439,59 @@ public class BookDetailsPopup {
         StackPane.setAlignment(leftEdge, Pos.CENTER_LEFT);
         StackPane.setAlignment(rightEdge, Pos.CENTER_RIGHT);
         
-        // Set hover behaviors
+        // Set hover behaviors for right edge (next book)
+        rightEdge.setOnMouseEntered(e -> {
+            // Preview next book when hovering on right edge
+            if (currentBookIndex < booksCollection.size() - 1 && !isTransitioning) {
+                showBookPreview(true, false);
+            }
+        });
+        
+        rightEdge.setOnMouseExited(e -> {
+            // Hide preview if not transitioning
+            if (!isTransitioning) {
+                showBookPreview(false, false);
+            }
+        });
+        
+        // Set hover behaviors for left edge (previous book)
         leftEdge.setOnMouseEntered(e -> {
-            showNextBookPreview(true);
+            // Preview previous book when hovering on left edge
+            if (currentBookIndex > 0 && !isTransitioning) {
+                showBookPreview(true, true);
+            }
         });
         
         leftEdge.setOnMouseExited(e -> {
-            // Only hide if we're not in the middle of a slide animation
-            if (slideAnimation == null || !slideAnimation.getStatus().equals(javafx.animation.Animation.Status.RUNNING)) {
-                showNextBookPreview(false);
+            // Hide preview if not transitioning
+            if (!isTransitioning) {
+                showBookPreview(false, true);
             }
         });
         
-        // Add click behavior to slide to next book
+        // Add click behaviors
+        rightEdge.setOnMouseClicked(e -> {
+            // Navigate to next book when clicking right edge
+            if (currentBookIndex < booksCollection.size() - 1 && !isTransitioning) {
+                slideToBook(currentBookIndex + 1);
+            }
+        });
+        
         leftEdge.setOnMouseClicked(e -> {
-            if (currentBookIndex < booksCollection.size() - 1) {
-                slideToNextBook();
+            // Navigate to previous book when clicking left edge
+            if (currentBookIndex > 0 && !isTransitioning) {
+                slideToBook(currentBookIndex - 1);
             }
         });
         
-        // Add the edge detection regions to the container
+        // Add the edge detection regions
         container.getChildren().addAll(leftEdge, rightEdge);
     }
     
     private static void addNavigationArrows() {
         // Create arrow buttons
-        Button leftArrow = new Button("❮");
-        leftArrow.setStyle(
+        leftArrowButton = new Button("❮");
+        leftArrowButton.setStyle(
             "-fx-background-color: rgba(0, 0, 0, 0.5);" +
             "-fx-text-fill: white;" +
             "-fx-font-size: 24px;" +
@@ -461,8 +505,8 @@ public class BookDetailsPopup {
             "-fx-opacity: 0.8;"
         );
         
-        Button rightArrow = new Button("❯");
-        rightArrow.setStyle(
+        rightArrowButton = new Button("❯");
+        rightArrowButton.setStyle(
             "-fx-background-color: rgba(0, 0, 0, 0.5);" +
             "-fx-text-fill: white;" +
             "-fx-font-size: 24px;" +
@@ -477,88 +521,113 @@ public class BookDetailsPopup {
         );
         
         // Position them at the left and right centers
-        StackPane.setAlignment(leftArrow, Pos.CENTER_LEFT);
-        StackPane.setAlignment(rightArrow, Pos.CENTER_RIGHT);
+        StackPane.setAlignment(leftArrowButton, Pos.CENTER_LEFT);
+        StackPane.setAlignment(rightArrowButton, Pos.CENTER_RIGHT);
         
         // Set margins to keep them away from the edge
-        StackPane.setMargin(leftArrow, new Insets(0, 0, 0, 20));
-        StackPane.setMargin(rightArrow, new Insets(0, 20, 0, 0));
+        StackPane.setMargin(leftArrowButton, new Insets(0, 0, 0, 20));
+        StackPane.setMargin(rightArrowButton, new Insets(0, 20, 0, 0));
         
         // Initially invisible
-        leftArrow.setOpacity(0);
-        rightArrow.setOpacity(0);
+        leftArrowButton.setOpacity(0);
+        rightArrowButton.setOpacity(0);
         
         // Show them on container hover
         root.setOnMouseEntered(e -> {
-            if (currentBookIndex > 0) {
-                leftArrow.setOpacity(0.8);
-            }
-            if (currentBookIndex < booksCollection.size() - 1) {
-                rightArrow.setOpacity(0.8);
-            }
+            updateArrowVisibility();
         });
         
         root.setOnMouseExited(e -> {
-            leftArrow.setOpacity(0);
-            rightArrow.setOpacity(0);
+            leftArrowButton.setOpacity(0);
+            rightArrowButton.setOpacity(0);
         });
         
-        // Add click behavior
-        leftArrow.setOnMouseClicked(e -> {
-            if (currentBookIndex > 0) {
+        // Add click behavior - correct directions
+        leftArrowButton.setOnMouseClicked(e -> {
+            // Left arrow navigates to previous book
+            if (currentBookIndex > 0 && !isTransitioning) {
                 slideToBook(currentBookIndex - 1);
             }
         });
         
-        rightArrow.setOnMouseClicked(e -> {
-            if (currentBookIndex < booksCollection.size() - 1) {
-                slideToNextBook();
+        rightArrowButton.setOnMouseClicked(e -> {
+            // Right arrow navigates to next book
+            if (currentBookIndex < booksCollection.size() - 1 && !isTransitioning) {
+                slideToBook(currentBookIndex + 1);
             }
         });
         
+        // Prevent the click from reaching the background
+        leftArrowButton.setOnMousePressed(e -> e.consume());
+        rightArrowButton.setOnMousePressed(e -> e.consume());
+        
         // Add the arrows to the root container
-        root.getChildren().addAll(leftArrow, rightArrow);
+        root.getChildren().addAll(leftArrowButton, rightArrowButton);
     }
     
-    private static void showNextBookPreview(boolean show) {
-        if (booksCollection == null || currentBookIndex >= booksCollection.size() - 1) {
-            return; // No next book available
+    private static void updateArrowVisibility() {
+        // Show/hide arrows based on current position in collection
+        if (currentBookIndex > 0) {
+            leftArrowButton.setOpacity(0.8);
+        } else {
+            leftArrowButton.setOpacity(0);
         }
         
+        if (currentBookIndex < booksCollection.size() - 1) {
+            rightArrowButton.setOpacity(0.8);
+        } else {
+            rightArrowButton.setOpacity(0);
+        }
+    }
+    
+    private static void showBookPreview(boolean show, boolean isPrevious) {
         // Stop any running animation
         if (slideAnimation != null && slideAnimation.getStatus().equals(javafx.animation.Animation.Status.RUNNING)) {
             slideAnimation.stop();
         }
         
+        // Get the preview to show
+        VBox previewToShow = isPrevious ? prevBookPreview : nextBookPreview;
+        
+        // Check if we have a valid preview
+        if (previewToShow == null || !previewToShow.isVisible()) {
+            return;
+        }
+        
         // Target X position
-        double targetX = show ? 950 : 1200;
+        double targetX;
+        if (isPrevious) {
+            // For previous book, peek from left
+            targetX = show ? -950 : -1200;
+        } else {
+            // For next book, peek from right
+            targetX = show ? 950 : 1200;
+        }
         
         // Create and play the animation
         slideAnimation = new Timeline(
             new KeyFrame(Duration.millis(300), 
-                new KeyValue(nextBookPreview.translateXProperty(), targetX)
+                new KeyValue(previewToShow.translateXProperty(), targetX)
             )
         );
         slideAnimation.play();
     }
     
-    private static void slideToNextBook() {
-        if (booksCollection == null || currentBookIndex >= booksCollection.size() - 1) {
-            return; // No next book available
+    private static void slideToBook(int newIndex) {
+        if (newIndex < 0 || newIndex >= booksCollection.size() || newIndex == currentBookIndex || isTransitioning) {
+            return; // Invalid index, same book, or already transitioning
         }
         
-        slideToBook(currentBookIndex + 1);
-    }
-    
-    private static void slideToBook(int newIndex) {
-        if (newIndex < 0 || newIndex >= booksCollection.size() || newIndex == currentBookIndex) {
-            return; // Invalid index or same book
-        }
+        // Mark that we're transitioning to prevent multiple animations
+        isTransitioning = true;
         
         // Get the target book
         Book targetBook = booksCollection.get(newIndex);
         
-        // Create new content for the target book
+        // Determine if we're going forward or backward
+        boolean isForward = newIndex > currentBookIndex;
+        
+        // Create content for the target book
         Image coverImage = loadCoverImage(targetBook.imageUrl);
         Color dominantColor = extractDominantColor(coverImage);
         Color darkenedColor = darkenColor(dominantColor, 0.7);
@@ -566,14 +635,14 @@ public class BookDetailsPopup {
         
         VBox newBookContent = createBookContent(targetBook, backgroundColor);
         
-        // Determine animation direction
-        boolean isNext = newIndex > currentBookIndex;
-        
-        // Position the new content off-screen
-        newBookContent.setTranslateX(isNext ? 1200 : -1200);
+        // Position the new content off-screen in the correct direction
+        newBookContent.setTranslateX(isForward ? 1200 : -1200);
         
         // Add it to the display pane
         bookDisplayPane.getChildren().add(newBookContent);
+        
+        // Get current content (middle child)
+        VBox currentContent = (VBox) bookDisplayPane.getChildren().get(1);
         
         // Stop any running animation
         if (slideAnimation != null && slideAnimation.getStatus().equals(javafx.animation.Animation.Status.RUNNING)) {
@@ -584,8 +653,8 @@ public class BookDetailsPopup {
         slideAnimation = new Timeline(
             // Slide current content out
             new KeyFrame(Duration.millis(500), 
-                new KeyValue(bookDisplayPane.getChildren().get(0).translateXProperty(), 
-                             isNext ? -1200 : 1200)
+                new KeyValue(currentContent.translateXProperty(), 
+                             isForward ? -1200 : 1200)
             ),
             // Slide new content in
             new KeyFrame(Duration.millis(500), 
@@ -595,22 +664,35 @@ public class BookDetailsPopup {
         
         // When animation completes, clean up and update state
         slideAnimation.setOnFinished(e -> {
-            // Remove old content
-            bookDisplayPane.getChildren().removeIf(node -> node != newBookContent);
-            
             // Update current book index
             currentBookIndex = newIndex;
             
-            // Create new next book preview
-            nextBookPreview = createNextBookPreview();
-            nextBookPreview.setTranslateX(1200); // Start off-screen
+            // Clear display pane and add the new content centered
+            bookDisplayPane.getChildren().clear();
             
-            // Add it to the display pane
-            bookDisplayPane.getChildren().add(nextBookPreview);
+            // Create new previews for adjacent books
+            prevBookPreview = createBookPreview(currentBookIndex - 1);
+            prevBookPreview.setTranslateX(-1200); // Off-screen left
+            
+            nextBookPreview = createBookPreview(currentBookIndex + 1);
+            nextBookPreview.setTranslateX(1200); // Off-screen right
+            
+            // Add all to display pane in correct order
+            bookDisplayPane.getChildren().addAll(prevBookPreview, newBookContent, nextBookPreview);
+            
+            // Update navigation arrows
+            updateArrowVisibility();
+            
+            // Add edge detection again
+            addEdgeDetection(bookDisplayPane);
+            
+            // Transition is complete
+            isTransitioning = false;
         });
         
         slideAnimation.play();
     }
+
     
     private static VBox createReviewCard(String title, String content, String rating, String date) {
         VBox card = new VBox(8);
@@ -644,102 +726,103 @@ public class BookDetailsPopup {
         return card;
     }
     
-    // Helper method to load cover image and handle errors
-    private static Image loadCoverImage(String isbnFileName) {
-        Image image;
-        try {
-            InputStream stream = AppleBooksClone.class.getResourceAsStream("/books_covers/" + isbnFileName);
-            if (stream == null) {
-                System.out.println("File non trovato: " + isbnFileName);
-                return new Image("https://via.placeholder.com/140x210", 180, 270, true, true);
-            }
-            image = new Image(stream);
-            if (image.isError()) throw new Exception("Errore immagine.");
-        } catch (Exception e) {
-            System.out.println("Errore caricamento immagine: fallback.");
-            image = new Image("https://via.placeholder.com/140x210", 180, 270, true, true);
+// Helper method to load cover image and handle errors
+private static Image loadCoverImage(String isbnFileName) {
+    Image image;
+    try {
+        InputStream stream = AppleBooksClone.class.getResourceAsStream("/books_covers/" + isbnFileName);
+        if (stream == null) {
+            System.out.println("File non trovato: " + isbnFileName);
+            return new Image("https://via.placeholder.com/140x210", 180, 270, true, true);
         }
-        return image;
+        image = new Image(stream);
+        if (image.isError()) throw new Exception("Errore immagine.");
+    } catch (Exception e) {
+        System.out.println("Errore caricamento immagine: fallback.");
+        image = new Image("https://via.placeholder.com/140x210", 180, 270, true, true);
+    }
+    return image;
+}
+
+// Helper method to create an image view with error handling
+public static ImageView createSafeImageView(String isbnFileName, double width, double height) {
+    Image image = loadCoverImage(isbnFileName);
+    ImageView imageView = new ImageView(image);
+    imageView.setFitWidth(width);
+    imageView.setFitHeight(height);
+    imageView.setPreserveRatio(true);
+    imageView.setSmooth(true);
+    return imageView;
+}
+
+// Helper method to extract dominant color from an image
+private static Color extractDominantColor(Image image) {
+    if (image == null || image.isError()) {
+        return Color.rgb(41, 35, 46); // Default color if image not available
     }
     
-    // Helper method to create an image view with error handling
-    public static ImageView createSafeImageView(String isbnFileName, double width, double height) {
-        Image image = loadCoverImage(isbnFileName);
-        ImageView imageView = new ImageView(image);
-        imageView.setFitWidth(width);
-        imageView.setFitHeight(height);
-        imageView.setPreserveRatio(true);
-        imageView.setSmooth(true);
-        return imageView;
+    int width = (int) image.getWidth();
+    int height = (int) image.getHeight();
+    
+    if (width <= 0 || height <= 0) {
+        return Color.rgb(41, 35, 46);
     }
     
-    // Helper method to extract dominant color from an image
-    private static Color extractDominantColor(Image image) {
-        if (image == null || image.isError()) {
-            return Color.rgb(41, 35, 46); // Default color if image not available
+    // Use sampling for better performance
+    int sampleSize = 5; // Sample every 5 pixels
+    
+    Map<Integer, Integer> colorCounts = new HashMap<>();
+    PixelReader pixelReader = image.getPixelReader();
+    
+    // Sample pixels from the image
+    for (int y = 0; y < height; y += sampleSize) {
+        for (int x = 0; x < width; x += sampleSize) {
+            Color color = pixelReader.getColor(x, y);
+            
+            // Convert color to an integer for easier storage
+            int rgb = ((int) (color.getRed() * 255) << 16) |
+                      ((int) (color.getGreen() * 255) << 8) |
+                      ((int) (color.getBlue() * 255));
+            
+            colorCounts.put(rgb, colorCounts.getOrDefault(rgb, 0) + 1);
         }
-        
-        int width = (int) image.getWidth();
-        int height = (int) image.getHeight();
-        
-        if (width <= 0 || height <= 0) {
-            return Color.rgb(41, 35, 46);
-        }
-        
-        // Use sampling for better performance
-        int sampleSize = 5; // Sample every 5 pixels
-        
-        Map<Integer, Integer> colorCounts = new HashMap<>();
-        PixelReader pixelReader = image.getPixelReader();
-        
-        // Sample pixels from the image
-        for (int y = 0; y < height; y += sampleSize) {
-            for (int x = 0; x < width; x += sampleSize) {
-                Color color = pixelReader.getColor(x, y);
-                
-                // Convert color to an integer for easier storage
-                int rgb = ((int) (color.getRed() * 255) << 16) |
-                          ((int) (color.getGreen() * 255) << 8) |
-                          ((int) (color.getBlue() * 255));
-                
-                colorCounts.put(rgb, colorCounts.getOrDefault(rgb, 0) + 1);
-            }
-        }
-        
-        // Find the most frequent color
-        int dominantRGB = 0;
-        int maxCount = 0;
-        
-        for (Map.Entry<Integer, Integer> entry : colorCounts.entrySet()) {
-            if (entry.getValue() > maxCount) {
-                maxCount = entry.getValue();
-                dominantRGB = entry.getKey();
-            }
-        }
-        
-        // Convert from integer RGB to JavaFX Color
-        int red = (dominantRGB >> 16) & 0xFF;
-        int green = (dominantRGB >> 8) & 0xFF;
-        int blue = dominantRGB & 0xFF;
-        
-        return Color.rgb(red, green, blue);
-    }
-    // Helper method to darken a color
-    private static Color darkenColor(Color color, double factor) {
-        return new Color(
-            Math.max(0, color.getRed() * factor),
-            Math.max(0, color.getGreen() * factor),
-            Math.max(0, color.getBlue() * factor),
-            color.getOpacity()
-        );
     }
     
-    // Helper method to convert Color to hex string
-    private static String toHexString(Color color) {
-        int r = ((int) (color.getRed() * 255)) & 0xFF;
-        int g = ((int) (color.getGreen() * 255)) & 0xFF;
-        int b = ((int) (color.getBlue() * 255)) & 0xFF;
-        
-        return String.format("#%02X%02X%02X", r, g, b);
+    // Find the most frequent color
+    int dominantRGB = 0;
+    int maxCount = 0;
+    
+    for (Map.Entry<Integer, Integer> entry : colorCounts.entrySet()) {
+        if (entry.getValue() > maxCount) {
+            maxCount = entry.getValue();
+            dominantRGB = entry.getKey();
+        }
     }
+    
+    // Convert from integer RGB to JavaFX Color
+    int red = (dominantRGB >> 16) & 0xFF;
+    int green = (dominantRGB >> 8) & 0xFF;
+    int blue = dominantRGB & 0xFF;
+    
+    return Color.rgb(red, green, blue);
+}
+
+// Helper method to darken a color
+private static Color darkenColor(Color color, double factor) {
+    return new Color(
+        Math.max(0, color.getRed() * factor),
+        Math.max(0, color.getGreen() * factor),
+        Math.max(0, color.getBlue() * factor),
+        color.getOpacity()
+    );
+}
+
+// Helper method to convert Color to hex string
+private static String toHexString(Color color) {
+    int r = ((int) (color.getRed() * 255)) & 0xFF;
+    int g = ((int) (color.getGreen() * 255)) & 0xFF;
+    int b = ((int) (color.getBlue() * 255)) & 0xFF;
+    
+    return String.format("#%02X%02X%02X", r, g, b);
+}
 }

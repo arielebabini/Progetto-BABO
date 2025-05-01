@@ -251,7 +251,7 @@ public class AppleBooksClone extends Application {
      */
     private List<Book> fetchBooksFromDB() {
         List<Book> books = new ArrayList<>();
-        String url = "jdbc:postgresql://localhost:5432/BooksReccommender";
+        String url = "jdbc:postgresql://localhost:5432/DataProva";
         String user = "postgres";
         String password = "postgress";
 
