@@ -1,0 +1,170 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[italian]{babel}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{caption}
+\geometry{margin=2.5cm}
+
+\title{Manuale Tecnico\\ \large BookRecommender}
+\author{Babini Ariele}
+\date{\today}
+
+\lstset{
+  language=Java,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  breaklines=true,
+  captionpos=b
+}
+
+\begin{document}
+
+    \maketitle
+    \tableofcontents
+    \newpage
+
+    \section{Introduzione}
+    Questo manuale descrive dettagliatamente la struttura tecnica e progettuale del sistema \textbf{BookRecommender}. Il documento è rivolto a sviluppatori e manutentori del sistema, fornendo una panoramica approfondita delle scelte architetturali, algoritmiche e strutturali adottate.
+
+    \section{Struttura dell'Applicazione}
+    L'applicazione è organizzata secondo un'architettura modulare in pacchetti. I principali componenti sono:
+    \begin{itemize}
+    \item \texttt{controller} – gestione logica dell'applicazione
+    \item \texttt{model} – rappresentazione dei dati (libri, utenti, raccomandazioni)
+    \item \texttt{view} – interfaccia grafica (JavaFX/Swing)
+    \item \texttt{utils} – classi di supporto
+    \end{itemize}
+
+    \begin{figure}[h]
+    \centering
+    \fbox{\rule{0pt}{3cm} \rule{5cm}{0pt}} % placeholder for image
+    % \includegraphics[width=0.9\textwidth]{diagramma_classi.png}
+    \caption{Diagramma delle classi principali (UML)}
+    \end{figure}
+
+    \section{Scelte Progettuali}
+    \subsection{Diagrammi UML}
+    Il sistema è basato su un modello ad oggetti. Di seguito è riportato il diagramma delle classi e delle interazioni principali.
+    \begin{itemize}
+    \item Class Diagram
+    \item Sequence Diagram (per l’uso della raccomandazione)
+    \end{itemize}
+
+    \subsection{Schema ER}
+    Nel caso di uso di una base di dati:
+    \begin{figure}[h]
+    \centering
+    % \includegraphics[width=0.8\textwidth]{schema_er.png}
+    \caption{Schema ER: utenti, libri, raccomandazioni}
+    \end{figure}
+
+    \section{Scelte Architetturali}
+    L’applicazione è costruita secondo il pattern MVC:
+    \begin{itemize}
+    \item Separazione tra logica, presentazione e gestione dati
+    \item Facilità di estensione e testabilità
+    \end{itemize}
+    Altri aspetti architetturali:
+    \begin{itemize}
+    \item Modularità (uso dei package)
+    \item Dipendenze gestite tramite Maven
+    \item JavaFX come UI framework
+    \end{itemize}
+
+    \section{Strutture Dati Utilizzate}
+    Sono state utilizzate strutture dati standard della Java Collection Framework:
+    \begin{itemize}
+    \item \texttt{List<Book>} per collezioni di libri
+    \item \texttt{Map<String, List<Book>>} per raccomandazioni per utente
+    \item \texttt{Set<String>} per evitare duplicati
+    \end{itemize}
+
+    \section{Scelte Algoritmiche}
+    Il sistema di raccomandazione può includere (esempi):
+    \begin{itemize}
+    \item Similarità basata su contenuto (coseno tra vettori di parole chiave)
+    \item Filtraggio collaborativo semplice (similitudine tra utenti)
+    \item Ordinamento per punteggio
+    \end{itemize}
+
+    \begin{lstlisting}[caption={Algoritmo semplificato di raccomandazione}]
+    public List<Book> recommend(String userId) {
+        List<Book> liked = getLikedBooks(userId);
+        Map<Book, Double> scores = new HashMap<>();
+        for (Book book : allBooks) {
+            double score = computeSimilarity(book, liked);
+            scores.put(book, score);
+        }
+        return scores.entrySet().stream()
+            .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+            .limit(5)
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList());
+    }
+    \end{lstlisting}
+
+    \section{Gestione dei File}
+    Il sistema carica/salva file di dati nei seguenti formati:
+    \begin{itemize}
+    \item \texttt{CSV} per dati tabellari (libri, utenti)
+    \item \texttt{JSON} opzionale per configurazioni
+    \end{itemize}
+
+    \begin{verbatim}
+    src/
+    |-- main/
+    |    |-- resources/
+    |         |-- data/
+    |              |-- books.csv
+    |              |-- users.csv
+    \end{verbatim}
+
+    \section{Pattern Utilizzati}
+    \subsection{Singleton}
+    Utilizzato per gestire l'accesso centralizzato al sistema di raccomandazione.
+    \begin{lstlisting}[caption={Pattern Singleton per RecommendationEngine}]
+    public class RecommendationEngine {
+        private static RecommendationEngine instance;
+        private RecommendationEngine() {}
+
+        public static synchronized RecommendationEngine getInstance() {
+            if (instance == null)
+                instance = new RecommendationEngine();
+            return instance;
+        }
+    }
+    \end{lstlisting}
+
+    \subsection{MVC}
+    \begin{itemize}
+    \item Model: classi \texttt{Book}, \texttt{User}
+    \item View: classi GUI JavaFX
+    \item Controller: logica di interazione
+    \end{itemize}
+
+    \section{Documentazione JavaDoc}
+    Tutte le classi sono documentate con JavaDoc. Esempio:
+    \begin{lstlisting}[caption={JavaDoc per classe Book}]
+    /**
+    * Classe che rappresenta un libro.
+    * Contiene titolo, autore, genere e valutazione.
+    */
+    public class Book {
+        private String title;
+        private String author;
+        private String genre;
+        private double rating;
+        // costruttori, metodi getter/setter, ecc.
+    }
+    \end{lstlisting}
+
+    \section{Conclusione}
+    Il sistema BookRecommender è progettato con modularità e chiarezza per facilitarne l’estensione e la manutenzione. La documentazione tecnica, insieme alla JavaDoc generata automaticamente, permette un agevole accesso alle componenti del codice.
+
+\end{document}

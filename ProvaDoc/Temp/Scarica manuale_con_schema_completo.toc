@@ -1,0 +1,17 @@
+\babel@toc {italian}{}\relax 
+\babel@toc {italian}{}\relax 
+\contentsline {section}{\numberline {1}Introduzione}{2}{section.1}%
+\contentsline {section}{\numberline {2}Struttura dell'Applicazione}{2}{section.2}%
+\contentsline {section}{\numberline {3}Scelte Progettuali}{2}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Diagrammi UML}{2}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Schema ER}{2}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Scelte Architetturali}{2}{section.4}%
+\contentsline {section}{\numberline {5}Strutture Dati Utilizzate}{3}{section.5}%
+\contentsline {section}{\numberline {6}Scelte Algoritmiche}{3}{section.6}%
+\contentsline {section}{\numberline {7}Gestione dei File}{3}{section.7}%
+\contentsline {section}{\numberline {8}Pattern Utilizzati}{4}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Singleton}{4}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}MVC}{4}{subsection.8.2}%
+\contentsline {section}{\numberline {9}Documentazione JavaDoc}{4}{section.9}%
+\contentsline {section}{\numberline {10}Schema del Database}{4}{section.10}%
+\contentsline {section}{\numberline {11}Conclusione}{213}{section.11}%
