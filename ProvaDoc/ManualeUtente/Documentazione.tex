@@ -82,9 +82,7 @@
     {\large Versione 1.0}
     
     \vspace{3cm}
-    % \includegraphics[width=0.3\textwidth]{Logoinsubria.PNG} % Sostituire con il logo del progetto
-    % Logo non disponibile: rimuovere o sostituire il file immagine
-    \includegraphics[width=0.3\textwidth]{Logoinsubria.PNG} % Sostituire con il logo del progetto
+    \includegraphics[width=0.3\textwidth]{img/LogoDoc.png}
     
     \vfill
     
@@ -92,7 +90,9 @@
     
     \vspace{1cm}
     
-    {\large Autore: [Nome Autore]}
+    {\large Autore:
+                    \\Babini Ariele
+                    \\Bottaro Federico}
     
 \end{titlepage}
 
@@ -120,9 +120,10 @@ BookRecommender è un sistema avanzato di raccomandazione libri sviluppato in Ja
 
 Il sistema BookRecommender è composto da due componenti principali:
 
-\begin{description}
-    \item[Server] Gestisce la logica di business, il database dei libri e gli algoritmi di raccomandazione
-    \item[Client] Fornisce l'interfaccia utente per interagire con il sistema
+\begin{description}[style=multiline, labelwidth=1.8cm, leftmargin=2.2cm]
+    \item[Server] Gestisce la logica di business, il database dei libri e gli algoritmi di
+    raccomandazione
+    \item[Client] Fornisce l’interfaccia utente per interagire con il sistema
 \end{description}
 
 \section{Requisiti di sistema}
@@ -141,7 +142,7 @@ Prima di procedere con l'installazione, assicurarsi che il sistema soddisfi i se
 \begin{itemize}
     \item Java Runtime Environment (JRE) 11 o superiore
     \item Apache Maven 3.6.0 o superiore
-    \item Sistema operativo: Windows 10, macOS 10.14, Linux Ubuntu 18.04 o superiori
+    \item Sistema operativo: Windows 11, macOS 10.14 o superiori
 \end{itemize}
 
 \begin{infobox}
@@ -201,9 +202,8 @@ db.password=
 # Configurazione algoritmi di raccomandazione
 recommendation.algorithm=collaborative_filtering
 recommendation.max_results=10
-\end{verbatim}
 recommendation.max_results=10
-\end{lstlisting}
+\end{verbatim}
 
 \subsection{Configurazione del client}
 
@@ -216,6 +216,7 @@ server.port=8080
 ui.theme=default
 ui.language=it
 \end{verbatim}
+\begin{lstlisting}
 ui.language=it
 \end{lstlisting}
 
@@ -225,26 +226,57 @@ ui.language=it
 
 \begin{enumerate}
     \item Avviare prima il server, poi il client
-    \item All'avvio del client, verrà richiesto di creare un account o effettuare il login
+    \item All'avvio del client, verrà visualizzata la home page dell'applicazione, dalla quale sarà possibile consultare i libri ed effettuare delle ricerche
+    \item Nella schermata sarà visibile in basso a sinistra l'icona dell'account dalla quale si potrà effettuare il login o registrarsi
     \item Compilare i campi richiesti per la registrazione:
     \begin{itemize}
-        \item Nome utente
+        \item Nome
+        \item Cognome
+        \item Codice Fiscale
         \item Email
+        \item Username
         \item Password
-        \item Preferenze di lettura iniziali
     \end{itemize}
+    \includegraphics[width=0.3\textwidth]{img/registrati.PNG}
 \end{enumerate}
+
+\subsection{Avvi successivi}
+
+Una volta effettuata la prima registrazione si potrà accedere attraverso l'interfaccia di Login inserendo semplicemente mail e password del proprio account.
+\\
+\includegraphics[width=0.3\textwidth]{img/accedi.PNG}
+\\
+La possibilità di effettuare Login automatico attraverso l'utilizzo di account google verrà implementata successivamente.
 
 \subsection{Interfaccia principale}
 
 L'interfaccia principale del client è divisa in diverse sezioni:
 
-\begin{description}
+\begin{description}[style=multiline, labelwidth=4cm, leftmargin=4.4cm]
     \item[Menu principale] Accesso alle funzionalità principali
     \item[Catalogo libri] Visualizzazione e ricerca dei libri disponibili
     \item[Raccomandazioni] Libri consigliati basati sul profilo utente
     \item[Profilo utente] Gestione delle preferenze e dello storico
     \item[Biblioteca personale] Libri salvati e letti dall'utente
+\end{description}
+\textbf{N.B.}
+In base al tipo di utente, registrato o utente occasionale, si possono utilizzare diverse funzionalità.
+\begin{description}
+    \item[Utente non registrato]:
+    \begin{itemize}
+        \item Ricerca Libri
+        \item Visualizzazione valutazioni
+        \item Visualizzazione suggerimenti
+    \end{itemize}
+    \item[Utente registrato]:
+    \begin{itemize}
+        \item Ricerca Libri
+        \item Visualizzazione valutazioni
+        \item Visualizzazione suggerimenti
+        \item Creazione e gestione di librerie personali per salvare i libri
+        \item Inserimento di valutazioni
+        \item Inserimento di suggerimenti
+    \end{itemize}
 \end{description}
 
 \subsection{Ricerca e filtri}
@@ -259,20 +291,25 @@ Per trovare libri specifici:
         \item Autore
         \item Anno di pubblicazione
         \item Valutazione media
-        \item Lingua
     \end{itemize}
     \item Ordinare i risultati per rilevanza, data o valutazione
+    \item Utilizzare la voce (Ricerca avanzata) nel menu per effettuare ricerche per:
+    \begin{itemize}
+        \item Autore
+        \item Titolo
+        \item Autore e Anno
+    \end{itemize}
 \end{enumerate}
+\textbf{N.B.}
+La Ricerca Avanzata restitusice tutti i libri che rispettano i parametri inseriti. (Es. Se nella ricerca per autore viene inserita anche una sola lettera verrano visualizzati tutti i libri il cui autore contiene quella lettera nel nome)
 
 \subsection{Sistema di raccomandazione}
 
 Il sistema offre raccomandazioni basate su:
 
 \begin{itemize}
-    \item Libri precedentemente letti e valutati
-    \item Preferenze di genere indicate nel profilo
-    \item Comportamento di lettura simile ad altri utenti
     \item Trending topics e nuove uscite
+    \item Libri con il maggior numero di valutazioni
 \end{itemize}
 
 \begin{infobox}
@@ -281,36 +318,48 @@ Il sistema offre raccomandazioni basate su:
 
 \section{Funzionalità avanzate}
 
-\subsection{Gestione delle liste}
+\subsection{Gestione delle librerie}
 
-Gli utenti possono creare liste personalizzate:
-
-\begin{itemize}
-    \item Lista "Da leggere"
-    \item Liste per genere o argomento
-    \item Liste condivise con altri utenti
-    \item Export delle liste in formato CSV
-\end{itemize}
-
+Gli utenti possono creare librerie personalizzate che permettono di salvare i libri come meglio si preferisce.
+\\Le librerie possono essere modificate quando si vuole, permettendo di inserire e rimuovere libri.
+\\
+\\\includegraphics[width=0.8\textwidth]{img/librerie}
+\\
+\\I libri possono essere inseriti nelle proprie librerie dalla loro interfaccia semplicemente premendo l'apposito tasto "Aggiungi a libreria".
+\\
+\\\includegraphics[width=0.8\textwidth]{img/SpecLibreria}
+\\
+\\
 \subsection{Sistema di valutazione}
 
 \begin{itemize}
     \item Valutazione con stelle (1-5)
     \item Recensioni testuali
-    \item Tag personalizzati
-    \item Condivisione su social media
 \end{itemize}
+\\\includegraphics[width=0.8\textwidth]{img/valutazione}
+
+\subsection{Inserimento suggerimenti}
+
+Una delle funzionalità avanzate riservate agli utenti registrati è quella che permette di inserire dei suggerimenti per dei libri (max. 3).
+\\L'unico condizione per poter inserire suggerimenti per un libro è quella che quest'ultimo deve trovarsi in una libreria e,
+ovviamente, la medesima cosa vale anche per i libro che si vogliono inserire come suggerimenti.
+\\Per poter inserire un suggerimento basta selezionare il libro in questione e cliccare sul bottone "Consiglia libri".
+\\\includegraphics[width=0.8\textwidth]{img/suggerimenti}
+\\Una volta cliccato si aprirà un pop-up dal quale sarà possibile selezionare i 3 libri che si vogliono suggerire.
+\\\includegraphics[width=0.8\textwidth]{img/interfacciaSugg}
+\\Ovviamente 3 rappresenta il limite massimo, si può aggiungere anche un numero inferiori di libri e, soprattutto, i suggerimenti possono essere modificati quando si vuole eliminando un libro e cambiandolo.
+\\\includegraphics[width=0.8\textwidth]{img/listaSugg}
 
 \subsection{Statistiche personali}
 
-Il sistema fornisce statistiche dettagliate:
+All'interno del pop-up dedicato alla gestione dell'account sono visibili delle statisce personali.
+
+\\Statistiche dettagliate:
 
 \begin{itemize}
-    \item Numero di libri letti per mese/anno
-    \item Generi preferiti
-    \item Autori più letti
-    \item Tempo medio di lettura
-    \item Grafici di progresso
+    \item Numero di libri presenti nelle librerie
+    \item Numero di libri recensiti
+    \item Numero di libri suggeriti
 \end{itemize}
 
 \section{Troubleshooting}
@@ -319,6 +368,7 @@ Il sistema fornisce statistiche dettagliate:
 
 \begin{description}
     \item[Il server non si avvia]
+    \item
     \begin{itemize}
         \item Verificare che la porta 8080 non sia occupata
         \item Controllare i log nella directory \texttt{logs/}
@@ -326,6 +376,7 @@ Il sistema fornisce statistiche dettagliate:
     \end{itemize}
     
     \item[Il client non si connette al server]
+    \item
     \begin{itemize}
         \item Verificare che il server sia in esecuzione
         \item Controllare le impostazioni di rete
@@ -333,6 +384,7 @@ Il sistema fornisce statistiche dettagliate:
     \end{itemize}
     
     \item[Le raccomandazioni non sono accurate]
+    \item
     \begin{itemize}
         \item Valutare più libri per migliorare l'algoritmo
         \item Aggiornare le preferenze nel profilo
@@ -355,7 +407,9 @@ Per abilitare il debug dettagliato, modificare il file \texttt{logback.xml}:
 \begin{lstlisting}[language=xml]
 <logger name="com.bookrecommender" level="DEBUG"/>
 \end{lstlisting}
-
+\
+\
+\
 \section{API e integrazione}
 
 \subsection{API REST del server}
@@ -373,7 +427,7 @@ Endpoint & Metodo & Descrizione \\ \midrule
 /api/users/\{id\}/profile & GET & Profilo utente \\
 /api/ratings & POST & Nuova valutazione \\ \bottomrule
 \end{tabular}
-\caption{Principali endpoint API}
+\caption{Principali endpoint API}\label{tab:table}
 \end{table}
 
 \subsection{Integrazione con servizi esterni}
@@ -436,7 +490,6 @@ bookrecommender/
 |- docs/
 |- logs/
 \- pom.xml
-\end{lstlisting}
 └── pom.xml
 \end{lstlisting}
 
