@@ -1,20 +1,31 @@
 package org.BABO.client.ui;
 
+import javafx.scene.control.Label;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.image.ImageView;
+import javafx.scene.effect.DropShadow;
 import org.BABO.shared.model.Book;
 import org.BABO.client.service.BookService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import javafx.scene.shape.Rectangle;
+import javafx.geometry.Pos;
 
 /**
- * ContentArea corretta per utilizzare PopupManager
- * Risolve i problemi di popup annidati e riferimenti persi
+ * ContentArea aggiornata con supporto completo per ricerca avanzata
+ * e integrazione migliorata con PopupManager
  */
 public class ContentArea {
 
@@ -25,7 +36,7 @@ public class ContentArea {
     private Consumer<Book> bookClickHandler;
     private BookSectionFactory sectionFactory;
     private Consumer<List<Book>> cachedBooksCallback;
-    private ExploreIntegration exploreIntegration; // ✅ AGGIUNTA VARIABILE MANCANTE
+    private ExploreIntegration exploreIntegration;
 
     // Cache per navigazione contestuale
     private List<Book> featuredBooks = new ArrayList<>();
@@ -328,6 +339,9 @@ public class ContentArea {
         }
     }
 
+    /**
+     * ✅ AGGIORNATO: Gestisce le ricerche con supporto per ricerca avanzata
+     */
     public void handleSearch(String query, Consumer<Book> clickHandler) {
         if (query == null || query.trim().isEmpty()) {
             loadInitialContent();
@@ -338,35 +352,586 @@ public class ContentArea {
         searchResults.clear();
         advancedSearchResults.clear();
 
+        System.out.println("🔍 ContentArea handling search: " + query);
+
         // Usa PopupManager handler invece di quello passato
         Consumer<Book> popupManagerHandler = book -> handleBookClickWithPopupManager(book);
 
-        sectionFactory.performSearch(query, content, popupManagerHandler);
+        // ✅ CORREZIONE: Gestisci query speciali per ricerca avanzata
+        if (query.startsWith("author:")) {
+            // Query tipo "author:James year:2002-2003"
+            if (query.contains("year:")) {
+                // Ricerca combinata autore + anno
+                handleYearFilteredSearch(query, popupManagerHandler);
+            } else {
+                // Solo ricerca per autore - estrai solo la parte dopo "author:"
+                String author = query.substring(7).trim();
+                handleAuthorSearch(author, popupManagerHandler);
+            }
+        } else if (query.contains("year:")) {
+            // Ricerca con filtro anno (dovrebbe sempre avere anche author:)
+            handleYearFilteredSearch(query, popupManagerHandler);
+        } else {
+            // Ricerca normale per titolo
+            handleTitleSearch(query, popupManagerHandler);
+        }
     }
 
-    public void showSearchResults(AdvancedSearchPanel.SearchResult searchResult) {
+    /**
+     * ✅ SEMPLIFICATO: Gestisce ricerca per autore (solo autore, senza anno)
+     */
+    private void handleAuthorSearch(String author, Consumer<Book> clickHandler) {
+        System.out.println("👤 Ricerca solo per autore: " + author);
+        performAuthorSearchFallback(author, content, clickHandler);
+    }
+
+    /**
+     * ✅ NUOVO: Gestisce ricerca con filtro anno
+     */
+    private void handleYearFilteredSearch(String query, Consumer<Book> clickHandler) {
+        System.out.println("🔍 Ricerca con filtro anno: " + query);
+
+        // Usa sempre il metodo di fallback per evitare errori
+        performYearSearchFallback(query, content, clickHandler);
+    }
+
+    /**
+     * ✅ NUOVO: Gestisce ricerca normale per titolo
+     */
+    private void handleTitleSearch(String title, Consumer<Book> clickHandler) {
+        System.out.println("🔍 Ricerca per titolo: " + title);
+
+        // Usa il metodo di ricerca esistente
+        sectionFactory.performSearch(title, content, clickHandler);
+    }
+
+    /**
+     * ✅ NUOVO: Metodo di fallback per ricerca per autore
+     */
+    private void performAuthorSearchFallback(String author, VBox content, Consumer<Book> clickHandler) {
+        content.getChildren().clear();
+
+        // Mostra indicatore di caricamento
+        Label loadingLabel = new Label("🔄 Ricerca per autore: " + author + "...");
+        loadingLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        loadingLabel.setTextFill(Color.WHITE);
+        content.getChildren().add(loadingLabel);
+
+        // Ricerca asincrona
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                return bookService.searchBooksByAuthor(author);
+            } catch (Exception e) {
+                System.err.println("❌ Errore ricerca autore: " + e.getMessage());
+                return new ArrayList<Book>();
+            }
+        }).thenAccept(books -> {
+            Platform.runLater(() -> {
+                content.getChildren().clear();
+
+                if (books.isEmpty()) {
+                    Label noResultsLabel = new Label("📚 Nessun libro trovato per l'autore: " + author);
+                    noResultsLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+                    noResultsLabel.setTextFill(Color.LIGHTGRAY);
+                    content.getChildren().add(noResultsLabel);
+                } else {
+                    // Salva risultati nella cache
+                    searchResults = new ArrayList<>(books);
+
+                    // Crea sezione risultati
+                    VBox resultsSection = createSearchResultsSection("Risultati per autore: " + author, books, clickHandler);
+                    content.getChildren().add(resultsSection);
+                }
+            });
+        });
+    }
+
+    /**
+     * ✅ CORRETTO: Metodo di fallback per ricerca con filtro anno
+     */
+    private void performYearSearchFallback(String query, VBox content, Consumer<Book> clickHandler) {
+        content.getChildren().clear();
+
+        // ✅ PARSING CORRETTO della query
+        String author = "";
+        String yearFrom = "";
+        String yearTo = "";
+
+        System.out.println("🔍 Query ricevuta: " + query);
+
+        try {
+            // ✅ MIGLIORATO: Parse della query "author:j year:2000-2004" o "j year:2000-2004"
+            String[] parts = query.split("\\s+");
+
+            for (String part : parts) {
+                if (part.startsWith("author:")) {
+                    author = part.substring(7).trim();
+                } else if (part.startsWith("year:")) {
+                    String yearPart = part.substring(5).trim();
+
+                    if (yearPart.contains("-")) {
+                        // Range di anni: "2000-2004"
+                        String[] years = yearPart.split("-");
+                        if (years.length >= 1) yearFrom = years[0].trim();
+                        if (years.length >= 2) yearTo = years[1].trim();
+                    } else if (yearPart.contains("..")) {
+                        // Range con ".." : "..2004" o "2000.."
+                        String[] years = yearPart.split("\\.\\.");
+                        if (yearPart.startsWith("..")) {
+                            yearTo = years.length > 1 ? years[1].trim() : "";
+                        } else if (yearPart.endsWith("..")) {
+                            yearFrom = years[0].trim();
+                        }
+                    } else {
+                        // Anno singolo
+                        yearFrom = yearPart;
+                        yearTo = yearPart;
+                    }
+                } else if (author.isEmpty() && !part.startsWith("year:")) {
+                    // ✅ NUOVO: Se non abbiamo trovato "author:" esplicito,
+                    // considera la prima parte come nome autore
+                    author = part.trim();
+                }
+            }
+
+            // ✅ FALLBACK: Se ancora non abbiamo autore, prova a estrarlo diversamente
+            if (author.isEmpty() && query.contains("author:")) {
+                int authorIndex = query.indexOf("author:");
+                int yearIndex = query.indexOf("year:");
+
+                if (yearIndex > authorIndex) {
+                    author = query.substring(authorIndex + 7, yearIndex).trim();
+                } else {
+                    author = query.substring(authorIndex + 7).trim();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Errore nel parsing della query: " + e.getMessage());
+        }
+
+        System.out.println("📊 Parametri estratti:");
+        System.out.println("   Autore: '" + author + "'");
+        System.out.println("   Anno da: '" + yearFrom + "'");
+        System.out.println("   Anno a: '" + yearTo + "'");
+
+        // Validazione parametri
+        if (author.isEmpty()) {
+            content.getChildren().add(createErrorLabel("❌ Parametro autore mancante nella query"));
+            return;
+        }
+
+        // Mostra indicatore di caricamento
+        String searchDescription = buildSearchDescription(author, yearFrom, yearTo);
+        Label loadingLabel = new Label("🔄 " + searchDescription + "...");
+        loadingLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        loadingLabel.setTextFill(Color.WHITE);
+        content.getChildren().add(loadingLabel);
+
+        final String finalAuthor = author;
+        final String finalYearFrom = yearFrom;
+        final String finalYearTo = yearTo;
+        final String finalDescription = searchDescription;
+
+        // ✅ RICERCA MIGLIORATA - prova diverse strategie
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                List<Book> results = new ArrayList<>();
+
+                if (!finalYearFrom.isEmpty() || !finalYearTo.isEmpty()) {
+                    System.out.println("🔍 Ricerca con filtro anno...");
+
+                    if (!finalYearFrom.isEmpty() && !finalYearTo.isEmpty() && !finalYearFrom.equals(finalYearTo)) {
+                        // Range di anni - cerca per ogni anno nel range
+                        try {
+                            int fromYear = Integer.parseInt(finalYearFrom);
+                            int toYear = Integer.parseInt(finalYearTo);
+
+                            System.out.println("📅 Ricerca range anni: " + fromYear + " - " + toYear);
+
+                            // Cerca per ogni anno nel range
+                            for (int year = fromYear; year <= toYear && year <= fromYear + 10; year++) {
+                                List<Book> yearResults = bookService.searchBooksByAuthorAndYear(finalAuthor, String.valueOf(year));
+                                System.out.println("   Anno " + year + ": " + yearResults.size() + " risultati");
+
+                                for (Book book : yearResults) {
+                                    // Evita duplicati
+                                    if (!results.stream().anyMatch(b ->
+                                            Objects.equals(b.getTitle(), book.getTitle()) &&
+                                                    Objects.equals(b.getAuthor(), book.getAuthor()))) {
+                                        results.add(book);
+                                    }
+                                }
+                            }
+                        } catch (NumberFormatException e) {
+                            System.err.println("❌ Errore parsing anni: " + e.getMessage());
+                            // Fallback: cerca solo per autore
+                            results = bookService.searchBooksByAuthor(finalAuthor);
+                        }
+                    } else {
+                        // Anno singolo
+                        String year = !finalYearFrom.isEmpty() ? finalYearFrom : finalYearTo;
+                        System.out.println("📅 Ricerca anno singolo: " + year);
+                        results = bookService.searchBooksByAuthorAndYear(finalAuthor, year);
+                    }
+                } else {
+                    // Solo ricerca per autore
+                    System.out.println("👤 Ricerca solo per autore: " + finalAuthor);
+                    results = bookService.searchBooksByAuthor(finalAuthor);
+                }
+
+                System.out.println("✅ Ricerca completata: " + results.size() + " risultati totali");
+                return results;
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore nella ricerca: " + e.getMessage());
+                e.printStackTrace();
+
+                // ✅ FALLBACK: Se la ricerca combinata fallisce, prova solo per autore
+                try {
+                    System.out.println("🔄 Tentativo fallback: ricerca solo per autore");
+                    return bookService.searchBooksByAuthor(finalAuthor);
+                } catch (Exception fallbackError) {
+                    System.err.println("❌ Anche il fallback è fallito: " + fallbackError.getMessage());
+                    return new ArrayList<Book>();
+                }
+            }
+        }).thenAccept(books -> {
+            Platform.runLater(() -> {
+                content.getChildren().clear();
+
+                if (books.isEmpty()) {
+                    Label noResultsLabel = new Label("📚 Nessun libro trovato per: " + finalDescription);
+                    noResultsLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+                    noResultsLabel.setTextFill(Color.LIGHTGRAY);
+
+                    // Suggerimento per ampliare la ricerca
+                    Label suggestionLabel = new Label("💡 Prova a cercare solo l'autore: author:" + finalAuthor);
+                    suggestionLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+                    suggestionLabel.setTextFill(Color.web("#888888"));
+                    suggestionLabel.setWrapText(true);
+
+                    VBox noResultsContainer = new VBox(10);
+                    noResultsContainer.setAlignment(Pos.CENTER);
+                    noResultsContainer.getChildren().addAll(noResultsLabel, suggestionLabel);
+
+                    content.getChildren().add(noResultsContainer);
+                } else {
+                    // ✅ FILTRA RISULTATI per anno se specificato (controllo locale aggiuntivo)
+                    List<Book> filteredBooks = filterBooksByYear(books, finalYearFrom, finalYearTo);
+
+                    // Salva risultati nella cache
+                    searchResults = new ArrayList<>(filteredBooks);
+
+                    // Crea sezione risultati con il nuovo layout
+                    VBox resultsSection = createSearchResultsSection(finalDescription, filteredBooks, clickHandler);
+                    content.getChildren().add(resultsSection);
+
+                    System.out.println("✅ Mostrati " + filteredBooks.size() + " risultati filtrati");
+                }
+            });
+        }).exceptionally(throwable -> {
+            Platform.runLater(() -> {
+                content.getChildren().clear();
+                Label errorLabel = new Label("❌ Errore durante la ricerca: " + throwable.getMessage());
+                errorLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+                errorLabel.setTextFill(Color.web("#ff6b6b"));
+                content.getChildren().add(errorLabel);
+            });
+            return null;
+        });
+    }
+
+    /**
+     * ✅ NUOVO: Filtra localmente i libri per anno (controllo aggiuntivo)
+     */
+    private List<Book> filterBooksByYear(List<Book> books, String yearFrom, String yearTo) {
+        if ((yearFrom.isEmpty() && yearTo.isEmpty()) || books.isEmpty()) {
+            return books; // Nessun filtro per anno
+        }
+
+        List<Book> filtered = new ArrayList<>();
+
+        for (Book book : books) {
+            if (book.getPublishYear() == null || book.getPublishYear().trim().isEmpty()) {
+                continue; // Salta libri senza anno
+            }
+
+            try {
+                int bookYear = Integer.parseInt(book.getPublishYear().trim());
+                boolean matches = true;
+
+                if (!yearFrom.isEmpty()) {
+                    int fromYear = Integer.parseInt(yearFrom);
+                    if (bookYear < fromYear) matches = false;
+                }
+
+                if (!yearTo.isEmpty()) {
+                    int toYear = Integer.parseInt(yearTo);
+                    if (bookYear > toYear) matches = false;
+                }
+
+                if (matches) {
+                    filtered.add(book);
+                }
+
+            } catch (NumberFormatException e) {
+                // Se l'anno non è parsabile, includi il libro comunque
+                filtered.add(book);
+            }
+        }
+
+        System.out.println("🔍 Filtro locale: " + books.size() + " → " + filtered.size() + " libri");
+        return filtered;
+    }
+
+    /**
+     * ✅ NUOVO: Costruisce descrizione della ricerca
+     */
+    private String buildSearchDescription(String author, String yearFrom, String yearTo) {
+        StringBuilder desc = new StringBuilder("Ricerca per autore: " + author);
+
+        if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
+            if (!yearFrom.isEmpty() && !yearTo.isEmpty() && !yearFrom.equals(yearTo)) {
+                desc.append(" (dal ").append(yearFrom).append(" al ").append(yearTo).append(")");
+            } else if (!yearFrom.isEmpty()) {
+                desc.append(" (anno ").append(yearFrom).append(")");
+            } else {
+                desc.append(" (fino al ").append(yearTo).append(")");
+            }
+        }
+
+        return desc.toString();
+    }
+
+    /**
+     * ✅ NUOVO: Crea label di errore
+     */
+    private Label createErrorLabel(String message) {
+        Label errorLabel = new Label(message);
+        errorLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        errorLabel.setTextFill(Color.web("#ff6b6b"));
+        return errorLabel;
+    }
+
+    /**
+     * ✅ AGGIORNATO: Layout identico alla ricerca per titolo originale
+     */
+    private VBox createSearchResultsSection(String title, List<Book> books, Consumer<Book> clickHandler) {
+        VBox section = new VBox(20);
+        section.setPadding(new Insets(30, 30, 30, 30));
+        section.setStyle("-fx-background-color: #1e1e1e;");
+
+        // Titolo sezione
+        Label titleLabel = new Label(title);
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
+        titleLabel.setTextFill(Color.WHITE);
+
+        // Contatore risultati
+        Label countLabel = new Label("(" + books.size() + ")");
+        countLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        countLabel.setTextFill(Color.LIGHTGRAY);
+
+        // ✅ LAYOUT A GRIGLIA come nella ricerca per titolo originale
+        GridPane booksGrid = new GridPane();
+        booksGrid.setHgap(20); // Spazio orizzontale
+        booksGrid.setVgap(25); // Spazio verticale
+        booksGrid.setPadding(new Insets(20, 0, 0, 0));
+
+        // ✅ COLONNE FISSE come nell'originale
+        int columns = 6; // Come nella prima immagine
+
+        for (int i = 0; i < books.size(); i++) {
+            Book book = books.get(i);
+            VBox bookCard = createOriginalStyleBookCard(book, clickHandler);
+
+            int col = i % columns;
+            int row = i / columns;
+            booksGrid.add(bookCard, col, row);
+        }
+
+        section.getChildren().addAll(titleLabel, countLabel, booksGrid);
+        return section;
+    }
+
+    /**
+     * ✅ NUOVO: Card libro identica allo stile originale della ricerca per titolo
+     */
+    private VBox createOriginalStyleBookCard(Book book, Consumer<Book> clickHandler) {
+        VBox card = new VBox(8);
+        card.setAlignment(Pos.TOP_CENTER);
+        card.setStyle("-fx-cursor: hand;");
+        card.setPrefWidth(160); // Larghezza come nell'originale
+        card.setMaxWidth(160);
+
+        // ✅ ASSICURATI che il libro abbia un nome file immagine locale
+        if (book.getImageUrl() == null || book.getImageUrl().trim().isEmpty()) {
+            // Genera nome file basato su ISBN o titolo
+            String imageFileName = generateImageFileName(book);
+            book.setImageUrl(imageFileName);
+        }
+
+        // ✅ COPERTINA REALE usando ImageUtils come nella home
+        StackPane coverContainer = new StackPane();
+        coverContainer.setPrefWidth(140);
+        coverContainer.setPrefHeight(190);
+        coverContainer.setMaxWidth(140);
+        coverContainer.setMaxHeight(190);
+
+        // ✅ USA ImageUtils per caricare l'immagine reale
+        ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 140, 190);
+
+        // Clip con angoli arrotondati
+        Rectangle clip = new Rectangle(140, 190);
+        clip.setArcWidth(8);
+        clip.setArcHeight(8);
+        cover.setClip(clip);
+
+        // Ombra per effetto profondità
+        DropShadow shadow = new DropShadow();
+        shadow.setRadius(8);
+        shadow.setColor(Color.BLACK.deriveColor(0, 1, 1, 0.3));
+        cover.setEffect(shadow);
+
+        coverContainer.getChildren().add(cover);
+
+        // ✅ TESTO sotto la copertina come nell'originale
+        VBox textContainer = new VBox(3);
+        textContainer.setAlignment(Pos.TOP_CENTER);
+        textContainer.setMaxWidth(140);
+
+        // Anno in piccolo sopra il titolo (se disponibile)
+        if (book.getPublishYear() != null && !book.getPublishYear().isEmpty()) {
+            Label yearLabel = new Label("(" + book.getPublishYear() + ")");
+            yearLabel.setFont(Font.font("System", FontWeight.NORMAL, 10));
+            yearLabel.setTextFill(Color.web("#888888"));
+            yearLabel.setAlignment(Pos.CENTER);
+            textContainer.getChildren().add(yearLabel);
+        }
+
+        // Titolo
+        Label titleLabel = new Label(book.getTitle());
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(140);
+        titleLabel.setAlignment(Pos.TOP_CENTER);
+        titleLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+        // Autore
+        Label authorLabel = new Label(book.getAuthor());
+        authorLabel.setFont(Font.font("System", FontWeight.NORMAL, 11));
+        authorLabel.setTextFill(Color.web("#CCCCCC"));
+        authorLabel.setWrapText(true);
+        authorLabel.setMaxWidth(140);
+        authorLabel.setAlignment(Pos.TOP_CENTER);
+        authorLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+
+        textContainer.getChildren().addAll(titleLabel, authorLabel);
+
+        card.getChildren().addAll(coverContainer, textContainer);
+
+        // Click handler
+        card.setOnMouseClicked(e -> {
+            if (clickHandler != null) {
+                clickHandler.accept(book);
+            }
+        });
+
+        // ✅ EFFETTI HOVER migliorati con scala dell'immagine
+        card.setOnMouseEntered(e -> {
+            // Effetto glow sulla copertina
+            DropShadow glowShadow = new DropShadow();
+            glowShadow.setRadius(15);
+            glowShadow.setColor(Color.WHITE.deriveColor(0, 1, 1, 0.4));
+            cover.setEffect(glowShadow);
+
+            // Scala leggermente la card
+            card.setStyle("-fx-cursor: hand; -fx-scale-x: 1.05; -fx-scale-y: 1.05;");
+        });
+
+        card.setOnMouseExited(e -> {
+            // Ripristina ombra normale
+            DropShadow normalShadow = new DropShadow();
+            normalShadow.setRadius(8);
+            normalShadow.setColor(Color.BLACK.deriveColor(0, 1, 1, 0.3));
+            cover.setEffect(normalShadow);
+
+            // Ripristina scala normale
+            card.setStyle("-fx-cursor: hand; -fx-scale-x: 1.0; -fx-scale-y: 1.0;");
+        });
+
+        return card;
+    }
+
+    /**
+     * ✅ NUOVO: Genera nome file immagine basato su ISBN o titolo
+     */
+    private String generateImageFileName(Book book) {
+        if (book.getIsbn() != null && !book.getIsbn().trim().isEmpty()) {
+            // Pulisci l'ISBN e usa quello
+            String cleanIsbn = book.getIsbn().replaceAll("[^a-zA-Z0-9]", "");
+            if (cleanIsbn.length() > 0) {
+                return cleanIsbn + ".jpg";
+            }
+        }
+
+        if (book.getTitle() != null && !book.getTitle().trim().isEmpty()) {
+            // Pulisci il titolo e usa quello
+            String cleanTitle = book.getTitle().replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+            if (cleanTitle.length() > 20) {
+                cleanTitle = cleanTitle.substring(0, 20); // Limita lunghezza
+            }
+            if (cleanTitle.length() > 0) {
+                return cleanTitle + ".jpg";
+            }
+        }
+
+        return "placeholder.jpg";
+    }
+
+    /**
+     * ✅ AGGIORNATO: Gestisce i risultati della ricerca avanzata
+     */
+    public void showAdvancedSearchResults(AdvancedSearchPanel.SearchResult searchResult) {
         if (content == null || searchResult == null) {
             return;
         }
 
+        System.out.println("🎯 Mostrando risultati ricerca avanzata: " + searchResult.getBooks().size() + " libri");
+
         content.getChildren().clear();
 
-        // Salva risultati ricerca avanzata
-        advancedSearchResults = new ArrayList<>(searchResult.getBooks());
-        searchResults.clear(); // Pulisci ricerca normale
-
-        System.out.println("🎯 Advanced search results salvati: " + advancedSearchResults.size() + " libri");
+        // Salva risultati ricerca avanzata nella cache
+        if (searchResult.getBooks() != null) {
+            advancedSearchResults = new ArrayList<>(searchResult.getBooks());
+            searchResults.clear(); // Pulisci ricerca normale
+        }
 
         // Usa PopupManager handler
         Consumer<Book> popupManagerHandler = book -> handleBookClickWithPopupManager(book);
 
-        VBox resultsSection = sectionFactory.createAdvancedSearchResultsSection(
+        // Usa sempre il metodo di fallback per evitare errori
+        VBox resultsSection = createAdvancedSearchResultsSection(
                 searchResult.getDescription(),
                 searchResult.getBooks(),
                 popupManagerHandler
         );
-
         content.getChildren().add(resultsSection);
+    }
+
+    /**
+     * ✅ AGGIORNATO: Crea sezione risultati ricerca avanzata UNIFICATA
+     */
+    private VBox createAdvancedSearchResultsSection(String description, List<Book> books, Consumer<Book> clickHandler) {
+        // ✅ USA LO STESSO LAYOUT della ricerca normale
+        return createSearchResultsSection(description, books, clickHandler);
+    }
+
+    /**
+     * ✅ COMPATIBILITÀ: Versione alternativa per backward compatibility
+     */
+    public void showSearchResults(AdvancedSearchPanel.SearchResult searchResult) {
+        showAdvancedSearchResults(searchResult);
     }
 
     /**
@@ -510,20 +1075,18 @@ public class ContentArea {
         loadInitialContent();
     }
 
-    // In ContentArea.java, sostituisci il metodo showExplore() con questo:
-
     private void showExplore() {
         System.out.println("🔍 Caricamento sezione Esplora");
 
         if (exploreIntegration != null) {
             try {
-                // Pulisci il contenuto corrente (NON l'intero layout!)
+                // Pulisci il contenuto corrente
                 content.getChildren().clear();
 
                 // Crea la vista Esplora
                 ScrollPane exploreView = exploreIntegration.createExploreView();
 
-                // IMPORTANTE: Aggiungi la vista al contenuto VBox, non sostituire tutto
+                // Crea container per la vista Esplora
                 VBox exploreContainer = new VBox();
                 exploreContainer.setStyle("-fx-background-color: #1a1a1c;");
 
@@ -548,23 +1111,6 @@ public class ContentArea {
         } else {
             System.err.println("❌ ExploreIntegration non inizializzato");
             showPlaceholderSection("🔍 Esplora", "Sezione Esplora non disponibile");
-        }
-    }
-
-    /**
-     * Trova il root container per sostituire le viste
-     */
-    private StackPane findRootContainer() {
-        try {
-            if (content != null && content.getScene() != null) {
-                javafx.scene.Node root = content.getScene().getRoot();
-                if (root instanceof StackPane) {
-                    return (StackPane) root;
-                }
-            }
-            return null;
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -596,27 +1142,44 @@ public class ContentArea {
         if (content != null) {
             content.getChildren().clear();
 
-            javafx.scene.layout.VBox placeholderContainer = new javafx.scene.layout.VBox(20);
+            VBox placeholderContainer = new VBox(20);
             placeholderContainer.setPadding(new Insets(60));
-            placeholderContainer.setAlignment(javafx.geometry.Pos.CENTER);
+            placeholderContainer.setAlignment(Pos.CENTER);
             placeholderContainer.setStyle("-fx-background-color: #1e1e1e;");
 
-            javafx.scene.control.Label titleLabel = new javafx.scene.control.Label(title);
-            titleLabel.setFont(javafx.scene.text.Font.font("System", javafx.scene.text.FontWeight.BOLD, 24));
-            titleLabel.setTextFill(javafx.scene.paint.Color.WHITE);
+            Label titleLabel = new Label(title);
+            titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
+            titleLabel.setTextFill(Color.WHITE);
 
-            javafx.scene.control.Label descLabel = new javafx.scene.control.Label(description);
-            descLabel.setFont(javafx.scene.text.Font.font("System", javafx.scene.text.FontWeight.NORMAL, 16));
-            descLabel.setTextFill(javafx.scene.paint.Color.LIGHTGRAY);
+            Label descLabel = new Label(description);
+            descLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+            descLabel.setTextFill(Color.LIGHTGRAY);
             descLabel.setWrapText(true);
-            descLabel.setAlignment(javafx.geometry.Pos.CENTER);
+            descLabel.setAlignment(Pos.CENTER);
 
-            javafx.scene.control.Label comingSoonLabel = new javafx.scene.control.Label("🚧 In arrivo...");
-            comingSoonLabel.setFont(javafx.scene.text.Font.font("System", javafx.scene.text.FontWeight.NORMAL, 14));
-            comingSoonLabel.setTextFill(javafx.scene.paint.Color.ORANGE);
+            Label comingSoonLabel = new Label("🚧 In arrivo...");
+            comingSoonLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+            comingSoonLabel.setTextFill(Color.ORANGE);
 
             placeholderContainer.getChildren().addAll(titleLabel, descLabel, comingSoonLabel);
             content.getChildren().add(placeholderContainer);
+        }
+    }
+
+    /**
+     * Trova il root container per sostituire le viste
+     */
+    private StackPane findRootContainer() {
+        try {
+            if (content != null && content.getScene() != null) {
+                javafx.scene.Node root = content.getScene().getRoot();
+                if (root instanceof StackPane) {
+                    return (StackPane) root;
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
         }
     }
 

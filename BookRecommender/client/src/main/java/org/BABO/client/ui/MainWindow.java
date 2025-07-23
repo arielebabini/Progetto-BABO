@@ -14,12 +14,11 @@ import javafx.scene.layout.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
-import javafx.scene.input.KeyCode;
 
 /**
  * Gestisce la finestra principale dell'applicazione
  * Coordina tutti i componenti UI principali
- * AGGIORNATO: Con integrazione PopupManager completa e sezione Esplora
+ * AGGIORNATO: Con integrazione completa ricerca avanzata e PopupManager
  */
 public class MainWindow {
 
@@ -89,10 +88,13 @@ public class MainWindow {
 
         // Crea i componenti principali
         sidebar = new Sidebar(serverAvailable, authManager, this);
-        header = new Header();
+
+        // ✅ CAMBIAMENTO PRINCIPALE: Passa BookService e mainRoot all'Header
+        header = new Header(bookService, mainRoot);
+
         contentArea = new ContentArea(bookService, serverAvailable, authManager);
 
-        // ✅ HANDLER PER I CLICK SUI LIBRI - USA POPUP MANAGER
+        // ✅ Handler per i click sui libri - USA POPUP MANAGER
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via MainWindow: " + selectedBook.getTitle());
             AppleBooksClient.openBookDetails(
@@ -102,8 +104,9 @@ public class MainWindow {
             );
         };
 
-        // Configura la ricerca
+        // ✅ MODIFICA: Configura la ricerca con supporto per ricerca avanzata
         header.setSearchHandler((query) -> {
+            System.out.println("🔍 Ricerca dal header: " + query);
             contentArea.handleSearch(query, bookClickHandler);
         });
 
@@ -121,6 +124,12 @@ public class MainWindow {
         centerBox.getChildren().addAll(header.createHeader(), contentArea.createContentArea());
         appRoot.setCenter(centerBox);
 
+        // ✅ IMPORTANTE: Inizializza PopupManager DOPO aver creato mainRoot
+        Platform.runLater(() -> {
+            PopupManager.getInstance().initialize(mainRoot);
+            System.out.println("✅ PopupManager inizializzato con mainRoot");
+        });
+
         // Carica il contenuto DOPO aver creato l'area contenuti
         contentArea.loadInitialContent();
 
@@ -137,6 +146,11 @@ public class MainWindow {
 
         // ✅ USA POPUP MANAGER per chiudere i popup
         PopupManager.getInstance().closeAllPopups();
+
+        // ✅ NUOVO: Chiudi anche la ricerca avanzata se aperta
+        if (header != null) {
+            header.closeAdvancedSearch();
+        }
 
         // ✅ IMPORTANTE: Forza il ritorno alla vista home nel ContentArea
         if (contentArea != null) {
@@ -168,7 +182,33 @@ public class MainWindow {
         }
     }
 
+    /**
+     * ✅ AGGIORNATO: Metodo ricerca avanzata ora delega all'Header
+     */
     public void showAdvancedSearch() {
+        System.out.println("🔍 Richiesta ricerca avanzata - delegata all'Header");
+
+        if (header != null && header.isFullyInitialized()) {
+            // L'Header gestisce già l'apertura della ricerca avanzata tramite il pulsante ⚙️
+            System.out.println("💡 La ricerca avanzata è disponibile tramite il pulsante ⚙️ nell'header");
+
+            // Se necessario, potresti forzare l'apertura programmaticamente
+            // ma per ora lasciamo che l'utente usi il pulsante nell'interfaccia
+
+        } else {
+            System.err.println("❌ Header non inizializzato correttamente");
+
+            // Fallback: usa il vecchio metodo se l'Header non funziona
+            showAdvancedSearchFallback();
+        }
+    }
+
+    /**
+     * ✅ NUOVO: Metodo fallback per ricerca avanzata
+     */
+    private void showAdvancedSearchFallback() {
+        System.out.println("🔄 Uso fallback per ricerca avanzata");
+
         AdvancedSearchPanel searchPanel = new AdvancedSearchPanel(bookService);
 
         // Configura il callback per i risultati di ricerca
@@ -177,14 +217,16 @@ public class MainWindow {
             PopupManager.getInstance().closeAllPopups();
 
             // Mostra i risultati nell'area contenuti
-            contentArea.showSearchResults(searchResult);
+            if (contentArea != null) {
+                contentArea.showAdvancedSearchResults(searchResult);
+            }
         });
 
         // Crea overlay
         StackPane overlay = new StackPane();
         overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
         overlay.getChildren().add(searchPanel);
-        StackPane.setAlignment(searchPanel, javafx.geometry.Pos.CENTER);
+        StackPane.setAlignment(searchPanel, Pos.CENTER);
 
         // ✅ CHIUDI tramite PopupManager cliccando sullo sfondo
         overlay.setOnMouseClicked(e -> {
@@ -196,13 +238,22 @@ public class MainWindow {
         // Previeni chiusura cliccando sul pannello
         searchPanel.setOnMouseClicked(e -> e.consume());
 
+        // ESC per chiudere
+        overlay.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                PopupManager.getInstance().closeAllPopups();
+            }
+        });
+
+        overlay.setFocusTraversable(true);
+        Platform.runLater(() -> overlay.requestFocus());
+
         mainRoot.getChildren().add(overlay);
-        System.out.println("🔍 Pannello ricerca avanzata aperto");
+        System.out.println("🔍 Pannello ricerca avanzata fallback aperto");
     }
 
     /**
-     * METODO AGGIORNATO: showLibraryPanel con gestione corretta PopupManager
-     * Sostituisce il metodo esistente in MainWindow.java
+     * ✅ METODO AGGIORNATO: showLibraryPanel con gestione corretta PopupManager
      */
     public void showLibraryPanel() {
         if (!authManager.isAuthenticated()) {
@@ -213,53 +264,78 @@ public class MainWindow {
 
         String username = authManager.getCurrentUsername();
 
-        // CORRETTO: Ottieni AuthService dall'AuthenticationManager
-        LibraryPanel libraryPanel = new LibraryPanel(username, authManager.getAuthService());
+        try {
+            // Crea il pannello librerie
+            LibraryPanel libraryPanel = new LibraryPanel(username, authManager.getAuthService());
 
-        // CORRETTO: Usa setOnClosePanel invece di setOnClose
-        libraryPanel.setOnClosePanel(() -> {
-            PopupManager.getInstance().closeAllPopups();
-            contentArea.loadInitialContent();
-            System.out.println("🚪 Pannello librerie chiuso");
-        });
-
-        // Configura callback per click sui libri
-        libraryPanel.setOnBookClick(selectedBook -> {
-            System.out.println("📖 Click libro da libreria: " + selectedBook.getTitle());
-            AppleBooksClient.openBookDetails(
-                    selectedBook,
-                    cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
-                    authManager
-            );
-        });
-
-        // Crea overlay manualmente
-        StackPane overlay = new StackPane();
-        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
-        overlay.getChildren().add(libraryPanel);
-        StackPane.setAlignment(libraryPanel, javafx.geometry.Pos.CENTER);
-
-        // Chiudi cliccando sullo sfondo
-        overlay.setOnMouseClicked(e -> {
-            if (e.getTarget() == overlay) {
+            // Configura callback per chiusura
+            libraryPanel.setOnClosePanel(() -> {
                 PopupManager.getInstance().closeAllPopups();
-                contentArea.loadInitialContent();
-            }
-        });
-
-        // Previeni chiusura cliccando sul pannello
-        libraryPanel.setOnMouseClicked(e -> e.consume());
-
-        // CORRETTO: Usa showCustomPopup con 4 parametri
-        PopupManager.getInstance().showCustomPopup(
-                "📚 Le Tue Librerie",                    // title
-                "Gestisci la tua collezione personale",  // subtitle
-                overlay,                                  // content
-                () -> {                                   // onClose callback
+                if (contentArea != null) {
                     contentArea.loadInitialContent();
-                    System.out.println("🚪 Pannello librerie chiuso");
                 }
-        );
+                System.out.println("🚪 Pannello librerie chiuso");
+            });
+
+            // Configura callback per click sui libri
+            libraryPanel.setOnBookClick(selectedBook -> {
+                System.out.println("📖 Click libro da libreria: " + selectedBook.getTitle());
+                AppleBooksClient.openBookDetails(
+                        selectedBook,
+                        cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
+                        authManager
+                );
+            });
+
+            // Crea overlay
+            StackPane overlay = new StackPane();
+            overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
+            overlay.getChildren().add(libraryPanel);
+            StackPane.setAlignment(libraryPanel, Pos.CENTER);
+
+            // Chiudi cliccando sullo sfondo
+            overlay.setOnMouseClicked(e -> {
+                if (e.getTarget() == overlay) {
+                    PopupManager.getInstance().closeAllPopups();
+                    if (contentArea != null) {
+                        contentArea.loadInitialContent();
+                    }
+                }
+            });
+
+            // Previeni chiusura cliccando sul pannello
+            libraryPanel.setOnMouseClicked(e -> e.consume());
+
+            // ESC per chiudere
+            overlay.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.ESCAPE) {
+                    PopupManager.getInstance().closeAllPopups();
+                    if (contentArea != null) {
+                        contentArea.loadInitialContent();
+                    }
+                }
+            });
+
+            overlay.setFocusTraversable(true);
+            Platform.runLater(() -> overlay.requestFocus());
+
+            // Usa PopupManager per gestire il popup
+            PopupManager.getInstance().showCustomPopup(
+                    "library_panel",
+                    "popup",
+                    overlay,
+                    () -> {
+                        if (contentArea != null) {
+                            contentArea.loadInitialContent();
+                        }
+                        System.out.println("🚪 Pannello librerie chiuso via PopupManager");
+                    }
+            );
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nell'apertura del pannello librerie: " + e.getMessage());
+            showAlert("❌ Errore", "Impossibile aprire il pannello librerie: " + e.getMessage());
+        }
     }
 
     public void showBookReader(Book book) {
@@ -282,8 +358,24 @@ public class MainWindow {
         // Styling dell'alert
         DialogPane dialogPane = readerAlert.getDialogPane();
         dialogPane.setStyle("-fx-background-color: #2c2c2e;");
-        dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
-        dialogPane.lookup(".header-panel .label").setStyle("-fx-text-fill: white;");
+
+        // Applica stile ai label se esistono
+        try {
+            dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
+            dialogPane.lookup(".header-panel .label").setStyle("-fx-text-fill: white;");
+        } catch (Exception e) {
+            // Ignora errori di styling
+        }
+
+        // Imposta icona se disponibile
+        readerAlert.setOnShowing(e -> {
+            try {
+                Stage alertStage = (Stage) readerAlert.getDialogPane().getScene().getWindow();
+                IconUtils.setStageIcon(alertStage);
+            } catch (Exception ex) {
+                // Ignora errori di icona
+            }
+        });
 
         readerAlert.showAndWait();
     }
@@ -308,18 +400,93 @@ public class MainWindow {
     }
 
     private void showAlert(String title, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle(title);
+            alert.setHeaderText(null);
+            alert.setContentText(message);
 
-        // AGGIUNTO: Imposta icona per l'alert
-        alert.setOnShowing(e -> {
-            Stage alertStage = (Stage) alert.getDialogPane().getScene().getWindow();
-            IconUtils.setStageIcon(alertStage);
+            // Styling per tema scuro
+            DialogPane dialogPane = alert.getDialogPane();
+            dialogPane.setStyle("-fx-background-color: #2c2c2e;");
+
+            try {
+                dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
+            } catch (Exception e) {
+                // Ignora errori di styling
+            }
+
+            // Imposta icona se disponibile
+            alert.setOnShowing(e -> {
+                try {
+                    Stage alertStage = (Stage) alert.getDialogPane().getScene().getWindow();
+                    IconUtils.setStageIcon(alertStage);
+                } catch (Exception ex) {
+                    // Ignora errori di icona
+                }
+            });
+
+            alert.showAndWait();
         });
+    }
 
-        alert.showAndWait();
+    /**
+     * ✅ NUOVO: Debug completo dello stato dell'applicazione
+     */
+    public void debugFullState() {
+        System.out.println("🔍 ===== MAINWINDOW FULL DEBUG =====");
+        System.out.println("MainRoot: " + (mainRoot != null ? "✅ OK" : "❌ NULL"));
+        System.out.println("BookService: " + (bookService != null ? "✅ OK" : "❌ NULL"));
+        System.out.println("AuthManager: " + (authManager != null ? "✅ OK" : "❌ NULL"));
+        System.out.println("ServerAvailable: " + serverAvailable);
+        System.out.println("CachedBooks: " + cachedBooks.size());
+
+        if (header != null) {
+            System.out.println("📍 HEADER STATE:");
+            header.debugState();
+        } else {
+            System.out.println("📍 HEADER: ❌ NULL");
+        }
+
+        if (contentArea != null) {
+            System.out.println("📍 CONTENT AREA STATE:");
+            contentArea.debugCacheState();
+        } else {
+            System.out.println("📍 CONTENT AREA: ❌ NULL");
+        }
+
+        PopupManager.getInstance().debugFullState();
+        System.out.println("===================================");
+    }
+
+    /**
+     * ✅ NUOVO: Verifica se la ricerca avanzata è aperta
+     */
+    public boolean isAdvancedSearchOpen() {
+        return header != null && header.isAdvancedSearchOpen();
+    }
+
+    /**
+     * ✅ NUOVO: Chiude forzatamente la ricerca avanzata
+     */
+    public void closeAdvancedSearch() {
+        if (header != null) {
+            header.closeAdvancedSearch();
+        }
+
+        // Fallback: rimuovi overlay se presente
+        try {
+            mainRoot.getChildren().removeIf(node -> {
+                if (node instanceof StackPane) {
+                    StackPane stackPane = (StackPane) node;
+                    return stackPane.getChildren().stream()
+                            .anyMatch(child -> child instanceof AdvancedSearchPanel);
+                }
+                return false;
+            });
+        } catch (Exception e) {
+            System.err.println("⚠️ Errore nella chiusura forzata ricerca avanzata: " + e.getMessage());
+        }
     }
 
     // =====================================================
@@ -382,6 +549,9 @@ public class MainWindow {
         // Chiudi tutti i popup
         PopupManager.getInstance().closeAllPopups();
 
+        // Chiudi ricerca avanzata
+        closeAdvancedSearch();
+
         // Refresh sidebar se l'autenticazione è cambiata
         if (sidebar != null) {
             sidebar.refreshAuthSection();
@@ -412,5 +582,37 @@ public class MainWindow {
      */
     public int getActivePopupsCount() {
         return PopupManager.getInstance().getActivePopupsCount();
+    }
+
+    /**
+     * ✅ NUOVO: Verifica se tutti i componenti sono inizializzati
+     */
+    public boolean isFullyInitialized() {
+        return mainRoot != null &&
+                header != null &&
+                contentArea != null &&
+                sidebar != null &&
+                authManager != null &&
+                PopupManager.getInstance().isInitialized();
+    }
+
+    /**
+     * ✅ NUOVO: Cleanup delle risorse
+     */
+    public void cleanup() {
+        System.out.println("🧹 MainWindow: Cleanup risorse");
+
+        // Chiudi tutti i popup
+        PopupManager.getInstance().closeAllPopups();
+
+        // Cleanup componenti
+        if (contentArea != null) {
+            contentArea.cleanup();
+        }
+
+        // Pulisci cache
+        cachedBooks.clear();
+
+        System.out.println("✅ MainWindow: Cleanup completato");
     }
 }
