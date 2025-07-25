@@ -215,7 +215,6 @@ public class Header {
 
             // Callback per la chiusura del pannello
             currentAdvancedSearchPanel.setOnClosePanel(() -> {
-                System.out.println("🔗 Callback chiusura pannello chiamato dall'AdvancedSearchPanel");
                 closeAdvancedSearch();
             });
 
@@ -348,7 +347,7 @@ public class Header {
                             "-fx-padding: 8px 12px;"
             );
         } else {
-            advancedSearchButton.setText("⚙️");
+            advancedSearchButton.setText("🔧"); // ✅ RIPRISTINATO: Simbolo filtro classico
             advancedSearchButton.setStyle(
                     "-fx-background-color: " + SEARCH_BG + ";" +
                             "-fx-text-fill: " + TEXT_PRIMARY + ";" +
