@@ -1,247 +1,240 @@
 package org.BABO.client.ui;
 
-import org.BABO.shared.model.Book;
-import org.BABO.client.service.BookService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.effect.DropShadow;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.animation.FadeTransition;
-import javafx.animation.ScaleTransition;
-import javafx.animation.ParallelTransition;
-import javafx.util.Duration;
+import org.BABO.shared.model.Book;
+import org.BABO.client.service.BookService;
 
-import java.io.IOException;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Pannello per la ricerca avanzata completamente ridisegnato
- * per integrarsi perfettamente con il design Apple Books dell'app
+ * ✅ VERSIONE CORRETTA - Pannello di ricerca avanzata senza Platform.runLater
+ * Corregge il problema del blocco quando si preme la X
  */
 public class AdvancedSearchPanel extends VBox {
 
-    // Design system colori (coerenti con il resto dell'app)
+    // Costanti per i colori - ESATTO come LibraryPanel
     private static final String BG_PRIMARY = "#1a1a1c";
     private static final String BG_SECONDARY = "#2c2c2e";
     private static final String BG_CONTROL = "#3a3a3c";
-    private static final String ACCENT_COLOR = "#007aff";
-    private static final String ACCENT_HOVER = "#0056d6";
     private static final String TEXT_PRIMARY = "#ffffff";
     private static final String TEXT_SECONDARY = "#8e8e93";
-    private static final String BORDER_COLOR = "#48484a";
+    private static final String ACCENT_COLOR = "#007aff";
+    private static final String BORDER_COLOR = "#38383a";
     private static final String SUCCESS_COLOR = "#34c759";
-    private static final String SHADOW_COLOR = "rgba(0,0,0,0.6)";
+    private static final String ERROR_COLOR = "#ff3b30";
 
+    // Servizi
     private final BookService bookService;
+
+    // Componenti UI
     private ComboBox<String> searchTypeCombo;
     private TextField titleField;
     private TextField authorField;
     private TextField yearFromField;
     private TextField yearToField;
     private VBox dynamicFieldsContainer;
-    private Consumer<SearchResult> onSearchExecuted;
     private Button searchButton;
     private Button closeButton;
 
-    // Stati per animazioni
+    // Callback
+    private Consumer<SearchResult> onSearchExecuted;
+    private Runnable onClosePanel;
+
+    // Stati
     private boolean isSearching = false;
 
     /**
-     * Classe risultato ricerca per compatibilità con il resto dell'app
+     * Classe per i risultati della ricerca
      */
     public static class SearchResult {
-        private final String searchType;
-        private final String description;
         private final List<Book> books;
+        private final String searchType;
         private final String titleQuery;
         private final String authorQuery;
         private final String yearFrom;
         private final String yearTo;
+        private final String description;
 
-        public SearchResult(String searchType, String titleQuery, String authorQuery,
-                            String yearFrom, String yearTo, List<Book> books) {
-            this.searchType = searchType;
-            this.titleQuery = titleQuery;
-            this.authorQuery = authorQuery;
-            this.yearFrom = yearFrom;
-            this.yearTo = yearTo;
+        public SearchResult(List<Book> books, String searchType, String titleQuery,
+                            String authorQuery, String yearFrom, String yearTo) {
             this.books = books != null ? books : new ArrayList<>();
+            this.searchType = searchType != null ? searchType : "";
+            this.titleQuery = titleQuery != null ? titleQuery : "";
+            this.authorQuery = authorQuery != null ? authorQuery : "";
+            this.yearFrom = yearFrom != null ? yearFrom : "";
+            this.yearTo = yearTo != null ? yearTo : "";
             this.description = buildDescription();
         }
 
+        /**
+         * ✅ AGGIUNTO: Costruisce la descrizione dei risultati di ricerca
+         */
         private String buildDescription() {
-            StringBuilder desc = new StringBuilder("Ricerca ");
+            StringBuilder desc = new StringBuilder("Risultati ricerca avanzata");
 
-            if (searchType.contains("Titolo")) {
-                desc.append("per titolo: \"").append(titleQuery).append("\"");
-            } else if (searchType.contains("Autore e Anno")) {
-                desc.append("per autore: \"").append(authorQuery).append("\"");
-                if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
-                    desc.append(" (");
-                    if (!yearFrom.isEmpty() && !yearTo.isEmpty()) {
-                        desc.append("dal ").append(yearFrom).append(" al ").append(yearTo);
-                    } else if (!yearFrom.isEmpty()) {
-                        desc.append("dal ").append(yearFrom);
-                    } else {
-                        desc.append("fino al ").append(yearTo);
-                    }
-                    desc.append(")");
-                }
-            } else if (searchType.contains("Autore")) {
-                desc.append("per autore: \"").append(authorQuery).append("\"");
+            boolean hasFilters = false;
+
+            if (!titleQuery.isEmpty()) {
+                desc.append(": Titolo '").append(titleQuery).append("'");
+                hasFilters = true;
             }
+
+            if (!authorQuery.isEmpty()) {
+                if (hasFilters) {
+                    desc.append(", ");
+                } else {
+                    desc.append(": ");
+                }
+                desc.append("Autore '").append(authorQuery).append("'");
+                hasFilters = true;
+            }
+
+            if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
+                if (hasFilters) {
+                    desc.append(", ");
+                } else {
+                    desc.append(": ");
+                }
+                desc.append("Anno ");
+                if (!yearFrom.isEmpty() && !yearTo.isEmpty()) {
+                    desc.append("dal ").append(yearFrom).append(" al ").append(yearTo);
+                } else if (!yearFrom.isEmpty()) {
+                    desc.append("dal ").append(yearFrom);
+                } else {
+                    desc.append("fino al ").append(yearTo);
+                }
+                hasFilters = true;
+            }
+
+            if (!hasFilters) {
+                desc.append(" - ").append(searchType);
+            }
+
+            desc.append(" (").append(books.size()).append(" risultati)");
 
             return desc.toString();
         }
 
         // Getters
+        public List<Book> getBooks() { return books; }
         public String getSearchType() { return searchType; }
-        public String getDescription() { return description; }
-        public List<Book> getBooks() { return new ArrayList<>(books); }
         public String getTitleQuery() { return titleQuery; }
         public String getAuthorQuery() { return authorQuery; }
         public String getYearFrom() { return yearFrom; }
         public String getYearTo() { return yearTo; }
+
+        /**
+         * ✅ AGGIUNTO: Metodo getDescription() richiesto da ContentArea
+         */
+        public String getDescription() { return description; }
+
+        @Override
+        public String toString() {
+            return "SearchResult{" +
+                    "searchType='" + searchType + '\'' +
+                    ", titleQuery='" + titleQuery + '\'' +
+                    ", authorQuery='" + authorQuery + '\'' +
+                    ", yearFrom='" + yearFrom + '\'' +
+                    ", yearTo='" + yearTo + '\'' +
+                    ", results=" + books.size() +
+                    ", description='" + description + '\'' +
+                    '}';
+        }
     }
 
     public AdvancedSearchPanel(BookService bookService) {
         this.bookService = bookService;
-        setupPanel();
-        createComponents();
+        setupUI();
         setupEventHandlers();
-
-        // Animazione di apertura
-        animateEntry();
     }
 
-    private void setupPanel() {
-        setMaxWidth(520);
-        setMaxHeight(650);
-        setAlignment(Pos.TOP_CENTER);
-        setStyle(createPanelStyle());
+    /**
+     * ✅ CORREZIONE: Setup UI completo
+     */
+    private void setupUI() {
+        this.setAlignment(Pos.TOP_CENTER);
+        this.setSpacing(0);
+        this.setPadding(new Insets(0));
+        this.setMaxWidth(600);
+        this.setPrefWidth(600);
+        this.setMaxHeight(700);
 
-        // Focus per gestire i tasti
-        setFocusTraversable(true);
-        requestFocus();
-    }
+        // Background principale
+        this.setStyle(
+                "-fx-background-color: " + BG_SECONDARY + ";" +
+                        "-fx-background-radius: 15px;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 25, 0, 0, 8);"
+        );
 
-    private String createPanelStyle() {
-        return "-fx-background-color: " + BG_PRIMARY + ";" +
-                "-fx-background-radius: 20px;" +
-                "-fx-effect: dropshadow(gaussian, " + SHADOW_COLOR + ", 25, 0, 0, 10);" +
-                "-fx-border-color: " + BORDER_COLOR + ";" +
-                "-fx-border-width: 1px;" +
-                "-fx-border-radius: 20px;";
-    }
-
-    private void createComponents() {
-        setSpacing(0);
-
-        // Header con titolo e chiudi
+        // Header con pulsante chiudi
         HBox header = createHeader();
 
-        // Contenuto scrollabile
-        ScrollPane contentScroll = createContentScrollPane();
+        // Area titolo
+        VBox titleArea = createTitleArea();
 
-        // Footer con pulsanti
-        HBox footer = createFooter();
+        // Contenuto principale
+        ScrollPane scrollPane = createContentScrollPane();
 
-        getChildren().addAll(header, contentScroll, footer);
+        this.getChildren().addAll(header, titleArea, scrollPane);
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione header con pulsante X cliccabile
+     */
     private HBox createHeader() {
         HBox header = new HBox();
-        header.setPadding(new Insets(25, 25, 20, 25));
-        header.setAlignment(Pos.CENTER);
-        header.setStyle("-fx-border-color: transparent transparent " + BORDER_COLOR + " transparent;" +
-                "-fx-border-width: 0 0 1 0;");
+        header.setAlignment(Pos.CENTER_RIGHT);
+        header.setPadding(new Insets(20, 25, 10, 25));
+        header.setPrefHeight(50);
+        header.setMinHeight(50);
 
-        // Titolo principale
-        Label titleLabel = new Label("🔍 Ricerca Avanzata");
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.web(TEXT_PRIMARY));
-
-        // Spacer
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        // Pulsante chiudi
+        // Crea il pulsante X con dimensioni fisse
         closeButton = createCloseButton();
 
-        header.getChildren().addAll(titleLabel, spacer, closeButton);
+        // ✅ IMPORTANTE: Assicurati che il pulsante sia cliccabile
+        closeButton.setPickOnBounds(true);
+        closeButton.setFocusTraversable(true);
+
+        header.getChildren().add(closeButton);
         return header;
     }
 
-    private Button createCloseButton() {
-        Button button = new Button("✕");
-        button.setStyle(
-                "-fx-background-color: " + BG_CONTROL + ";" +
-                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                        "-fx-font-size: 16px;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 50%;" +
-                        "-fx-min-width: 32px;" +
-                        "-fx-min-height: 32px;" +
-                        "-fx-max-width: 32px;" +
-                        "-fx-max-height: 32px;" +
-                        "-fx-cursor: hand;" +
-                        "-fx-border-color: transparent;" +
-                        "-fx-padding: 0;"
-        );
+    /**
+     * ✅ CORREZIONE: Creazione area titolo
+     */
+    private VBox createTitleArea() {
+        VBox titleArea = new VBox(5);
+        titleArea.setAlignment(Pos.CENTER);
+        titleArea.setPadding(new Insets(0, 30, 20, 30));
 
-        // Effetti hover
-        button.setOnMouseEntered(e ->
-                button.setStyle(
-                        "-fx-background-color: #ff3b30;" +
-                                "-fx-text-fill: white;" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-font-weight: bold;" +
-                                "-fx-background-radius: 50%;" +
-                                "-fx-min-width: 32px;" +
-                                "-fx-min-height: 32px;" +
-                                "-fx-max-width: 32px;" +
-                                "-fx-max-height: 32px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-padding: 0;"
-                )
-        );
+        Label title = new Label("🔍 Ricerca Avanzata");
+        title.setFont(Font.font("System", FontWeight.BOLD, 24));
+        title.setTextFill(Color.web(TEXT_PRIMARY));
 
-        button.setOnMouseExited(e ->
-                button.setStyle(
-                        "-fx-background-color: " + BG_CONTROL + ";" +
-                                "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-font-weight: bold;" +
-                                "-fx-background-radius: 50%;" +
-                                "-fx-min-width: 32px;" +
-                                "-fx-min-height: 32px;" +
-                                "-fx-max-width: 32px;" +
-                                "-fx-max-height: 32px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-padding: 0;"
-                )
-        );
+        Label subtitle = new Label("Trova i tuoi libri con criteri specifici");
+        subtitle.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        subtitle.setTextFill(Color.web(TEXT_SECONDARY));
 
-        return button;
+        titleArea.getChildren().addAll(title, subtitle);
+        return titleArea;
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione area contenuto scorrevole
+     */
     private ScrollPane createContentScrollPane() {
         ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-background: transparent;"
-        );
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
         scrollPane.setFitToWidth(true);
         scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
@@ -253,19 +246,28 @@ public class AdvancedSearchPanel extends VBox {
         return scrollPane;
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione contenuto principale
+     */
     private VBox createMainContent() {
         VBox content = new VBox(25);
-        content.setPadding(new Insets(25));
+        content.setPadding(new Insets(0, 30, 30, 30));
         content.setAlignment(Pos.TOP_CENTER);
 
-        // Sezione tipo di ricerca
-        VBox searchTypeSection = createSearchTypeSection();
+        // Setup ComboBox per tipo ricerca
+        setupSearchTypeCombo();
+
+        // Sezione tipo ricerca
+        VBox typeSection = createSearchTypeSection();
 
         // Container per campi dinamici
         dynamicFieldsContainer = new VBox(20);
         dynamicFieldsContainer.setPadding(new Insets(10, 0, 0, 0));
 
-        content.getChildren().addAll(searchTypeSection, dynamicFieldsContainer);
+        // Sezione pulsanti
+        VBox buttonSection = createButtonSection();
+
+        content.getChildren().addAll(typeSection, dynamicFieldsContainer, buttonSection);
 
         // Inizializza con ricerca per titolo
         updateDynamicFields();
@@ -273,13 +275,10 @@ public class AdvancedSearchPanel extends VBox {
         return content;
     }
 
-    private VBox createSearchTypeSection() {
-        VBox section = new VBox(15);
-
-        Label sectionTitle = new Label("Tipo di ricerca");
-        sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
-        sectionTitle.setTextFill(Color.web(TEXT_PRIMARY));
-
+    /**
+     * ✅ CORREZIONE: Setup ComboBox tipo ricerca (SOLO 3 OPZIONI)
+     */
+    private void setupSearchTypeCombo() {
         searchTypeCombo = new ComboBox<>();
         searchTypeCombo.getItems().addAll(
                 "Ricerca per Titolo",
@@ -287,15 +286,186 @@ public class AdvancedSearchPanel extends VBox {
                 "Ricerca per Autore e Anno"
         );
         searchTypeCombo.setValue("Ricerca per Titolo");
-        styleComboBox(searchTypeCombo);
+        searchTypeCombo.setMaxWidth(Double.MAX_VALUE);
 
-        // Handler per aggiornare i campi dinamici
+        searchTypeCombo.setStyle(
+                "-fx-background-color: " + BG_CONTROL + ";" +
+                        "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+                        "-fx-background-radius: 12px;" +
+                        "-fx-border-color: " + BORDER_COLOR + ";" +
+                        "-fx-border-width: 1px;" +
+                        "-fx-border-radius: 12px;" +
+                        "-fx-padding: 12px;" +
+                        "-fx-font-size: 14px;"
+        );
+
         searchTypeCombo.setOnAction(e -> updateDynamicFields());
+    }
+
+    /**
+     * ✅ CORREZIONE: Creazione sezione tipo ricerca
+     */
+    private VBox createSearchTypeSection() {
+        VBox section = new VBox(15);
+
+        Label sectionTitle = new Label("Tipo di Ricerca");
+        sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 18));
+        sectionTitle.setTextFill(Color.web(TEXT_PRIMARY));
 
         section.getChildren().addAll(sectionTitle, searchTypeCombo);
         return section;
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione sezione pulsanti
+     */
+    private VBox createButtonSection() {
+        VBox section = new VBox(15);
+        section.setAlignment(Pos.CENTER);
+        section.setPadding(new Insets(20, 0, 0, 0));
+
+        // Crea pulsante ricerca
+        searchButton = createSearchButton();
+
+        section.getChildren().add(searchButton);
+        return section;
+    }
+
+    /**
+     * ✅ CORREZIONE: Creazione pulsante X cliccabile senza Platform.runLater negli hover
+     */
+    private Button createCloseButton() {
+        Button closeBtn = new Button("✕");
+
+        // ✅ IMPORTANTE: Dimensioni e posizionamento fissi
+        closeBtn.setPrefSize(36, 36);
+        closeBtn.setMinSize(36, 36);
+        closeBtn.setMaxSize(36, 36);
+
+        // ✅ IMPORTANTE: Stile base
+        closeBtn.setStyle(
+                "-fx-background-color: " + BG_CONTROL + ";" +
+                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
+                        "-fx-font-size: 18px;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-background-radius: 18px;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-border-color: transparent;" +
+                        "-fx-padding: 0;" +
+                        "-fx-alignment: center;"
+        );
+
+        // ✅ IMPORTANTE: Hover effects SENZA Platform.runLater
+        closeBtn.setOnMouseEntered(e -> {
+            closeBtn.setStyle(
+                    "-fx-background-color: " + ERROR_COLOR + ";" +
+                            "-fx-text-fill: white;" +
+                            "-fx-font-size: 18px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-background-radius: 18px;" +
+                            "-fx-cursor: hand;" +
+                            "-fx-border-color: transparent;" +
+                            "-fx-padding: 0;" +
+                            "-fx-alignment: center;"
+            );
+        });
+
+        closeBtn.setOnMouseExited(e -> {
+            closeBtn.setStyle(
+                    "-fx-background-color: " + BG_CONTROL + ";" +
+                            "-fx-text-fill: " + TEXT_SECONDARY + ";" +
+                            "-fx-font-size: 18px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-background-radius: 18px;" +
+                            "-fx-cursor: hand;" +
+                            "-fx-border-color: transparent;" +
+                            "-fx-padding: 0;" +
+                            "-fx-alignment: center;"
+            );
+        });
+
+        // ✅ IMPORTANTE: Assicurati che riceva gli eventi mouse
+        closeBtn.setPickOnBounds(true);
+        closeBtn.setFocusTraversable(true);
+
+        return closeBtn;
+    }
+
+    /**
+     * ✅ CORREZIONE: Creazione pulsante ricerca
+     */
+    private Button createSearchButton() {
+        Button button = new Button("🔍 Cerca Libri");
+        button.setMaxWidth(Double.MAX_VALUE);
+        button.setStyle(
+                "-fx-background-color: " + ACCENT_COLOR + ";" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 12px;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-padding: 15px 30px;" +
+                        "-fx-font-size: 16px;" +
+                        "-fx-font-weight: 600;" +
+                        "-fx-min-height: 50px;"
+        );
+
+        return button;
+    }
+
+    /**
+     * ✅ CORREZIONE CRITICA: Setup event handlers COMPLETAMENTE SENZA Platform.runLater
+     */
+    private void setupEventHandlers() {
+        System.out.println("🔧 Setup event handlers per AdvancedSearchPanel...");
+
+        // ✅ CORREZIONE: Handler ESC per chiudere SENZA Platform.runLater
+        setOnKeyPressed(event -> {
+            switch (event.getCode()) {
+                case ESCAPE:
+                    System.out.println("⌨️ ESC premuto nel pannello ricerca avanzata");
+                    event.consume(); // Consuma l'evento per evitare propagazione
+                    closePanel();  // DIRETTO - NO Platform.runLater!
+                    break;
+                case ENTER:
+                    if (!isSearching) {
+                        System.out.println("⌨️ ENTER premuto nel pannello - esegui ricerca");
+                        event.consume();
+                        executeSearch();  // DIRETTO - NO Platform.runLater!
+                    }
+                    break;
+            }
+        });
+
+        // ✅ CORREZIONE CRITICA: Handler pulsante X SENZA Platform.runLater
+        closeButton.setOnAction(e -> {
+            System.out.println("🖱️ Pulsante X cliccato - chiusura pannello");
+            e.consume(); // Consuma l'evento per evitare conflitti
+            closePanel(); // DIRETTO - NO Platform.runLater che causava il blocco!
+        });
+
+        // ✅ CORREZIONE: Handler pulsante cerca SENZA Platform.runLater
+        searchButton.setOnAction(e -> {
+            System.out.println("🖱️ Pulsante cerca cliccato");
+            e.consume(); // Consuma l'evento
+            if (!isSearching) {
+                executeSearch(); // DIRETTO - NO Platform.runLater!
+            }
+        });
+
+        // ✅ Focus management
+        setFocusTraversable(true);
+
+        // ✅ Previeni propagazione eventi mouse sul pannello
+        setOnMouseClicked(e -> {
+            e.consume(); // Impedisce che il click sul pannello chiuda il popup
+            requestFocus(); // Mantiene il focus sul pannello
+        });
+
+        System.out.println("✅ Event handlers configurati correttamente");
+    }
+
+    /**
+     * ✅ CORREZIONE: Aggiorna campi dinamici in base al tipo di ricerca (SOLO 3 TIPI)
+     */
     private void updateDynamicFields() {
         dynamicFieldsContainer.getChildren().clear();
 
@@ -308,11 +478,11 @@ public class AdvancedSearchPanel extends VBox {
         } else if (selectedType.contains("Autore")) {
             createAuthorSearchFields();
         }
-
-        // Animazione di cambio contenuto
-        animateContentChange();
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione campi ricerca per titolo
+     */
     private void createTitleSearchFields() {
         VBox section = new VBox(15);
 
@@ -320,19 +490,15 @@ public class AdvancedSearchPanel extends VBox {
         sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         sectionTitle.setTextFill(Color.web(TEXT_PRIMARY));
 
-        titleField = new TextField();
-        titleField.setPromptText("Inserisci il titolo del libro...");
-        styleTextField(titleField);
+        titleField = createStyledTextField("Inserisci il titolo del libro...");
 
-        Label hintLabel = new Label("💡 Suggerimento: Puoi inserire anche solo una parte del titolo");
-        hintLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
-        hintLabel.setTextFill(Color.web(TEXT_SECONDARY));
-        hintLabel.setWrapText(true);
-
-        section.getChildren().addAll(sectionTitle, titleField, hintLabel);
+        section.getChildren().addAll(sectionTitle, titleField);
         dynamicFieldsContainer.getChildren().add(section);
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione campi ricerca per autore
+     */
     private void createAuthorSearchFields() {
         VBox section = new VBox(15);
 
@@ -340,19 +506,15 @@ public class AdvancedSearchPanel extends VBox {
         sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         sectionTitle.setTextFill(Color.web(TEXT_PRIMARY));
 
-        authorField = new TextField();
-        authorField.setPromptText("Inserisci il nome dell'autore...");
-        styleTextField(authorField);
+        authorField = createStyledTextField("Inserisci il nome dell'autore...");
 
-        Label hintLabel = new Label("💡 Suggerimento: Puoi cercare per nome, cognome o entrambi");
-        hintLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
-        hintLabel.setTextFill(Color.web(TEXT_SECONDARY));
-        hintLabel.setWrapText(true);
-
-        section.getChildren().addAll(sectionTitle, authorField, hintLabel);
+        section.getChildren().addAll(sectionTitle, authorField);
         dynamicFieldsContainer.getChildren().add(section);
     }
 
+    /**
+     * ✅ CORREZIONE: Creazione campi ricerca per autore e anno
+     */
     private void createAuthorYearSearchFields() {
         VBox section = new VBox(15);
 
@@ -360,10 +522,7 @@ public class AdvancedSearchPanel extends VBox {
         sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         sectionTitle.setTextFill(Color.web(TEXT_PRIMARY));
 
-        // Campo autore
-        authorField = new TextField();
-        authorField.setPromptText("Nome dell'autore...");
-        styleTextField(authorField);
+        authorField = createStyledTextField("Inserisci il nome dell'autore...");
 
         // Sezione anno
         Label yearLabel = new Label("Anno di pubblicazione");
@@ -373,222 +532,56 @@ public class AdvancedSearchPanel extends VBox {
         HBox yearBox = new HBox(15);
         yearBox.setAlignment(Pos.CENTER_LEFT);
 
-        yearFromField = new TextField();
-        yearFromField.setPromptText("Dal...");
-        yearFromField.setMaxWidth(100);
-        styleTextField(yearFromField);
+        yearFromField = createStyledTextField("Dal...");
+        yearFromField.setPrefWidth(120);
+        yearFromField.setMaxWidth(120);
 
-        Label toLabel = new Label("a");
-        toLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
-        toLabel.setTextFill(Color.web(TEXT_SECONDARY));
+        Label dashLabel = new Label("a");
+        dashLabel.setTextFill(Color.web(TEXT_PRIMARY));
+        dashLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
 
-        yearToField = new TextField();
-        yearToField.setPromptText("Al...");
-        yearToField.setMaxWidth(100);
-        styleTextField(yearToField);
+        yearToField = createStyledTextField("Al...");
+        yearToField.setPrefWidth(120);
+        yearToField.setMaxWidth(120);
 
-        yearBox.getChildren().addAll(yearFromField, toLabel, yearToField);
+        yearBox.getChildren().addAll(yearFromField, dashLabel, yearToField);
 
-        Label hintLabel = new Label("💡 Suggerimento: Lascia vuoto l'anno per cercare solo per autore");
-        hintLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
-        hintLabel.setTextFill(Color.web(TEXT_SECONDARY));
-        hintLabel.setWrapText(true);
-
-        section.getChildren().addAll(sectionTitle, authorField, yearLabel, yearBox, hintLabel);
+        section.getChildren().addAll(sectionTitle, authorField, yearLabel, yearBox);
         dynamicFieldsContainer.getChildren().add(section);
     }
 
-    private void styleComboBox(ComboBox<String> comboBox) {
-        comboBox.setStyle(
-                "-fx-background-color: " + BG_SECONDARY + ";" +
-                        "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                        "-fx-background-radius: 12px;" +
-                        "-fx-border-color: " + BORDER_COLOR + ";" +
-                        "-fx-border-width: 1px;" +
-                        "-fx-border-radius: 12px;" +
-                        "-fx-padding: 12px 16px;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-cursor: hand;"
-        );
-        comboBox.setMaxWidth(Double.MAX_VALUE);
-    }
-
-    private void styleTextField(TextField textField) {
-        textField.setStyle(
-                "-fx-background-color: " + BG_SECONDARY + ";" +
+    /**
+     * ✅ CORREZIONE: Creazione campo di testo stilizzato
+     */
+    private TextField createStyledTextField(String placeholder) {
+        TextField field = new TextField();
+        field.setPromptText(placeholder);
+        field.setMaxWidth(Double.MAX_VALUE);
+        field.setStyle(
+                "-fx-background-color: " + BG_CONTROL + ";" +
                         "-fx-text-fill: " + TEXT_PRIMARY + ";" +
                         "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
                         "-fx-background-radius: 12px;" +
                         "-fx-border-color: " + BORDER_COLOR + ";" +
                         "-fx-border-width: 1px;" +
                         "-fx-border-radius: 12px;" +
-                        "-fx-padding: 14px 16px;" +
+                        "-fx-padding: 12px;" +
                         "-fx-font-size: 14px;"
         );
 
-        // Effetti focus
-        textField.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal) {
-                textField.setStyle(
-                        "-fx-background-color: " + BG_SECONDARY + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-border-color: " + ACCENT_COLOR + ";" +
-                                "-fx-border-width: 2px;" +
-                                "-fx-border-radius: 12px;" +
-                                "-fx-padding: 13px 15px;" +
-                                "-fx-font-size: 14px;"
-                );
-            } else {
-                textField.setStyle(
-                        "-fx-background-color: " + BG_SECONDARY + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-border-color: " + BORDER_COLOR + ";" +
-                                "-fx-border-width: 1px;" +
-                                "-fx-border-radius: 12px;" +
-                                "-fx-padding: 14px 16px;" +
-                                "-fx-font-size: 14px;"
-                );
-            }
-        });
-
-        textField.setMaxWidth(Double.MAX_VALUE);
+        return field;
     }
 
-    private HBox createFooter() {
-        HBox footer = new HBox(15);
-        footer.setPadding(new Insets(20, 25, 25, 25));
-        footer.setAlignment(Pos.CENTER_RIGHT);
-        footer.setStyle("-fx-border-color: " + BORDER_COLOR + " transparent transparent transparent;" +
-                "-fx-border-width: 1 0 0 0;");
-
-        Button cancelButton = createSecondaryButton("Annulla");
-        searchButton = createPrimaryButton("🔍 Cerca");
-
-        footer.getChildren().addAll(cancelButton, searchButton);
-        return footer;
-    }
-
-    private Button createPrimaryButton(String text) {
-        Button button = new Button(text);
-        button.setStyle(
-                "-fx-background-color: " + ACCENT_COLOR + ";" +
-                        "-fx-text-fill: white;" +
-                        "-fx-background-radius: 12px;" +
-                        "-fx-cursor: hand;" +
-                        "-fx-padding: 12px 24px;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: 600;" +
-                        "-fx-min-width: 120px;"
-        );
-
-        // Effetti hover
-        button.setOnMouseEntered(e ->
-                button.setStyle(
-                        "-fx-background-color: " + ACCENT_HOVER + ";" +
-                                "-fx-text-fill: white;" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 12px 24px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-font-weight: 600;" +
-                                "-fx-min-width: 120px;"
-                )
-        );
-
-        button.setOnMouseExited(e ->
-                button.setStyle(
-                        "-fx-background-color: " + ACCENT_COLOR + ";" +
-                                "-fx-text-fill: white;" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 12px 24px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-font-weight: 600;" +
-                                "-fx-min-width: 120px;"
-                )
-        );
-
-        return button;
-    }
-
-    private Button createSecondaryButton(String text) {
-        Button button = new Button(text);
-        button.setStyle(
-                "-fx-background-color: " + BG_CONTROL + ";" +
-                        "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                        "-fx-background-radius: 12px;" +
-                        "-fx-cursor: hand;" +
-                        "-fx-padding: 12px 24px;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-font-weight: 600;" +
-                        "-fx-min-width: 120px;" +
-                        "-fx-border-color: " + BORDER_COLOR + ";" +
-                        "-fx-border-width: 1px;" +
-                        "-fx-border-radius: 12px;"
-        );
-
-        // Effetti hover
-        button.setOnMouseEntered(e ->
-                button.setStyle(
-                        "-fx-background-color: " + BG_SECONDARY + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 12px 24px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-font-weight: 600;" +
-                                "-fx-min-width: 120px;" +
-                                "-fx-border-color: " + BORDER_COLOR + ";" +
-                                "-fx-border-width: 1px;" +
-                                "-fx-border-radius: 12px;"
-                )
-        );
-
-        button.setOnMouseExited(e ->
-                button.setStyle(
-                        "-fx-background-color: " + BG_CONTROL + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-background-radius: 12px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 12px 24px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-font-weight: 600;" +
-                                "-fx-min-width: 120px;" +
-                                "-fx-border-color: " + BORDER_COLOR + ";" +
-                                "-fx-border-width: 1px;" +
-                                "-fx-border-radius: 12px;"
-                )
-        );
-
-        return button;
-    }
-
-    private void setupEventHandlers() {
-        // Handler ESC per chiudere
-        setOnKeyPressed(event -> {
-            switch (event.getCode()) {
-                case ESCAPE:
-                    closePanel();
-                    break;
-                case ENTER:
-                    if (!isSearching) {
-                        executeSearch();
-                    }
-                    break;
-            }
-        });
-
-        // Handler pulsanti
-        closeButton.setOnAction(e -> closePanel());
-        searchButton.setOnAction(e -> executeSearch());
-    }
-
+    /**
+     * ✅ CORREZIONE: Esecuzione ricerca SENZA Platform.runLater con DEBUG
+     */
     private void executeSearch() {
-        if (isSearching) return;
+        System.out.println("🔍 === INIZIO RICERCA AVANZATA ===");
+
+        if (isSearching) {
+            System.out.println("⚠️ Ricerca già in corso - ignoro");
+            return;
+        }
 
         String searchType = searchTypeCombo.getValue();
         String titleQuery = titleField != null ? titleField.getText().trim() : "";
@@ -596,217 +589,258 @@ public class AdvancedSearchPanel extends VBox {
         String yearFrom = yearFromField != null ? yearFromField.getText().trim() : "";
         String yearTo = yearToField != null ? yearToField.getText().trim() : "";
 
-        // Validazione base
-        boolean hasValidInput = false;
-        if (searchType.contains("Titolo") && !titleQuery.isEmpty()) {
-            hasValidInput = true;
-        } else if (searchType.contains("Autore") && !authorQuery.isEmpty()) {
-            hasValidInput = true;
-        }
+        System.out.println("📋 Parametri ricerca:");
+        System.out.println("   - Tipo: " + searchType);
+        System.out.println("   - Titolo: '" + titleQuery + "'");
+        System.out.println("   - Autore: '" + authorQuery + "'");
+        System.out.println("   - Anno da: '" + yearFrom + "'");
+        System.out.println("   - Anno a: '" + yearTo + "'");
 
-        if (!hasValidInput) {
-            showValidationError("Per favore inserisci almeno un criterio di ricerca valido.");
+        // Validazione input
+        if (titleQuery.isEmpty() && authorQuery.isEmpty() && yearFrom.isEmpty() && yearTo.isEmpty()) {
+            System.out.println("❌ Nessun criterio di ricerca inserito");
+            showValidationError("Inserisci almeno un criterio di ricerca");
             return;
         }
 
-        // Mostra stato di caricamento
-        setSearchingState(true);
+        try {
+            isSearching = true;
+            updateSearchButtonState(true);
+            System.out.println("🔄 Stato ricerca impostato su TRUE");
 
-        System.out.println("🔍 Esecuzione ricerca avanzata:");
-        System.out.println("   Tipo: " + searchType);
-        System.out.println("   Titolo: " + titleQuery);
-        System.out.println("   Autore: " + authorQuery);
-        System.out.println("   Anno da: " + yearFrom);
-        System.out.println("   Anno a: " + yearTo);
+            // ✅ IMPORTANTE: Esecuzione ricerca DIRETTA senza Platform.runLater
+            List<Book> results = performAdvancedSearch(searchType, titleQuery, authorQuery, yearFrom, yearTo);
+            System.out.println("📚 Ricerca completata: " + results.size() + " risultati");
 
-        // Esegui ricerca in background
-        CompletableFuture.runAsync(() -> {
-            try {
-                // Simula delay ricerca
-                Thread.sleep(500);
+            SearchResult searchResult = new SearchResult(results, searchType, titleQuery, authorQuery, yearFrom, yearTo);
+            System.out.println("📦 SearchResult creato: " + searchResult.getDescription());
 
-                List<Book> results = performActualSearch(searchType, titleQuery, authorQuery, yearFrom, yearTo);
-
-                Platform.runLater(() -> {
-                    setSearchingState(false);
-
-                    SearchResult result = new SearchResult(searchType, titleQuery, authorQuery, yearFrom, yearTo, results);
-
-                    if (onSearchExecuted != null) {
-                        onSearchExecuted.accept(result);
-                    }
-                });
-
-            } catch (Exception e) {
-                Platform.runLater(() -> {
-                    setSearchingState(false);
-                    showValidationError("Errore durante la ricerca: " + e.getMessage());
-                });
-            }
-        });
-    }
-
-    private List<Book> performActualSearch(String searchType, String titleQuery, String authorQuery, String yearFrom, String yearTo) throws IOException {
-        // Qui dovresti implementare la logica di ricerca reale
-        // Per ora uso risultati fittizi per dimostrare il funzionamento
-
-        List<Book> allBooks = bookService.getAllBooks();
-        List<Book> results = new ArrayList<>();
-
-        for (Book book : allBooks) {
-            boolean matches = false;
-
-            if (searchType.contains("Titolo") && !titleQuery.isEmpty()) {
-                matches = book.getTitle().toLowerCase().contains(titleQuery.toLowerCase());
-            } else if (searchType.contains("Autore")) {
-                if (!authorQuery.isEmpty()) {
-                    matches = book.getAuthor().toLowerCase().contains(authorQuery.toLowerCase());
-                }
-
-                // Filtro per anno se specificato
-                if (matches && (!yearFrom.isEmpty() || !yearTo.isEmpty())) {
-                    try {
-                        int bookYear = Integer.parseInt(book.getPublishYear());
-
-                        if (!yearFrom.isEmpty()) {
-                            int fromYear = Integer.parseInt(yearFrom);
-                            if (bookYear < fromYear) matches = false;
-                        }
-
-                        if (!yearTo.isEmpty()) {
-                            int toYear = Integer.parseInt(yearTo);
-                            if (bookYear > toYear) matches = false;
-                        }
-                    } catch (NumberFormatException e) {
-                        // Se l'anno non è valido, ignora il filtro
-                    }
-                }
-            }
-
-            if (matches) {
-                results.add(book);
-            }
-        }
-
-        return results;
-    }
-
-    private void setSearchingState(boolean searching) {
-        isSearching = searching;
-
-        Platform.runLater(() -> {
-            if (searching) {
-                searchButton.setText("🔄 Ricerca...");
-                searchButton.setDisable(true);
+            // ✅ IMPORTANTE: Callback DIRETTO senza Platform.runLater
+            if (onSearchExecuted != null) {
+                System.out.println("📤 Esecuzione callback ricerca...");
+                onSearchExecuted.accept(searchResult);
+                System.out.println("✅ Callback eseguito con successo");
             } else {
-                searchButton.setText("🔍 Cerca");
-                searchButton.setDisable(false);
+                System.err.println("❌ ERRORE: onSearchExecuted callback è NULL!");
             }
-        });
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore ricerca avanzata: " + e.getMessage());
+            e.printStackTrace();
+            showErrorAlert("Errore durante la ricerca");
+        } finally {
+            isSearching = false;
+            updateSearchButtonState(false);
+            System.out.println("🔄 Stato ricerca ripristinato su FALSE");
+            System.out.println("🔍 === FINE RICERCA AVANZATA ===");
+        }
     }
 
+    /**
+     * ✅ RIPRISTINO: Chiusura pannello dalla versione funzionante originale
+     */
+    private void closePanel() {
+        try {
+            System.out.println("🔒 Chiusura pannello ricerca avanzata...");
+
+            // ✅ ORIGINALE: Cleanup PRIMA della chiusura
+            cleanup();
+
+            // ✅ ORIGINALE: Chiamata callback con Platform.runLater come nell'originale
+            if (onClosePanel != null) {
+                Platform.runLater(() -> onClosePanel.run());
+            }
+
+            System.out.println("✅ Pannello chiuso correttamente");
+
+        } catch (Exception ex) {
+            System.err.println("❌ Errore chiusura pannello: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * ✅ CORREZIONE: Cleanup completo per evitare memory leak
+     */
+    public void cleanup() {
+        try {
+            System.out.println("🧹 Cleanup AdvancedSearchPanel...");
+
+            // ✅ IMPORTANTE: Rimuovi TUTTI gli event handlers
+            setOnKeyPressed(null);
+            setOnMouseClicked(null);
+            setFocusTraversable(false);
+
+            // ✅ Cleanup dei campi di testo
+            if (titleField != null) {
+                titleField.setOnKeyPressed(null);
+                titleField.setOnAction(null);
+            }
+
+            if (authorField != null) {
+                authorField.setOnKeyPressed(null);
+                authorField.setOnAction(null);
+            }
+
+            if (yearFromField != null) {
+                yearFromField.setOnKeyPressed(null);
+                yearFromField.setOnAction(null);
+            }
+
+            if (yearToField != null) {
+                yearToField.setOnKeyPressed(null);
+                yearToField.setOnAction(null);
+            }
+
+            // ✅ Cleanup dei pulsanti
+            if (searchButton != null) {
+                searchButton.setOnAction(null);
+            }
+
+            if (closeButton != null) {
+                closeButton.setOnAction(null);
+            }
+
+            if (searchTypeCombo != null) {
+                searchTypeCombo.setOnAction(null);
+            }
+
+            // ✅ IMPORTANTE: Reset dei callback
+            onSearchExecuted = null;
+            onClosePanel = null;
+
+            System.out.println("✅ Cleanup completato");
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore durante cleanup: " + e.getMessage());
+        }
+    }
+
+    /**
+     * ✅ CORREZIONE: Esecuzione ricerca nel BookService SOLO con 3 metodi
+     */
+    private List<Book> performAdvancedSearch(String searchType, String titleQuery,
+                                             String authorQuery, String yearFrom, String yearTo) {
+        try {
+            if (bookService == null) {
+                System.err.println("❌ BookService non disponibile");
+                return new ArrayList<>();
+            }
+
+            // ✅ CORREZIONE: SOLO 3 tipi di ricerca come richiesto
+            if (searchType.contains("Titolo") && !titleQuery.isEmpty()) {
+                System.out.println("📖 Ricerca per titolo: " + titleQuery);
+                return bookService.searchBooksByTitle(titleQuery);
+
+            } else if (searchType.equals("Ricerca per Autore") && !authorQuery.isEmpty()) {
+                System.out.println("👤 Ricerca per autore: " + authorQuery);
+                return bookService.searchBooksByAuthor(authorQuery);
+
+            } else if (searchType.contains("Autore e Anno") && !authorQuery.isEmpty()) {
+                System.out.println("👤📅 Ricerca per autore e anno: " + authorQuery + " (" + yearFrom + "-" + yearTo + ")");
+
+                // Usa il metodo searchBooksByAuthor e poi filtra per anno se specificato
+                List<Book> authorResults = bookService.searchBooksByAuthor(authorQuery);
+
+                if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
+                    return filterBooksByYear(authorResults, yearFrom, yearTo);
+                } else {
+                    return authorResults;
+                }
+            }
+
+            return new ArrayList<>();
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nella ricerca avanzata: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * ✅ CORREZIONE: Filtra i libri per anno di pubblicazione
+     */
+    private List<Book> filterBooksByYear(List<Book> books, String yearFrom, String yearTo) {
+        try {
+            return books.stream()
+                    .filter(book -> {
+                        if (book.getPublishYear() == null || book.getPublishYear().trim().isEmpty()) {
+                            return false;
+                        }
+
+                        try {
+                            int bookYear = Integer.parseInt(book.getPublishYear().trim());
+
+                            // Controlla anno minimo
+                            if (!yearFrom.isEmpty()) {
+                                int minYear = Integer.parseInt(yearFrom.trim());
+                                if (bookYear < minYear) return false;
+                            }
+
+                            // Controlla anno massimo
+                            if (!yearTo.isEmpty()) {
+                                int maxYear = Integer.parseInt(yearTo.trim());
+                                if (bookYear > maxYear) return false;
+                            }
+
+                            return true;
+
+                        } catch (NumberFormatException e) {
+                            // Se l'anno del libro non è un numero valido, escludi
+                            return false;
+                        }
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nel filtro per anno: " + e.getMessage());
+            return books; // Ritorna la lista originale in caso di errore
+        }
+    }
+
+    /**
+     * ✅ CORREZIONE: Aggiorna stato pulsante ricerca
+     */
+    private void updateSearchButtonState(boolean searching) {
+        if (searchButton == null) return;
+
+        if (searching) {
+            searchButton.setText("🔄 Ricerca in corso...");
+            searchButton.setDisable(true);
+        } else {
+            searchButton.setText("🔍 Cerca Libri");
+            searchButton.setDisable(false);
+        }
+    }
+
+    /**
+     * ✅ CORREZIONE: Mostra errore di validazione
+     */
     private void showValidationError(String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Validazione Ricerca");
-        alert.setHeaderText("Parametri di ricerca non validi");
+        alert.setTitle("Attenzione");
+        alert.setHeaderText("Criterio di ricerca mancante");
         alert.setContentText(message);
-
-        // Applica stile dark anche all'alert
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: " + BG_PRIMARY + ";" +
-                        "-fx-text-fill: " + TEXT_PRIMARY + ";"
-        );
-
         alert.showAndWait();
     }
 
-    private void closePanel() {
-        animateExit(() -> {
-            // Rimuovi dal parent
-            if (getParent() instanceof Pane) {
-                ((Pane) getParent()).getChildren().remove(this);
-            }
-        });
+    /**
+     * ✅ CORREZIONE: Mostra errore generico
+     */
+    private void showErrorAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Errore");
+        alert.setHeaderText("Errore durante l'operazione");
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
-    private void animateEntry() {
-        // Inizia trasparente e più piccolo
-        setOpacity(0);
-        setScaleX(0.8);
-        setScaleY(0.8);
-
-        // Fade in
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(300), this);
-        fadeIn.setFromValue(0);
-        fadeIn.setToValue(1);
-
-        // Scale in
-        ScaleTransition scaleIn = new ScaleTransition(Duration.millis(300), this);
-        scaleIn.setFromX(0.8);
-        scaleIn.setFromY(0.8);
-        scaleIn.setToX(1.0);
-        scaleIn.setToY(1.0);
-
-        ParallelTransition openAnimation = new ParallelTransition(fadeIn, scaleIn);
-        openAnimation.setDelay(Duration.millis(50));
-        openAnimation.play();
-    }
-
-    private void animateExit(Runnable onComplete) {
-        // Fade out
-        FadeTransition fadeOut = new FadeTransition(Duration.millis(200), this);
-        fadeOut.setFromValue(1);
-        fadeOut.setToValue(0);
-
-        // Scale out
-        ScaleTransition scaleOut = new ScaleTransition(Duration.millis(200), this);
-        scaleOut.setFromX(1.0);
-        scaleOut.setFromY(1.0);
-        scaleOut.setToX(0.9);
-        scaleOut.setToY(0.9);
-
-        ParallelTransition closeAnimation = new ParallelTransition(fadeOut, scaleOut);
-        closeAnimation.setOnFinished(e -> {
-            if (onComplete != null) onComplete.run();
-        });
-        closeAnimation.play();
-    }
-
-    private void animateContentChange() {
-        if (dynamicFieldsContainer == null) return;
-
-        // Breve animazione fade per il cambio contenuto
-        FadeTransition fadeOut = new FadeTransition(Duration.millis(150), dynamicFieldsContainer);
-        fadeOut.setFromValue(1.0);
-        fadeOut.setToValue(0.8);
-
-        FadeTransition fadeIn = new FadeTransition(Duration.millis(150), dynamicFieldsContainer);
-        fadeIn.setFromValue(0.8);
-        fadeIn.setToValue(1.0);
-
-        fadeOut.setOnFinished(e -> fadeIn.play());
-        fadeOut.play();
-    }
-
-    // Setters pubblici per compatibilità
+    // ✅ CORREZIONE: Setter per i callback
     public void setOnSearchExecuted(Consumer<SearchResult> callback) {
         this.onSearchExecuted = callback;
     }
 
-    // Metodi di utilità
-    public boolean isSearching() {
-        return isSearching;
-    }
-
-    public void clearFields() {
-        Platform.runLater(() -> {
-            if (titleField != null) titleField.clear();
-            if (authorField != null) authorField.clear();
-            if (yearFromField != null) yearFromField.clear();
-            if (yearToField != null) yearToField.clear();
-            searchTypeCombo.setValue("Ricerca per Titolo");
-            updateDynamicFields();
-        });
+    public void setOnClosePanel(Runnable callback) {
+        this.onClosePanel = callback;
     }
 }
