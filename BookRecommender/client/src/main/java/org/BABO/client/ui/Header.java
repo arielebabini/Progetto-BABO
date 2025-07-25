@@ -13,8 +13,8 @@ import org.BABO.client.service.BookService;
 import java.util.function.Consumer;
 
 /**
- * Header aggiornato con integrazione completa per la ricerca avanzata
- * Mantiene il design esistente ma con migliore gestione del popup
+ * ✅ Header AGGIORNATO con FIX per pulsante X cliccabile
+ * Mantiene il design esistente ma con gestione corretta dell'overlay
  */
 public class Header {
 
@@ -120,66 +120,31 @@ public class Header {
         advancedSearchButton = createAdvancedSearchButton();
 
         searchArea.getChildren().addAll(searchField, advancedSearchButton);
-        HBox.setHgrow(searchField, Priority.ALWAYS);
 
         return searchArea;
     }
 
     /**
-     * Crea il campo di ricerca con stile migliorato
+     * Crea il campo di ricerca moderno
      */
     private TextField createSearchField() {
         TextField field = new TextField();
-        field.setPromptText("🔍 Cerca libri, autori...");
+        field.setPromptText("🔍 Cerca libri per titolo o autore...");
+        field.setPrefWidth(350);
         field.setStyle(
                 "-fx-background-color: " + SEARCH_BG + ";" +
                         "-fx-text-fill: " + TEXT_PRIMARY + ";" +
                         "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
                         "-fx-background-radius: 20px;" +
-                        "-fx-border-color: transparent;" +
-                        "-fx-padding: 10px 20px;" +
-                        "-fx-font-size: 14px;" +
-                        "-fx-min-height: 40px;" +
-                        "-fx-max-height: 40px;"
+                        "-fx-border-color: " + BORDER_COLOR + ";" +
+                        "-fx-border-width: 1px;" +
+                        "-fx-border-radius: 20px;" +
+                        "-fx-padding: 8px 16px;" +
+                        "-fx-font-size: 14px;"
         );
 
-        // Effetti focus
-        field.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal) {
-                field.setStyle(
-                        "-fx-background-color: " + SEARCH_BG + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: " + ACCENT_COLOR + ";" +
-                                "-fx-border-width: 2px;" +
-                                "-fx-border-radius: 20px;" +
-                                "-fx-padding: 8px 18px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-height: 40px;"
-                );
-            } else {
-                field.setStyle(
-                        "-fx-background-color: " + SEARCH_BG + ";" +
-                                "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                                "-fx-prompt-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-padding: 10px 20px;" +
-                                "-fx-font-size: 14px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-height: 40px;"
-                );
-            }
-        });
-
-        // Handler per ENTER
-        field.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ENTER) {
-                performSearch();
-            }
-        });
+        // Gestisce ricerca al press di Enter
+        field.setOnAction(e -> performSearch());
 
         return field;
     }
@@ -189,156 +154,126 @@ public class Header {
      */
     private Button createAdvancedSearchButton() {
         Button button = new Button("⚙️");
-        button.setTooltip(new Tooltip("Ricerca Avanzata"));
         button.setStyle(
                 "-fx-background-color: " + SEARCH_BG + ";" +
-                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                        "-fx-background-radius: 20px;" +
-                        "-fx-border-color: transparent;" +
+                        "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+                        "-fx-background-radius: 19px;" +
+                        "-fx-border-radius: 19px;" +
+                        "-fx-border-color: " + BORDER_COLOR + ";" +
+                        "-fx-border-width: 1px;" +
+                        "-fx-font-size: 14px;" +
                         "-fx-cursor: hand;" +
-                        "-fx-font-size: 16px;" +
-                        "-fx-min-width: 40px;" +
-                        "-fx-min-height: 40px;" +
-                        "-fx-max-width: 40px;" +
-                        "-fx-max-height: 40px;" +
-                        "-fx-padding: 0;"
+                        "-fx-padding: 8px 12px;"
         );
 
-        // Effetti hover
-        button.setOnMouseEntered(e -> {
-            if (!isAdvancedSearchOpen) {
-                button.setStyle(
-                        "-fx-background-color: " + ACCENT_COLOR + ";" +
-                                "-fx-text-fill: white;" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-min-width: 40px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-width: 40px;" +
-                                "-fx-max-height: 40px;" +
-                                "-fx-padding: 0;"
-                );
-            }
-        });
-
-        button.setOnMouseExited(e -> {
-            if (!isAdvancedSearchOpen) {
-                button.setStyle(
-                        "-fx-background-color: " + SEARCH_BG + ";" +
-                                "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-min-width: 40px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-width: 40px;" +
-                                "-fx-max-height: 40px;" +
-                                "-fx-padding: 0;"
-                );
-            }
-        });
-
-        // Handler click per aprire ricerca avanzata
-        button.setOnAction(e -> showAdvancedSearch());
+        button.setOnAction(e -> toggleAdvancedSearch());
 
         return button;
     }
 
     /**
-     * Crea i controlli del lato destro (placeholder per future funzionalità)
+     * Gestisce l'apertura/chiusura della ricerca avanzata
      */
-    private HBox createRightControls() {
-        HBox rightControls = new HBox(10);
-        rightControls.setAlignment(Pos.CENTER_RIGHT);
-
-        // Placeholder per future funzionalità come:
-        // - Pulsante filtri
-        // - Pulsante vista
-        // - Pulsante profilo utente
-        // - etc.
-
-        return rightControls;
-    }
-
-    /**
-     * Esegue la ricerca normale (dal campo di testo)
-     */
-    private void performSearch() {
-        String query = searchField.getText().trim();
-        if (!query.isEmpty() && searchHandler != null) {
-            System.out.println("🔍 Ricerca normale: " + query);
-            searchHandler.accept(query);
-        }
-    }
-
-    /**
-     * Mostra il popup di ricerca avanzata
-     */
-    private void showAdvancedSearch() {
+    private void toggleAdvancedSearch() {
         if (isAdvancedSearchOpen) {
-            System.out.println("⚠️ Popup ricerca avanzata già aperto");
+            closeAdvancedSearch();
+        } else {
+            openAdvancedSearch();
+        }
+    }
+
+    /**
+     * Apre il popup di ricerca avanzata
+     */
+    private void openAdvancedSearch() {
+        if (isAdvancedSearchOpen) {
+            System.out.println("⚠️ Ricerca avanzata già aperta");
             return;
         }
 
-        if (mainContainer == null) {
-            System.err.println("❌ MainContainer non impostato - impossibile aprire ricerca avanzata");
-            showSimpleAlert("Errore", "Errore di configurazione: impossibile aprire la ricerca avanzata.");
+        if (bookService == null || mainContainer == null) {
+            System.err.println("❌ BookService o MainContainer non impostati");
             return;
         }
-
-        if (bookService == null) {
-            System.err.println("❌ BookService non impostato - impossibile aprire ricerca avanzata");
-            showSimpleAlert("Errore", "Servizio libri non disponibile.");
-            return;
-        }
-
-        isAdvancedSearchOpen = true;
-        updateAdvancedSearchButtonState(true);
 
         System.out.println("🔍 Apertura ricerca avanzata...");
 
-        // Crea il pannello di ricerca avanzata
-        currentAdvancedSearchPanel = new AdvancedSearchPanel(bookService);
+        try {
+            // Aggiorna stato
+            isAdvancedSearchOpen = true;
+            updateAdvancedSearchButtonStyle(true);
 
-        // Callback per quando viene eseguita una ricerca
-        currentAdvancedSearchPanel.setOnSearchExecuted(result -> {
-            System.out.println("✅ Ricerca avanzata eseguita: " + result.getBooks().size() + " risultati");
-            handleAdvancedSearchResult(result);
-            closeAdvancedSearch(); // Chiudi il popup dopo la ricerca
-        });
+            // Crea il pannello di ricerca avanzata
+            currentAdvancedSearchPanel = new AdvancedSearchPanel(bookService);
 
-        // Crea overlay per il popup
-        StackPane overlay = createPopupOverlay();
-        overlay.getChildren().add(currentAdvancedSearchPanel);
-        StackPane.setAlignment(currentAdvancedSearchPanel, Pos.CENTER);
+            // Callback per quando viene eseguita una ricerca
+            currentAdvancedSearchPanel.setOnSearchExecuted(result -> {
+                System.out.println("✅ Ricerca avanzata eseguita: " + result.getBooks().size() + " risultati");
+                handleAdvancedSearchResult(result);
+                closeAdvancedSearch(); // Chiudi il popup dopo la ricerca
+            });
 
-        // Aggiungi al container principale
-        mainContainer.getChildren().add(overlay);
+            // Callback per la chiusura del pannello
+            currentAdvancedSearchPanel.setOnClosePanel(() -> {
+                System.out.println("🔗 Callback chiusura pannello chiamato dall'AdvancedSearchPanel");
+                closeAdvancedSearch();
+            });
 
-        System.out.println("✅ Popup ricerca avanzata aperto");
+            // ✅ FIX: Crea overlay CORRETTO che non blocca i click sui controlli interni
+            StackPane overlay = createPopupOverlay();
+            overlay.getChildren().add(currentAdvancedSearchPanel);
+            StackPane.setAlignment(currentAdvancedSearchPanel, Pos.CENTER);
+
+            // Aggiungi al container principale
+            mainContainer.getChildren().add(overlay);
+
+            System.out.println("✅ Popup ricerca avanzata aperto");
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore apertura ricerca avanzata: " + e.getMessage());
+            e.printStackTrace();
+
+            // Rollback in caso di errore
+            isAdvancedSearchOpen = false;
+            updateAdvancedSearchButtonStyle(false);
+            currentAdvancedSearchPanel = null;
+        }
     }
 
     /**
-     * Crea l'overlay per il popup
+     * ✅ FIX DEFINITIVO: Crea overlay che NON blocca i click sui controlli interni
      */
     private StackPane createPopupOverlay() {
         StackPane overlay = new StackPane();
         overlay.setStyle("-fx-background-color: rgba(0,0,0,0.5);");
 
-        // Click sul background per chiudere
+        // ✅ FIX CRITICO: Permetti ai controlli figli di ricevere eventi mouse
+        overlay.setPickOnBounds(false);
+
+        // ✅ Gestione più precisa dei click
         overlay.setOnMouseClicked(event -> {
-            if (event.getTarget() == overlay) {
-                closeAdvancedSearch();
+            System.out.println("🖱️ Click rilevato su overlay");
+            System.out.println("   - Target: " + event.getTarget().getClass().getSimpleName());
+            System.out.println("   - Source: " + event.getSource().getClass().getSimpleName());
+
+            // ✅ IMPORTANTE: Chiudi solo se il click è DAVVERO sull'overlay di sfondo
+            // e non su un controllo interno (come il pulsante X)
+            if (event.getTarget() == overlay && event.getSource() == overlay) {
+                System.out.println("🖱️ Click confermato su sfondo overlay - chiusura");
+                event.consume();
+                Platform.runLater(() -> closeAdvancedSearch());
+            } else {
+                System.out.println("🖱️ Click su controllo interno - NON chiudo overlay");
+                // NON consumare l'evento - lascia che arrivi al controllo di destinazione
             }
         });
 
-        // ESC per chiudere
+        // ✅ GESTIONE ESC invariata (funziona già)
         overlay.setOnKeyPressed(event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                closeAdvancedSearch();
+                System.out.println("⌨️ ESC premuto - chiusura ricerca avanzata");
+                event.consume();
+                Platform.runLater(() -> closeAdvancedSearch());
             }
         });
 
@@ -349,7 +284,7 @@ public class Header {
     }
 
     /**
-     * Chiude la ricerca avanzata
+     * Chiude il popup di ricerca avanzata
      */
     public void closeAdvancedSearch() {
         if (!isAdvancedSearchOpen) {
@@ -358,24 +293,94 @@ public class Header {
 
         System.out.println("🔍 Chiusura ricerca avanzata...");
 
-        isAdvancedSearchOpen = false;
-        updateAdvancedSearchButtonState(false);
+        try {
+            // 1. Aggiorna stato
+            isAdvancedSearchOpen = false;
+            updateAdvancedSearchButtonStyle(false);
 
-        // Rimuovi l'overlay dal container principale
-        if (mainContainer != null && !mainContainer.getChildren().isEmpty()) {
-            // Trova e rimuovi l'overlay della ricerca avanzata
-            mainContainer.getChildren().removeIf(node -> {
-                if (node instanceof StackPane) {
-                    StackPane stackPane = (StackPane) node;
-                    return stackPane.getChildren().stream()
-                            .anyMatch(child -> child instanceof AdvancedSearchPanel);
-                }
-                return false;
-            });
+            // 2. Cleanup del pannello corrente
+            if (currentAdvancedSearchPanel != null) {
+                // Cleanup degli event handlers per evitare memory leak
+                currentAdvancedSearchPanel.cleanup();
+                currentAdvancedSearchPanel = null;
+            }
+
+            // 3. Rimuovi overlay dal container principale
+            if (mainContainer != null) {
+                // Rimuovi tutti gli overlay di ricerca avanzata
+                mainContainer.getChildren().removeIf(node -> {
+                    if (node instanceof StackPane) {
+                        StackPane stackPane = (StackPane) node;
+                        // Controlla se contiene un AdvancedSearchPanel
+                        return stackPane.getChildren().stream()
+                                .anyMatch(child -> child instanceof AdvancedSearchPanel);
+                    }
+                    return false;
+                });
+            }
+
+            System.out.println("✅ Ricerca avanzata chiusa correttamente");
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nella chiusura ricerca avanzata: " + e.getMessage());
+            e.printStackTrace();
         }
+    }
 
-        currentAdvancedSearchPanel = null;
-        System.out.println("✅ Ricerca avanzata chiusa");
+    /**
+     * Aggiorna lo stile del pulsante ricerca avanzata
+     */
+    private void updateAdvancedSearchButtonStyle(boolean isOpen) {
+        if (advancedSearchButton == null) return;
+
+        if (isOpen) {
+            advancedSearchButton.setText("✕");
+            advancedSearchButton.setStyle(
+                    "-fx-background-color: #ff3b30;" +
+                            "-fx-text-fill: white;" +
+                            "-fx-background-radius: 19px;" +
+                            "-fx-border-radius: 19px;" +
+                            "-fx-border-color: #ff3b30;" +
+                            "-fx-border-width: 1px;" +
+                            "-fx-font-size: 14px;" +
+                            "-fx-font-weight: bold;" +
+                            "-fx-cursor: hand;" +
+                            "-fx-padding: 8px 12px;"
+            );
+        } else {
+            advancedSearchButton.setText("⚙️");
+            advancedSearchButton.setStyle(
+                    "-fx-background-color: " + SEARCH_BG + ";" +
+                            "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+                            "-fx-background-radius: 19px;" +
+                            "-fx-border-radius: 19px;" +
+                            "-fx-border-color: " + BORDER_COLOR + ";" +
+                            "-fx-border-width: 1px;" +
+                            "-fx-font-size: 14px;" +
+                            "-fx-cursor: hand;" +
+                            "-fx-padding: 8px 12px;"
+            );
+        }
+    }
+
+    /**
+     * Crea i controlli destri (placeholder per future funzionalità)
+     */
+    private HBox createRightControls() {
+        HBox rightControls = new HBox(10);
+        rightControls.setAlignment(Pos.CENTER_RIGHT);
+        // Placeholder per futuri controlli (es. filtri, ordinamento, ecc.)
+        return rightControls;
+    }
+
+    /**
+     * Esegue la ricerca normale
+     */
+    private void performSearch() {
+        String query = searchField != null ? searchField.getText().trim() : "";
+        if (!query.isEmpty() && searchHandler != null) {
+            searchHandler.accept(query);
+        }
     }
 
     /**
@@ -393,7 +398,9 @@ public class Header {
         if (!searchQuery.isEmpty()) {
             // Aggiorna il campo di ricerca per mostrare cosa è stato cercato
             Platform.runLater(() -> {
-                searchField.setText(searchQuery);
+                if (searchField != null) {
+                    searchField.setText(searchQuery);
+                }
             });
         }
 
@@ -431,141 +438,77 @@ public class Header {
 
         if (result.getSearchType().contains("Titolo") && !result.getTitleQuery().isEmpty()) {
             query.append(result.getTitleQuery());
-        } else if (result.getSearchType().contains("Autore")) {
-            if (!result.getAuthorQuery().isEmpty()) {
-                query.append("author:").append(result.getAuthorQuery());
-            }
+        } else if (result.getSearchType().contains("Autore") && !result.getAuthorQuery().isEmpty()) {
+            query.append("author:").append(result.getAuthorQuery());
 
-            // ✅ CORREZIONE: Aggiungi filtri anno se specificati
+            // Aggiungi filtro anno se presente
             if (!result.getYearFrom().isEmpty() || !result.getYearTo().isEmpty()) {
-                if (query.length() > 0) query.append(" ");
-                query.append("year:");
-
-                if (!result.getYearFrom().isEmpty() && !result.getYearTo().isEmpty()) {
-                    if (result.getYearFrom().equals(result.getYearTo())) {
-                        // Anno singolo
-                        query.append(result.getYearFrom());
-                    } else {
-                        // Range di anni
-                        query.append(result.getYearFrom()).append("-").append(result.getYearTo());
+                query.append(" year:");
+                if (!result.getYearFrom().isEmpty()) {
+                    query.append(result.getYearFrom());
+                }
+                if (!result.getYearTo().isEmpty()) {
+                    if (!result.getYearFrom().isEmpty()) {
+                        query.append("-");
                     }
-                } else if (!result.getYearFrom().isEmpty()) {
-                    query.append(result.getYearFrom()).append("..");
-                } else {
-                    query.append("..").append(result.getYearTo());
+                    query.append(result.getYearTo());
                 }
             }
         }
 
-        String finalQuery = query.toString().trim();
-        System.out.println("🔧 Query costruita: '" + finalQuery + "'");
-        return finalQuery;
+        return query.toString();
     }
 
     /**
-     * Aggiorna lo stato visivo del pulsante ricerca avanzata
-     */
-    private void updateAdvancedSearchButtonState(boolean isOpen) {
-        if (advancedSearchButton == null) return;
-
-        Platform.runLater(() -> {
-            if (isOpen) {
-                // Stato attivo (popup aperto)
-                advancedSearchButton.setStyle(
-                        "-fx-background-color: " + ACCENT_COLOR + ";" +
-                                "-fx-text-fill: white;" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-min-width: 40px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-width: 40px;" +
-                                "-fx-max-height: 40px;" +
-                                "-fx-padding: 0;"
-                );
-            } else {
-                // Stato normale
-                advancedSearchButton.setStyle(
-                        "-fx-background-color: " + SEARCH_BG + ";" +
-                                "-fx-text-fill: " + TEXT_SECONDARY + ";" +
-                                "-fx-background-radius: 20px;" +
-                                "-fx-border-color: transparent;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-font-size: 16px;" +
-                                "-fx-min-width: 40px;" +
-                                "-fx-min-height: 40px;" +
-                                "-fx-max-width: 40px;" +
-                                "-fx-max-height: 40px;" +
-                                "-fx-padding: 0;"
-                );
-            }
-        });
-    }
-
-    /**
-     * Mostra un alert semplice per errori
+     * Mostra un alert semplice
      */
     private void showSimpleAlert(String title, String message) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.ERROR);
-            alert.setTitle(title);
-            alert.setHeaderText(null);
-            alert.setContentText(message);
-
-            // Applica stile dark
-            DialogPane dialogPane = alert.getDialogPane();
-            dialogPane.setStyle(
-                    "-fx-background-color: #1a1a1c;" +
-                            "-fx-text-fill: white;"
-            );
-
-            alert.showAndWait();
-        });
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
-    // =====================================================
-    // METODI PUBBLICI PER COMPATIBILITÀ E CONTROLLO
-    // =====================================================
+    // Getters e setters per compatibilità
+    public void setSearchHandler(Consumer<String> handler) {
+        this.searchHandler = handler;
+    }
+
+    public Consumer<String> getSearchHandler() {
+        return searchHandler;
+    }
+
+    public BookService getBookService() {
+        return bookService;
+    }
+
+    public StackPane getMainContainer() {
+        return mainContainer;
+    }
+
+    public boolean isAdvancedSearchOpen() {
+        return isAdvancedSearchOpen;
+    }
 
     /**
-     * Pulisce il campo di ricerca
+     * ✅ ORIGINALE: Pulisce il campo di ricerca
      */
     public void clearSearch() {
         if (searchField != null) {
-            Platform.runLater(() -> {
-                searchField.clear();
-            });
+            searchField.clear();
         }
     }
 
     /**
-     * Imposta il testo nel campo di ricerca
-     */
-    public void setSearchText(String text) {
-        if (searchField != null) {
-            Platform.runLater(() -> {
-                searchField.setText(text);
-            });
-        }
-    }
-
-    /**
-     * Ottiene il testo corrente nel campo di ricerca
+     * ✅ ORIGINALE: Ottiene il testo di ricerca corrente
      */
     public String getSearchText() {
         return searchField != null ? searchField.getText() : "";
     }
 
     /**
-     * Imposta l'handler per le ricerche
-     */
-    public void setSearchHandler(Consumer<String> handler) {
-        this.searchHandler = handler;
-    }
-
-    /**
-     * Forza il focus sul campo di ricerca
+     * ✅ ORIGINALE: Forza il focus sul campo di ricerca
      */
     public void focusSearchField() {
         if (searchField != null) {
@@ -576,28 +519,21 @@ public class Header {
     }
 
     /**
-     * Verifica se la ricerca avanzata è attualmente aperta
-     */
-    public boolean isAdvancedSearchOpen() {
-        return isAdvancedSearchOpen;
-    }
-
-    /**
-     * Ottiene il pannello di ricerca avanzata corrente (se aperto)
+     * ✅ ORIGINALE: Ottiene il pannello di ricerca avanzata corrente (se aperto)
      */
     public AdvancedSearchPanel getCurrentAdvancedSearchPanel() {
         return currentAdvancedSearchPanel;
     }
 
     /**
-     * Verifica se tutti i componenti sono inizializzati correttamente
+     * ✅ ORIGINALE: Verifica se tutti i componenti sono inizializzati correttamente
      */
     public boolean isFullyInitialized() {
         return bookService != null && mainContainer != null && searchField != null && advancedSearchButton != null;
     }
 
     /**
-     * Debug delle informazioni di stato
+     * ✅ ORIGINALE: Debug delle informazioni di stato
      */
     public void debugState() {
         System.out.println("🔍 ===== HEADER DEBUG STATE =====");

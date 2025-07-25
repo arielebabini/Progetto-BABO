@@ -189,23 +189,30 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Creazione header con pulsante X cliccabile
+     * ✅ FIX DEFINITIVO: Creazione header con pulsante X garantito cliccabile
      */
     private HBox createHeader() {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_RIGHT);
-        header.setPadding(new Insets(20, 25, 10, 25));
-        header.setPrefHeight(50);
-        header.setMinHeight(50);
+        header.setPadding(new Insets(25, 25, 10, 25));
+        header.setPrefHeight(60);
+        header.setMinHeight(60);
 
-        // Crea il pulsante X con dimensioni fisse
+        // ✅ IMPORTANTE: Assicurati che l'header non blocchi gli eventi
+        header.setPickOnBounds(false);
+        header.setMouseTransparent(false);
+
+        // Crea il pulsante X
         closeButton = createCloseButton();
 
-        // ✅ IMPORTANTE: Assicurati che il pulsante sia cliccabile
-        closeButton.setPickOnBounds(true);
-        closeButton.setFocusTraversable(true);
-
+        // ✅ IMPORTANTE: Aggiungi solo il pulsante senza altri elementi che possano interferire
         header.getChildren().add(closeButton);
+
+        System.out.println("✅ Header creato con pulsante X");
+        System.out.println("   - Header dimensioni: " + header.getPrefWidth() + "x" + header.getPrefHeight());
+        System.out.println("   - Pulsante visibile: " + closeButton.isVisible());
+        System.out.println("   - Pulsante gestito: " + closeButton.isManaged());
+
         return header;
     }
 
@@ -332,61 +339,107 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Creazione pulsante X cliccabile senza Platform.runLater negli hover
+     * ✅ TEST DEFINITIVO: Pulsante X con TUTTI i possibili event handler
      */
     private Button createCloseButton() {
         Button closeBtn = new Button("✕");
 
-        // ✅ IMPORTANTE: Dimensioni e posizionamento fissi
-        closeBtn.setPrefSize(36, 36);
-        closeBtn.setMinSize(36, 36);
-        closeBtn.setMaxSize(36, 36);
+        // ✅ STEP 1: Dimensioni fisse e esplicite
+        closeBtn.setMinSize(40, 40);
+        closeBtn.setPrefSize(40, 40);
+        closeBtn.setMaxSize(40, 40);
 
-        // ✅ IMPORTANTE: Stile base
+        // ✅ STEP 2: Stile di base SEMPLIFICATO per garantire visibilità
         closeBtn.setStyle(
-                "-fx-background-color: " + BG_CONTROL + ";" +
-                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
+                "-fx-background-color: #666666;" +
+                        "-fx-text-fill: white;" +
                         "-fx-font-size: 18px;" +
                         "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 18px;" +
+                        "-fx-background-radius: 20px;" +
                         "-fx-cursor: hand;" +
-                        "-fx-border-color: transparent;" +
+                        "-fx-border-width: 0;" +
                         "-fx-padding: 0;" +
                         "-fx-alignment: center;"
         );
 
-        // ✅ IMPORTANTE: Hover effects SENZA Platform.runLater
+        // ✅ STEP 3: Proprietà critiche per la cliccabilità
+        closeBtn.setPickOnBounds(true);
+        closeBtn.setFocusTraversable(true);
+        closeBtn.setMouseTransparent(false);
+        closeBtn.setDisable(false);
+        closeBtn.setVisible(true);
+        closeBtn.setManaged(true);
+
+        // ✅ TEST: TUTTI I POSSIBILI EVENT HANDLER
+
+        // 1. Mouse events
         closeBtn.setOnMouseEntered(e -> {
+            System.out.println("✅ MouseEntered - FUNZIONA");
             closeBtn.setStyle(
-                    "-fx-background-color: " + ERROR_COLOR + ";" +
+                    "-fx-background-color: #ff3b30;" +
                             "-fx-text-fill: white;" +
                             "-fx-font-size: 18px;" +
                             "-fx-font-weight: bold;" +
-                            "-fx-background-radius: 18px;" +
+                            "-fx-background-radius: 20px;" +
                             "-fx-cursor: hand;" +
-                            "-fx-border-color: transparent;" +
+                            "-fx-border-width: 0;" +
                             "-fx-padding: 0;" +
                             "-fx-alignment: center;"
             );
         });
 
         closeBtn.setOnMouseExited(e -> {
+            System.out.println("✅ MouseExited - FUNZIONA");
             closeBtn.setStyle(
-                    "-fx-background-color: " + BG_CONTROL + ";" +
-                            "-fx-text-fill: " + TEXT_SECONDARY + ";" +
+                    "-fx-background-color: #666666;" +
+                            "-fx-text-fill: white;" +
                             "-fx-font-size: 18px;" +
                             "-fx-font-weight: bold;" +
-                            "-fx-background-radius: 18px;" +
+                            "-fx-background-radius: 20px;" +
                             "-fx-cursor: hand;" +
-                            "-fx-border-color: transparent;" +
+                            "-fx-border-width: 0;" +
                             "-fx-padding: 0;" +
                             "-fx-alignment: center;"
             );
         });
 
-        // ✅ IMPORTANTE: Assicurati che riceva gli eventi mouse
-        closeBtn.setPickOnBounds(true);
-        closeBtn.setFocusTraversable(true);
+        closeBtn.setOnMousePressed(e -> {
+            System.out.println("✅ MousePressed - FUNZIONA");
+        });
+
+        closeBtn.setOnMouseReleased(e -> {
+            System.out.println("✅ MouseReleased - FUNZIONA");
+        });
+
+        closeBtn.setOnMouseClicked(e -> {
+            System.out.println("✅ MouseClicked - FUNZIONA! Chiudo pannello...");
+            e.consume();
+            closePanel();
+        });
+
+        // 2. Action event
+        closeBtn.setOnAction(e -> {
+            System.out.println("✅ Action - FUNZIONA! Chiudo pannello...");
+            e.consume();
+            closePanel();
+        });
+
+        // 3. Key events (se mai ricevesse focus)
+        closeBtn.setOnKeyPressed(e -> {
+            System.out.println("✅ KeyPressed: " + e.getCode());
+            if (e.getCode() == javafx.scene.input.KeyCode.ENTER || e.getCode() == javafx.scene.input.KeyCode.SPACE) {
+                System.out.println("✅ Key ENTER/SPACE - Chiudo pannello...");
+                e.consume();
+                closePanel();
+            }
+        });
+
+        System.out.println("✅ Pulsante X creato con dimensioni: " + closeBtn.getPrefWidth() + "x" + closeBtn.getPrefHeight());
+        System.out.println("   - Visible: " + closeBtn.isVisible());
+        System.out.println("   - Managed: " + closeBtn.isManaged());
+        System.out.println("   - Disabled: " + closeBtn.isDisabled());
+        System.out.println("   - MouseTransparent: " + closeBtn.isMouseTransparent());
+        System.out.println("   - PickOnBounds: " + closeBtn.isPickOnBounds());
 
         return closeBtn;
     }
@@ -637,19 +690,22 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ RIPRISTINO: Chiusura pannello dalla versione funzionante originale
+     * ✅ FIX DEFINITIVO: Chiusura pannello con callback PRIMA del cleanup
      */
     private void closePanel() {
         try {
             System.out.println("🔒 Chiusura pannello ricerca avanzata...");
 
-            // ✅ ORIGINALE: Cleanup PRIMA della chiusura
-            cleanup();
-
-            // ✅ ORIGINALE: Chiamata callback con Platform.runLater come nell'originale
+            // ✅ FIX CRITICO: Chiama il callback PRIMA del cleanup!
             if (onClosePanel != null) {
-                Platform.runLater(() -> onClosePanel.run());
+                System.out.println("🔗 Chiamata callback chiusura Header...");
+                onClosePanel.run(); // DIRETTO - chiamata PRIMA del cleanup
+            } else {
+                System.err.println("❌ ERRORE: onClosePanel callback è NULL!");
             }
+
+            // ✅ Cleanup DOPO aver chiamato il callback
+            cleanup();
 
             System.out.println("✅ Pannello chiuso correttamente");
 
