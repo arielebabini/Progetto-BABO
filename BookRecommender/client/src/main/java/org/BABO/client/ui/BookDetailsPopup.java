@@ -68,6 +68,7 @@ public class BookDetailsPopup {
     private static final ClientRatingService ratingService = new ClientRatingService();
     private static BookRating currentUserRating = null;
     private static Double averageBookRating = null;
+    private static Integer currentBookReviewCount = null;
     private static Label averageRatingLabel = null;
     private static VBox currentRatingSection = null;
     private static AuthenticationManager currentAuthManager = null;
@@ -600,15 +601,22 @@ public class BookDetailsPopup {
     }
 
     private static void loadAverageRating(Book book) {
-        ratingService.getBookAverageRatingAsync(book.getIsbn())
+        ratingService.getBookRatingStatisticsAsync(book.getIsbn())
                 .thenAccept(response -> Platform.runLater(() -> {
-                    averageBookRating = response.isSuccess() ? response.getAverageRating() : null;
+                    if (response.isSuccess()) {
+                        averageBookRating = response.getAverageRating();
+                        currentBookReviewCount = response.getTotalRatings();
+                    } else {
+                        averageBookRating = null;
+                        currentBookReviewCount = null;
+                    }
                     updateRatingDisplaySafe();
                     refreshRatingSection();
                 }))
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
                         averageBookRating = null;
+                        currentBookReviewCount = null;
                         updateRatingDisplaySafe();
                     });
                     return null;
@@ -635,11 +643,16 @@ public class BookDetailsPopup {
             if (averageBookRating != null && averageBookRating > 0) {
                 int stars = (int) Math.round(averageBookRating);
                 String starsDisplay = "★".repeat(stars) + "☆".repeat(5 - stars);
+
+                int reviewCount = currentBookReviewCount != null ? currentBookReviewCount : 0;
                 String text = String.format("%s %.1f/5 (%d recensioni)",
-                        starsDisplay, averageBookRating, (int)(Math.random() * 50 + 10));
+                        starsDisplay, averageBookRating, reviewCount);
+
                 averageRatingLabel.setText(text);
+                averageRatingLabel.setTextFill(Color.GOLD);
             } else {
                 averageRatingLabel.setText("☆☆☆☆☆ Non ancora valutato");
+                averageRatingLabel.setTextFill(Color.LIGHTGRAY);
             }
         }
     }
