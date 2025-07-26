@@ -82,10 +82,6 @@ public class Sidebar {
                         System.out.println("🏠 Click Home dalla sidebar");
                         // Chiama il metodo specifico per la home nel MainWindow
                         mainWindow.showHomePage();
-                        // E anche nel ContentArea per assicurarsi che torni alla vista normale
-                        if (mainWindow.getContentArea() != null) {
-                            mainWindow.getContentArea().forceHomeView();
-                        }
                     }
                 });
             } else if (menuItems[i].contains("Le Mie Librerie")) {

@@ -37,6 +37,7 @@ public class ContentArea {
     private BookSectionFactory sectionFactory;
     private Consumer<List<Book>> cachedBooksCallback;
     private ExploreIntegration exploreIntegration;
+    private boolean isLoadingInitialContent = false;
 
     // Cache per navigazione contestuale
     private List<Book> featuredBooks = new ArrayList<>();
@@ -317,15 +318,39 @@ public class ContentArea {
     }
 
     public void loadInitialContent() {
-        // Reset cache
-        featuredBooks.clear();
-        freeBooks.clear();
-        newBooks.clear();
-        searchResults.clear();
-        advancedSearchResults.clear();
+        // ✅ CONTROLLO: Prevenzione doppio caricamento
+        if (isLoadingInitialContent) {
+            System.out.println("⚠️ loadInitialContent già in esecuzione, saltato");
+            return;
+        }
 
-        if (content != null) {
-            content.getChildren().clear();
+        isLoadingInitialContent = true;
+        System.out.println("🏠 Inizio caricamento contenuto home");
+
+        try {
+            // ✅ PULIZIA: Contenuto PRIMA di ricaricarlo
+            if (content != null) {
+                content.getChildren().clear();
+                System.out.println("🧹 Contenuto pulito");
+            }
+
+            // Reset cache
+            featuredBooks.clear();
+            freeBooks.clear();
+            newBooks.clear();
+            searchResults.clear();
+            advancedSearchResults.clear();
+
+            if (content == null) {
+                System.err.println("❌ Content VBox non inizializzato");
+                return;
+            }
+
+            if (sectionFactory == null) {
+                System.err.println("❌ SectionFactory non inizializzato");
+                showErrorDialog("Errore di inizializzazione. Riavvia l'applicazione.");
+                return;
+            }
 
             // Sezioni principali
             content.getChildren().addAll(
@@ -336,8 +361,19 @@ public class ContentArea {
 
             // Carica categorie async
             sectionFactory.loadCategoriesAsync(content);
+
+            System.out.println("✅ Caricamento home completato");
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nel caricamento contenuto iniziale: " + e.getMessage());
+            e.printStackTrace();
+            showErrorDialog("Errore nel caricamento del contenuto");
+        } finally {
+            // ✅ RESET: Permetti future chiamate
+            isLoadingInitialContent = false;
         }
     }
+
 
     /**
      * ✅ AGGIORNATO: Gestisce le ricerche con supporto per ricerca avanzata
@@ -1030,6 +1066,13 @@ public class ContentArea {
      */
     public void forceHomeView() {
         System.out.println("🏠 Forzatura ritorno alla vista home");
+
+        // ✅ PREVENZIONE: Non ricaricare se già in corso
+        if (isLoadingInitialContent) {
+            System.out.println("⚠️ Caricamento home già in corso, saltato");
+            return;
+        }
+
         loadInitialContent();
     }
 
