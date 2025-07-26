@@ -154,20 +154,67 @@ public class Header {
      */
     private Button createAdvancedSearchButton() {
         Button button = new Button("⚙️");
+        button.setTooltip(new Tooltip("Ricerca Avanzata"));
+
+        // Rimuovi i puntini
+        button.setTextOverrun(OverrunStyle.CLIP);
+        button.setEllipsisString("");
+        button.setWrapText(false);
+        button.setAlignment(Pos.CENTER);
+
+        // ✅ STILE BASE IDENTICO (stesso di hover ma diverso colore)
         button.setStyle(
                 "-fx-background-color: " + SEARCH_BG + ";" +
-                        "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                        "-fx-background-radius: 19px;" +
-                        "-fx-border-radius: 19px;" +
+                        "-fx-text-fill: " + TEXT_SECONDARY + ";" +
+                        "-fx-background-radius: 19px;" +        // ✅ STESSO radius dell'hover
+                        "-fx-border-radius: 19px;" +            // ✅ STESSO border-radius dell'hover
                         "-fx-border-color: " + BORDER_COLOR + ";" +
-                        "-fx-border-width: 1px;" +
-                        "-fx-font-size: 14px;" +
+                        "-fx-border-width: 1px;" +              // ✅ STESSO border dell'hover
                         "-fx-cursor: hand;" +
-                        "-fx-padding: 8px 12px;"
+                        "-fx-font-size: 16px;" +
+                        "-fx-font-family: 'Segoe UI Emoji', sans-serif;" +
+                        "-fx-min-width: 40px;" +
+                        "-fx-min-height: 40px;" +
+                        "-fx-max-width: 40px;" +
+                        "-fx-max-height: 40px;" +
+                        "-fx-pref-width: 40px;" +
+                        "-fx-pref-height: 40px;" +
+                        "-fx-padding: 0;" +
+                        "-fx-text-overrun: clip;"
         );
 
-        button.setOnAction(e -> toggleAdvancedSearch());
+        // ✅ HOVER: CAMBIA SOLO I COLORI, NON LA FORMA
+        button.setOnMouseEntered(e -> {
+            if (!isAdvancedSearchOpen) {
+                button.setStyle(
+                        "-fx-background-color: " + ACCENT_COLOR + ";" +    // ✅ Solo colore diverso
+                                "-fx-text-fill: white;" +                          // ✅ Solo colore testo diverso
+                                "-fx-background-radius: 19px;" +                   // ✅ IDENTICO al normale
+                                "-fx-border-radius: 19px;" +                       // ✅ IDENTICO al normale
+                                "-fx-border-color: " + ACCENT_COLOR + ";" +        // ✅ Border stesso colore sfondo
+                                "-fx-border-width: 1px;" +                         // ✅ IDENTICO al normale
+                                "-fx-cursor: hand;" +
+                                "-fx-font-size: 16px;" +                           // ✅ IDENTICO al normale
+                                "-fx-font-family: 'Segoe UI Emoji', sans-serif;" +
+                                "-fx-min-width: 40px;" +                           // ✅ IDENTICO al normale
+                                "-fx-min-height: 40px;" +                          // ✅ IDENTICO al normale
+                                "-fx-max-width: 40px;" +                           // ✅ IDENTICO al normale
+                                "-fx-max-height: 40px;" +                          // ✅ IDENTICO al normale
+                                "-fx-pref-width: 40px;" +                          // ✅ IDENTICO al normale
+                                "-fx-pref-height: 40px;" +                         // ✅ IDENTICO al normale
+                                "-fx-padding: 0;" +                                // ✅ IDENTICO al normale
+                                "-fx-text-overrun: clip;"                          // ✅ IDENTICO al normale
+                );
+            }
+        });
 
+        button.setOnMouseExited(e -> {
+            if (!isAdvancedSearchOpen) {
+                updateAdvancedSearchButtonStyle(false);
+            }
+        });
+
+        button.setOnAction(e -> toggleAdvancedSearch());
         return button;
     }
 
@@ -332,33 +379,51 @@ public class Header {
     private void updateAdvancedSearchButtonStyle(boolean isOpen) {
         if (advancedSearchButton == null) return;
 
+        advancedSearchButton.setText("⚙️");
+
         if (isOpen) {
-            advancedSearchButton.setText("✕");
             advancedSearchButton.setStyle(
                     "-fx-background-color: #ff3b30;" +
                             "-fx-text-fill: white;" +
-                            "-fx-background-radius: 19px;" +
-                            "-fx-border-radius: 19px;" +
+                            "-fx-background-radius: 19px;" +               // ✅ CONSISTENTE
+                            "-fx-border-radius: 19px;" +                   // ✅ CONSISTENTE
                             "-fx-border-color: #ff3b30;" +
-                            "-fx-border-width: 1px;" +
-                            "-fx-font-size: 14px;" +
+                            "-fx-border-width: 1px;" +                     // ✅ CONSISTENTE
+                            "-fx-font-size: 16px;" +                       // ✅ CONSISTENTE con createAdvancedSearchButton
+                            "-fx-font-family: 'Segoe UI Emoji', sans-serif;" +
                             "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;" +
-                            "-fx-padding: 8px 12px;"
+                            "-fx-min-width: 40px;" +                       // ✅ CONSISTENTE
+                            "-fx-min-height: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-max-width: 40px;" +                       // ✅ CONSISTENTE
+                            "-fx-max-height: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-pref-width: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-pref-height: 40px;" +                     // ✅ CONSISTENTE
+                            "-fx-padding: 0;" +                            // ✅ CONSISTENTE
+                            "-fx-text-overrun: clip;"                      // ✅ CONSISTENTE
             );
+            advancedSearchButton.setText("✕");
         } else {
-            advancedSearchButton.setText("🔧"); // ✅ RIPRISTINATO: Simbolo filtro classico
             advancedSearchButton.setStyle(
                     "-fx-background-color: " + SEARCH_BG + ";" +
                             "-fx-text-fill: " + TEXT_PRIMARY + ";" +
-                            "-fx-background-radius: 19px;" +
-                            "-fx-border-radius: 19px;" +
+                            "-fx-background-radius: 19px;" +               // ✅ CONSISTENTE
+                            "-fx-border-radius: 19px;" +                   // ✅ CONSISTENTE
                             "-fx-border-color: " + BORDER_COLOR + ";" +
-                            "-fx-border-width: 1px;" +
-                            "-fx-font-size: 14px;" +
+                            "-fx-border-width: 1px;" +                     // ✅ CONSISTENTE
+                            "-fx-font-size: 16px;" +                       // ✅ CONSISTENTE con createAdvancedSearchButton
+                            "-fx-font-family: 'Segoe UI Emoji', sans-serif;" +
                             "-fx-cursor: hand;" +
-                            "-fx-padding: 8px 12px;"
+                            "-fx-min-width: 40px;" +                       // ✅ CONSISTENTE
+                            "-fx-min-height: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-max-width: 40px;" +                       // ✅ CONSISTENTE
+                            "-fx-max-height: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-pref-width: 40px;" +                      // ✅ CONSISTENTE
+                            "-fx-pref-height: 40px;" +                     // ✅ CONSISTENTE
+                            "-fx-padding: 0;" +                            // ✅ CONSISTENTE
+                            "-fx-text-overrun: clip;"                      // ✅ CONSISTENTE
             );
+            advancedSearchButton.setText("⚙️");
         }
     }
 

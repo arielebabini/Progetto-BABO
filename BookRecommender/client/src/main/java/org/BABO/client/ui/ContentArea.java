@@ -1055,13 +1055,10 @@ public class ContentArea {
             case 4: // Tutti i Libri
                 showAllBooks();
                 break;
-            case 5: // Ricerca Avanzata
-                showAdvancedSearchInfo();
-                break;
-            case 6: // Libri Letti
+            case 5: // Libri Letti (era indice 6)
                 showReadBooks();
                 break;
-            case 7: // PDF
+            case 6: // PDF (era indice 7)
                 showPDFBooks();
                 break;
             default:

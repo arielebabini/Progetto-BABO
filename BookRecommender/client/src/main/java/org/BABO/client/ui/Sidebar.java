@@ -68,7 +68,7 @@ public class Sidebar {
 
         // ✅ AGGIORNATO: "Book Store" sostituito con "Esplora"
         String[] menuItems = {"🏠 Home", "📚 Le Mie Librerie", "🔍 Esplora", "🎧 Audiobook Store",
-                "📖 Tutto", "🔍 Ricerca Avanzata", "✅ Letti", "📄 PDF"};
+                "📖 Tutto", "✅ Letti", "📄 PDF"};
 
         for (int i = 0; i < menuItems.length; i++) {
             HBox itemBox = createMenuItem(menuItems[i], i == 0);
@@ -116,13 +116,6 @@ public class Sidebar {
                     updateActiveMenuItem(index);
                     if (mainWindow != null && mainWindow.getContentArea() != null) {
                         mainWindow.getContentArea().handleMenuClick(index);
-                    }
-                });
-            } else if (menuItems[i].contains("Ricerca Avanzata")) {
-                itemBox.setOnMouseClicked(e -> {
-                    updateActiveMenuItem(index);
-                    if (mainWindow != null) {
-                        mainWindow.showAdvancedSearch();
                     }
                 });
             } else if (menuItems[i].contains("Letti")) {
