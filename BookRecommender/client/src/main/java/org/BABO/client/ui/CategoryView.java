@@ -11,6 +11,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.image.ImageView;
 
 import java.io.IOException;
 import java.util.*;
@@ -21,6 +22,7 @@ import java.util.stream.Collectors;
 /**
  * Vista dettagliata per una categoria specifica
  * Mostra tutti i libri di una categoria con filtri e ordinamento
+ * ✅ AGGIORNATO: Con caricamento libri per categoria
  */
 public class CategoryView {
 
@@ -152,26 +154,23 @@ public class CategoryView {
                         "-fx-prompt-text-fill: #8e8e93;" +
                         "-fx-background-radius: 8;" +
                         "-fx-border-radius: 8;" +
-                        "-fx-padding: 10;"
+                        "-fx-padding: 8 12;"
         );
 
-        searchField.textProperty().addListener((obs, oldText, newText) -> {
-            filterBooks(newText, sortComboBox.getValue());
+        searchField.textProperty().addListener((obs, oldValue, newValue) -> {
+            filterBooks(newValue);
         });
 
         sortComboBox = new ComboBox<>();
         sortComboBox.getItems().addAll(
-                "Nome A-Z",
-                "Nome Z-A",
-                "Autore A-Z",
-                "Autore Z-A",
-                "Anno Pubblicazione ↓",
-                "Anno Pubblicazione ↑",
-                "Più Votati",
-                "Meno Votati"
+                "📅 Più recenti",
+                "📅 Più vecchi",
+                "🔤 A-Z",
+                "🔤 Z-A",
+                "👤 Autore A-Z"
         );
-        sortComboBox.setValue("Nome A-Z");
-        sortComboBox.setPrefWidth(180);
+        sortComboBox.setValue("📅 Più recenti");
+        sortComboBox.setPrefWidth(150);
         sortComboBox.setStyle(
                 "-fx-background-color: #2c2c2e;" +
                         "-fx-text-fill: white;" +
@@ -179,352 +178,323 @@ public class CategoryView {
                         "-fx-border-radius: 8;"
         );
 
-        sortComboBox.setOnAction(e -> {
-            filterBooks(searchField.getText(), sortComboBox.getValue());
-        });
+        sortComboBox.setOnAction(e -> sortBooks());
 
-        Label resultCount = new Label();
-        resultCount.setFont(Font.font("System", FontWeight.NORMAL, 14));
-        resultCount.setTextFill(Color.LIGHTGRAY);
-        resultCount.setId("resultCount");
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        filterBar.getChildren().addAll(
-                new Label("🔍"), searchField,
-                new Label("📊"), sortComboBox,
-                spacer, resultCount
-        );
-
-        filterBar.getChildren().stream()
-                .filter(node -> node instanceof Label && !((Label) node).getId().equals("resultCount"))
-                .forEach(label -> {
-                    ((Label) label).setTextFill(Color.WHITE);
-                    ((Label) label).setFont(Font.font("System", FontWeight.BOLD, 14));
-                });
-
+        filterBar.getChildren().addAll(searchField, sortComboBox);
         return filterBar;
     }
 
+    /**
+     * ✅ AGGIORNATO: Carica i libri per questa categoria
+     */
     private void loadCategoryBooks() {
-        CompletableFuture.supplyAsync(() -> {
-            List<Book> allBooks = null;
-            try {
-                allBooks = bookService.getAllBooks();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-            return filterBooksByCategory(allBooks, category);
-        }).thenAccept(books -> {
-            Platform.runLater(() -> {
-                this.allCategoryBooks = books;
-                this.filteredBooks = new ArrayList<>(books);
-                updateBooksDisplay();
-                updateResultCount();
-            });
-        });
+        System.out.println("📚 Caricamento libri per categoria: " + category.getName());
+
+        // Mostra indicatore di caricamento
+        Label loadingLabel = new Label("📚 Caricamento libri...");
+        loadingLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        loadingLabel.setTextFill(Color.WHITE);
+
+        VBox loadingBox = new VBox(loadingLabel);
+        loadingBox.setAlignment(Pos.CENTER);
+        loadingBox.setPadding(new Insets(50));
+
+        booksGrid.getChildren().clear();
+        booksGrid.add(loadingBox, 0, 0);
+
+        // Carica libri asincrono
+        bookService.getBooksByCategoryAsync(category.getName())
+                .thenAccept(books -> {
+                    Platform.runLater(() -> {
+                        try {
+                            this.allCategoryBooks = books != null ? books : new ArrayList<>();
+                            this.filteredBooks = new ArrayList<>(this.allCategoryBooks);
+
+                            System.out.println("✅ Caricati " + this.allCategoryBooks.size() + " libri per categoria '" + category.getName() + "'");
+
+                            // Aggiorna la vista
+                            updateBooksGrid();
+                            updateBookCount();
+
+                        } catch (Exception e) {
+                            System.err.println("❌ Errore nell'aggiornamento vista categoria: " + e.getMessage());
+                            showLoadingError();
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        System.err.println("❌ Errore nel caricamento libri per categoria: " + throwable.getMessage());
+                        showLoadingError();
+                    });
+                    return null;
+                });
     }
 
-    private List<Book> filterBooksByCategory(List<Book> books, Category category) {
-        List<Book> categoryBooks = new ArrayList<>();
-
-        for (Book book : books) {
-            if (belongsToCategory(book, category)) {
-                categoryBooks.add(book);
-            }
-        }
-
-        return categoryBooks;
-    }
-
-    private boolean belongsToCategory(Book book, Category category) {
-        String title = book.getTitle().toLowerCase();
-        String author = book.getAuthor().toLowerCase();
-        String description = book.getDescription().toLowerCase();
-        String categoryName = category.getName().toLowerCase();
-
-        switch (categoryName) {
-            case "fiction":
-                return title.contains("romanzo") || description.contains("storia") ||
-                        !title.contains("manuale") && !description.contains("guida");
-
-            case "fantascienza":
-                return title.contains("futuro") || description.contains("spazio") ||
-                        description.contains("tecnologia") || description.contains("robot") ||
-                        author.contains("asimov") || author.contains("dick");
-
-            case "fantasy":
-                return description.contains("magia") || description.contains("drago") ||
-                        description.contains("regno") || title.contains("signore") ||
-                        author.contains("tolkien") || description.contains("avventura");
-
-            case "giallo/thriller":
-                return description.contains("mistero") || description.contains("omicidio") ||
-                        description.contains("investigatore") || description.contains("crimine");
-
-            case "romance":
-                return description.contains("amore") || description.contains("romantico") ||
-                        title.contains("amore") || description.contains("cuore");
-
-            case "biografie":
-                return description.contains("vita") || title.contains("biografia") ||
-                        description.contains("autobiografia") || description.contains("memorie");
-
-            case "storia":
-                return description.contains("storico") || description.contains("guerra") ||
-                        description.contains("antico") ||
-                        (book.getPublishYear() != null && book.getPublishYear().compareTo("1800") < 0);
-
-            case "scienza":
-                return description.contains("scienza") || description.contains("ricerca") ||
-                        description.contains("scoperta") || title.contains("teoria");
-
-            case "filosofia":
-                return description.contains("filosofia") || description.contains("pensiero") ||
-                        description.contains("esistenza") || description.contains("etica");
-
-            case "arte":
-                return description.contains("arte") || description.contains("pittura") ||
-                        description.contains("museo") || description.contains("artista");
-
-            case "cucina":
-                return description.contains("cucina") || description.contains("ricetta") ||
-                        description.contains("cucinare") || title.contains("chef");
-
-            case "viaggi":
-                return description.contains("viaggio") || description.contains("paese") ||
-                        description.contains("cultura") || description.contains("esplorare");
-
-            default:
-                return book.getId() % 12 == (category.getId() != null ? category.getId() % 12 : 0);
-        }
-    }
-
-    private void filterBooks(String searchText, String sortBy) {
-        List<Book> filtered = new ArrayList<>(allCategoryBooks);
-
-        if (searchText != null && !searchText.trim().isEmpty()) {
-            String query = searchText.toLowerCase().trim();
-            filtered = filtered.stream()
-                    .filter(book ->
-                            book.getTitle().toLowerCase().contains(query) ||
-                                    book.getAuthor().toLowerCase().contains(query) ||
-                                    book.getDescription().toLowerCase().contains(query)
-                    )
-                    .collect(Collectors.toList());
-        }
-
-        if (sortBy != null) {
-            switch (sortBy) {
-                case "Nome A-Z":
-                    filtered.sort(Comparator.comparing(Book::getTitle));
-                    break;
-                case "Nome Z-A":
-                    filtered.sort(Comparator.comparing(Book::getTitle).reversed());
-                    break;
-                case "Autore A-Z":
-                    filtered.sort(Comparator.comparing(Book::getAuthor));
-                    break;
-                case "Autore Z-A":
-                    filtered.sort(Comparator.comparing(Book::getAuthor).reversed());
-                    break;
-                case "Anno Pubblicazione ↓":
-                    filtered.sort(Comparator.comparing(Book::getPublishYear,
-                            Comparator.nullsLast(String::compareTo)).reversed());
-                    break;
-                case "Anno Pubblicazione ↑":
-                    filtered.sort(Comparator.comparing(Book::getPublishYear,
-                            Comparator.nullsLast(String::compareTo)));
-                    break;
-                case "Più Votati":
-                    filtered.sort((b1, b2) -> Double.compare(getSimulatedRating(b2), getSimulatedRating(b1)));
-                    break;
-                case "Meno Votati":
-                    filtered.sort((b1, b2) -> Double.compare(getSimulatedRating(b1), getSimulatedRating(b2)));
-                    break;
-            }
-        }
-
-        this.filteredBooks = filtered;
-        updateBooksDisplay();
-        updateResultCount();
-    }
-
-    private void updateBooksDisplay() {
+    /**
+     * ✅ AGGIORNATO: Aggiorna la griglia dei libri
+     */
+    private void updateBooksGrid() {
         booksGrid.getChildren().clear();
 
-        int col = 0;
+        if (filteredBooks.isEmpty()) {
+            showNoBooksMessage();
+            return;
+        }
+
+        // Crea griglia con i libri
+        int columns = 4; // Numero di colonne
         int row = 0;
-        int maxCols = calculateMaxColumns();
+        int col = 0;
 
         for (Book book : filteredBooks) {
             VBox bookCard = createBookCard(book);
             booksGrid.add(bookCard, col, row);
 
             col++;
-            if (col >= maxCols) {
+            if (col >= columns) {
                 col = 0;
                 row++;
             }
         }
-
-        if (filteredBooks.isEmpty()) {
-            Label noBooks = new Label("📚 Nessun libro trovato per i criteri selezionati");
-            noBooks.setFont(Font.font("System", FontWeight.NORMAL, 16));
-            noBooks.setTextFill(Color.LIGHTGRAY);
-            booksGrid.add(noBooks, 0, 0);
-        }
     }
 
+    /**
+     * ✅ NUOVO: Crea una card per un libro
+     */
     private VBox createBookCard(Book book) {
-        VBox card = new VBox(12);
-        card.setPrefSize(180, 280);
+        VBox card = new VBox(8);
         card.setAlignment(Pos.TOP_CENTER);
+        card.setPrefWidth(160);
+        card.setMaxWidth(160);
         card.setStyle(
                 "-fx-background-color: #2c2c2e;" +
-                        "-fx-background-radius: 12;" +
-                        "-fx-padding: 15;" +
-                        "-fx-cursor: hand;" +
-                        "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);"
-        );
-
-        StackPane coverContainer = new StackPane();
-        coverContainer.setPrefSize(150, 200);
-        coverContainer.setStyle(
-                "-fx-background-color: linear-gradient(to bottom, #4a4a4c, #3a3a3c);" +
                         "-fx-background-radius: 8;" +
-                        "-fx-effect: innershadow(three-pass-box, rgba(0,0,0,0.5), 3, 0, 0, 1);"
+                        "-fx-padding: 10;" +
+                        "-fx-cursor: hand;"
         );
 
-        Label coverPlaceholder = new Label("📖");
-        coverPlaceholder.setFont(Font.font("System", 48));
-        coverPlaceholder.setTextFill(Color.WHITE);
-        coverContainer.getChildren().add(coverPlaceholder);
+        // Immagine del libro
+        ImageView bookImage = ImageUtils.createSafeImageView(book.getImageUrl(), 120, 160);
+        bookImage.setStyle("-fx-background-radius: 4;");
 
-        VBox infoBox = new VBox(4);
-        infoBox.setAlignment(Pos.CENTER);
+        // Titolo
+        Label titleLabel = new Label(book.getTitle());
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(140);
+        titleLabel.setAlignment(Pos.CENTER);
 
-        Label title = new Label(book.getTitle());
-        title.setFont(Font.font("System", FontWeight.BOLD, 13));
-        title.setTextFill(Color.WHITE);
-        title.setWrapText(true);
-        title.setMaxWidth(150);
-        title.setAlignment(Pos.CENTER);
+        // Autore
+        Label authorLabel = new Label(book.getAuthor());
+        authorLabel.setFont(Font.font("System", FontWeight.NORMAL, 10));
+        authorLabel.setTextFill(Color.LIGHTGRAY);
+        authorLabel.setWrapText(true);
+        authorLabel.setMaxWidth(140);
+        authorLabel.setAlignment(Pos.CENTER);
 
-        Label author = new Label(book.getAuthor());
-        author.setFont(Font.font("System", FontWeight.NORMAL, 11));
-        author.setTextFill(Color.LIGHTGRAY);
-        author.setWrapText(true);
-        author.setMaxWidth(150);
-        author.setAlignment(Pos.CENTER);
+        card.getChildren().addAll(bookImage, titleLabel, authorLabel);
 
-        HBox ratingBox = createRatingDisplay(getSimulatedRating(book));
-
-        infoBox.getChildren().addAll(title, author, ratingBox);
-        card.getChildren().addAll(coverContainer, infoBox);
-
-        setupCardHoverEffects(card);
-
+        // Click handler
         card.setOnMouseClicked(e -> {
             if (bookClickHandler != null) {
                 bookClickHandler.accept(book);
             }
         });
 
-        return card;
-    }
-
-    private HBox createRatingDisplay(double rating) {
-        HBox ratingBox = new HBox(2);
-        ratingBox.setAlignment(Pos.CENTER);
-
-        for (int i = 1; i <= 5; i++) {
-            Label star = new Label("★");
-            star.setFont(Font.font("System", 12));
-
-            if (i <= rating) {
-                star.setTextFill(Color.GOLD);
-            } else if (i - 0.5 <= rating) {
-                star.setTextFill(Color.ORANGE);
-            } else {
-                star.setTextFill(Color.GRAY);
-            }
-
-            ratingBox.getChildren().add(star);
-        }
-
-        Label ratingValue = new Label(String.format("%.1f", rating));
-        ratingValue.setFont(Font.font("System", FontWeight.NORMAL, 10));
-        ratingValue.setTextFill(Color.LIGHTGRAY);
-        ratingBox.getChildren().add(ratingValue);
-
-        return ratingBox;
-    }
-
-    private void setupCardHoverEffects(VBox card) {
-        String originalStyle = card.getStyle();
-        String hoverStyle = originalStyle.replace("#2c2c2e", "#3a3a3c");
-
+        // Hover effects
         card.setOnMouseEntered(e -> {
-            card.setStyle(hoverStyle);
-            card.setScaleX(1.03);
-            card.setScaleY(1.03);
+            card.setStyle(
+                    "-fx-background-color: #3a3a3c;" +
+                            "-fx-background-radius: 8;" +
+                            "-fx-padding: 10;" +
+                            "-fx-cursor: hand;"
+            );
         });
 
         card.setOnMouseExited(e -> {
-            card.setStyle(originalStyle);
-            card.setScaleX(1.0);
-            card.setScaleY(1.0);
+            card.setStyle(
+                    "-fx-background-color: #2c2c2e;" +
+                            "-fx-background-radius: 8;" +
+                            "-fx-padding: 10;" +
+                            "-fx-cursor: hand;"
+            );
         });
+
+        return card;
     }
 
-    private void updateResultCount() {
-        Label countLabel = (Label) mainContainer.lookup("#resultCount");
-        if (countLabel != null) {
-            String text = filteredBooks.size() + " di " + allCategoryBooks.size() + " libri";
-            countLabel.setText(text);
+    /**
+     * ✅ NUOVO: Mostra messaggio quando non ci sono libri
+     */
+    private void showNoBooksMessage() {
+        Label noBooks = new Label("📚 Nessun libro trovato per questa categoria");
+        noBooks.setFont(Font.font("System", FontWeight.NORMAL, 18));
+        noBooks.setTextFill(Color.LIGHTGRAY);
+
+        Label suggestion = new Label("💡 Prova a cercare in altre categorie");
+        suggestion.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        suggestion.setTextFill(Color.GRAY);
+
+        VBox messageBox = new VBox(10, noBooks, suggestion);
+        messageBox.setAlignment(Pos.CENTER);
+        messageBox.setPadding(new Insets(50));
+
+        booksGrid.add(messageBox, 0, 0);
+    }
+
+    /**
+     * ✅ NUOVO: Mostra errore di caricamento
+     */
+    private void showLoadingError() {
+        Label errorLabel = new Label("❌ Errore nel caricamento");
+        errorLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
+        errorLabel.setTextFill(Color.LIGHTCORAL);
+
+        Label retryLabel = new Label("🔄 Riprova più tardi");
+        retryLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        retryLabel.setTextFill(Color.GRAY);
+
+        VBox errorBox = new VBox(10, errorLabel, retryLabel);
+        errorBox.setAlignment(Pos.CENTER);
+        errorBox.setPadding(new Insets(50));
+
+        booksGrid.getChildren().clear();
+        booksGrid.add(errorBox, 0, 0);
+    }
+
+    /**
+     * ✅ NUOVO: Aggiorna il conteggio dei libri
+     */
+    private void updateBookCount() {
+        // Questo metodo può essere implementato per aggiornare le statistiche
+        // nell'header della categoria, se necessario
+    }
+
+    /**
+     * ✅ AGGIORNATO: Aggiorna le statistiche della categoria nell'header
+     */
+    private void updateCategoryStats(Label statsLabel) {
+        if (allCategoryBooks != null) {
+            int totalBooks = allCategoryBooks.size();
+            String statsText = totalBooks > 0 ?
+                    "📊 " + totalBooks + " libri disponibili" :
+                    "📊 Nessun libro disponibile";
+            statsLabel.setText(statsText);
         }
     }
 
-    private void updateCategoryStats(Label statsLabel) {
-        CompletableFuture.supplyAsync(() -> {
-            int totalBooks = allCategoryBooks.size();
-            double avgRating = allCategoryBooks.stream()
-                    .mapToDouble(this::getSimulatedRating)
-                    .average()
-                    .orElse(0.0);
+    private void filterBooks(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            filteredBooks = new ArrayList<>(allCategoryBooks);
+        } else {
+            filteredBooks = allCategoryBooks.stream()
+                    .filter(book ->
+                            book.getTitle().toLowerCase().contains(searchText.toLowerCase()) ||
+                                    book.getAuthor().toLowerCase().contains(searchText.toLowerCase()))
+                    .collect(Collectors.toList());
+        }
 
-            return String.format("📊 %d libri disponibili • ⭐ Media voti: %.1f", totalBooks, avgRating);
-        }).thenAccept(stats -> {
-            Platform.runLater(() -> statsLabel.setText(stats));
-        });
+        sortBooks();
+        updateBooksGrid();
     }
 
-    private int calculateMaxColumns() {
-        return 5;
+    private void sortBooks() {
+        if (filteredBooks == null || filteredBooks.isEmpty()) {
+            return;
+        }
+
+        String sortOption = sortComboBox.getValue();
+
+        switch (sortOption) {
+            case "📅 Più recenti":
+                filteredBooks.sort((b1, b2) -> {
+                    try {
+                        int year1 = Integer.parseInt(b1.getPublishYear());
+                        int year2 = Integer.parseInt(b2.getPublishYear());
+                        return Integer.compare(year2, year1); // Decrescente
+                    } catch (NumberFormatException e) {
+                        return 0;
+                    }
+                });
+                break;
+
+            case "📅 Più vecchi":
+                filteredBooks.sort((b1, b2) -> {
+                    try {
+                        int year1 = Integer.parseInt(b1.getPublishYear());
+                        int year2 = Integer.parseInt(b2.getPublishYear());
+                        return Integer.compare(year1, year2); // Crescente
+                    } catch (NumberFormatException e) {
+                        return 0;
+                    }
+                });
+                break;
+
+            case "🔤 A-Z":
+                filteredBooks.sort((b1, b2) -> b1.getTitle().compareToIgnoreCase(b2.getTitle()));
+                break;
+
+            case "🔤 Z-A":
+                filteredBooks.sort((b1, b2) -> b2.getTitle().compareToIgnoreCase(b1.getTitle()));
+                break;
+
+            case "👤 Autore A-Z":
+                filteredBooks.sort((b1, b2) -> b1.getAuthor().compareToIgnoreCase(b2.getAuthor()));
+                break;
+        }
+
+        updateBooksGrid();
     }
 
     private String getCategoryIcon(String categoryName) {
-        Map<String, String> icons = new HashMap<>();
-        icons.put("Fiction", "📚");
-        icons.put("Fantascienza", "🚀");
-        icons.put("Fantasy", "🐉");
-        icons.put("Giallo/Thriller", "🔍");
-        icons.put("Romance", "💕");
-        icons.put("Biografie", "👤");
-        icons.put("Storia", "🏛️");
-        icons.put("Scienza", "🔬");
-        icons.put("Filosofia", "🤔");
-        icons.put("Arte", "🎨");
-        icons.put("Cucina", "👨‍🍳");
-        icons.put("Viaggi", "✈️");
+        if (categoryName == null) return "📚";
 
-        return icons.getOrDefault(categoryName, "📖");
-    }
-
-    private double getSimulatedRating(Book book) {
-        Random random = new Random(book.getId());
-        return 2.0 + (random.nextDouble() * 3.0);
+        switch (categoryName.toLowerCase()) {
+            case "murder":
+                return "🔪";
+            case "biography":
+                return "💕";
+            case "education":
+                return "📖";
+            case "saggistica":
+                return "📄";
+            case "fantasy":
+                return "🧙‍♂️";
+            case "fantascienza":
+            case "sci-fi":
+                return "🚀";
+            case "giallo":
+                return "🔍";
+            case "horror":
+                return "👻";
+            case "biografia":
+                return "👤";
+            case "storia":
+                return "🏛️";
+            case "cucina":
+                return "👨‍🍳";
+            case "viaggi":
+                return "✈️";
+            case "arte":
+                return "🎨";
+            case "musica":
+                return "🎵";
+            case "sport":
+                return "⚽";
+            case "tecnologia":
+                return "💻";
+            case "scienza":
+                return "🔬";
+            case "medicina":
+                return "⚕️";
+            case "bambini":
+                return "🧸";
+            case "ragazzi":
+                return "👦";
+            default:
+                return "📚";
+        }
     }
 }

@@ -13,11 +13,22 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Builder per la creazione delle sezioni categorie
  */
 public class CategorySectionBuilder {
+
+    // ✅ AGGIUNTO: Handler per i click sulle categorie
+    private Consumer<Category> categoryClickHandler;
+
+    /**
+     * ✅ NUOVO: Imposta il gestore dei click sulle categorie
+     */
+    public void setCategoryClickHandler(Consumer<Category> handler) {
+        this.categoryClickHandler = handler;
+    }
 
     /**
      * Crea una sezione di categorie in stile Apple Books
@@ -72,6 +83,7 @@ public class CategorySectionBuilder {
 
     /**
      * Crea una card di categoria con placeholder colorato sicuro
+     * ✅ AGGIORNATO: Ora include il click handler
      */
     private VBox createCategoryCard(Category category) {
         // Crea un rettangolo colorato invece di caricare immagini esterne
@@ -109,6 +121,16 @@ public class CategorySectionBuilder {
 
         card.setOnMouseExited(e -> {
             colorRect.setFill(cardColor);
+        });
+
+        // ✅ AGGIUNTO: Click handler per la categoria
+        card.setOnMouseClicked(e -> {
+            System.out.println("🎭 Click su categoria: " + category.getName());
+            if (categoryClickHandler != null) {
+                categoryClickHandler.accept(category);
+            } else {
+                System.err.println("❌ CategoryClickHandler non impostato!");
+            }
         });
 
         VBox cardContainer = new VBox(card);

@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Servizio client per comunicare con l'API del server
  * Gestisce tutte le chiamate HTTP al backend con ricerca avanzata
+ * ✅ AGGIORNATO: Con supporto per categorie
  */
 public class BookService {
 
@@ -74,55 +75,173 @@ public class BookService {
             if (response.isSuccessful() && response.body() != null) {
                 String jsonResponse = response.body().string();
                 List<Book> books = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("✅ Caricati " + books.size() + " libri dal server");
+                System.out.println("✅ Recuperati " + books.size() + " libri dal server");
                 return books;
             } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
+                throw new IOException("Errore nella richiesta: " + response.code());
             }
         }
     }
 
     /**
-     * Recupera un libro specifico per ID
+     * ✅ NUOVO: Recupera libri per categoria tramite server (CORRETTO)
      */
-    public CompletableFuture<Book> getBookByIdAsync(Long id) {
+    public List<Book> getBooksByCategory(String categoryName) {
+        System.out.println("🎯 Ricerca libri per categoria dal server: " + categoryName);
+
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            System.out.println("⚠️ Nome categoria vuoto");
+            return new ArrayList<>();
+        }
+
+        try {
+            // Prima prova a cercare i libri generali e filtra per categoria
+            // dato che il server non ha endpoint specifico per categoria
+            List<Book> allBooks = getAllBooks();
+            List<Book> categoryBooks = new ArrayList<>();
+
+            String categoryLower = categoryName.toLowerCase();
+
+            for (Book book : allBooks) {
+                // Filtra per categoria se presente nel campo category
+                String bookCategory = book.getCategory();
+                if (bookCategory != null && bookCategory.toLowerCase().contains(categoryLower)) {
+                    categoryBooks.add(book);
+                }
+                // Se non ha categoria o per mapping intelligente titolo->categoria
+                else if (shouldIncludeBookInCategory(book, categoryName)) {
+                    // Assegna categoria al libro
+                    book.setCategory(categoryName);
+                    categoryBooks.add(book);
+                }
+            }
+
+            System.out.println("✅ Trovati " + categoryBooks.size() + " libri per categoria '" + categoryName + "' dal database");
+            return categoryBooks;
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore nella ricerca categoria dal server: " + e.getMessage());
+            // Solo ora usa il fallback
+            return searchInFallbackBooksByCategory(categoryName);
+        }
+    }
+
+    /**
+     * Determina se un libro dovrebbe essere incluso in una categoria basandosi sul contenuto
+     */
+    private boolean shouldIncludeBookInCategory(Book book, String categoryName) {
+        String categoryLower = categoryName.toLowerCase();
+        String titleLower = book.getTitle().toLowerCase();
+        String authorLower = book.getAuthor().toLowerCase();
+        String descLower = book.getDescription() != null ? book.getDescription().toLowerCase() : "";
+
+        switch (categoryLower) {
+            case "thriller":
+                return titleLower.contains("rosa") || titleLower.contains("mistero") ||
+                        descLower.contains("thriller") || descLower.contains("mistero") ||
+                        descLower.contains("suspense");
+
+            case "fantasy":
+                return titleLower.contains("signore") || titleLower.contains("anelli") ||
+                        titleLower.contains("hobbit") || titleLower.contains("principe") ||
+                        authorLower.contains("tolkien") || descLower.contains("fantasy") ||
+                        descLower.contains("epica") || descLower.contains("avventura");
+
+            case "narrativa":
+                return titleLower.contains("1984") || titleLower.contains("gatsby") ||
+                        titleLower.contains("mockingbird") || titleLower.contains("solitudine") ||
+                        authorLower.contains("orwell") || authorLower.contains("fitzgerald") ||
+                        authorLower.contains("harper lee") || authorLower.contains("márquez");
+
+            case "romance":
+                return titleLower.contains("orgoglio") || titleLower.contains("pregiudizio") ||
+                        authorLower.contains("austen") || descLower.contains("romantico") ||
+                        descLower.contains("amore");
+
+            case "saggistica":
+                return titleLower.contains("anni") || titleLower.contains("storia") ||
+                        descLower.contains("saggio") || descLower.contains("realistico") ||
+                        descLower.contains("società");
+
+            default:
+                // Per altre categorie, cerca nel titolo, autore o descrizione
+                return titleLower.contains(categoryLower) ||
+                        authorLower.contains(categoryLower) ||
+                        descLower.contains(categoryLower);
+        }
+    }
+
+    /**
+     * ✅ NUOVO: Versione asincrona per getBooksByCategory
+     */
+    public CompletableFuture<List<Book>> getBooksByCategoryAsync(String categoryName) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return getBookById(id);
+                return getBooksByCategory(categoryName);
             } catch (Exception e) {
-                System.err.println("❌ Errore durante il recupero del libro: " + e.getMessage());
-                return null;
+                System.err.println("❌ Errore durante il recupero asincrono dei libri per categoria: " + e.getMessage());
+                return searchInFallbackBooksByCategory(categoryName);
             }
         });
     }
 
     /**
-     * Recupera un libro specifico per ID
+     * ✅ NUOVO: Ricerca per categoria nei libri di fallback
      */
-    public Book getBookById(Long id) throws IOException {
-        Request request = new Request.Builder()
-                .url(SERVER_BASE_URL + "/books/" + id)
-                .get()
-                .build();
+    private List<Book> searchInFallbackBooksByCategory(String categoryName) {
+        System.out.println("🔄 Fallback: ricerca categoria locale per '" + categoryName + "'");
 
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                return objectMapper.readValue(jsonResponse, Book.class);
-            } else if (response.code() == 404) {
-                return null;
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
+        List<Book> fallbackBooks = getFallbackBooks();
+        List<Book> results = new ArrayList<>();
+        String categoryLower = categoryName.toLowerCase();
+
+        for (Book book : fallbackBooks) {
+            // Controlla se il libro ha una categoria che contiene il termine cercato
+            String bookCategory = book.getCategory();
+            if (bookCategory != null && bookCategory.toLowerCase().contains(categoryLower)) {
+                results.add(book);
             }
+            // Fallback: cerca anche nel titolo se non ha categoria o per alcune categorie speciali
+            else if (bookCategory == null || bookCategory.isEmpty() || shouldCheckTitleForCategory(categoryName, book)) {
+                if (book.getTitle().toLowerCase().contains(categoryLower) ||
+                        (book.getDescription() != null && book.getDescription().toLowerCase().contains(categoryLower))) {
+                    results.add(book);
+                }
+            }
+        }
+
+        System.out.println("📚 Ricerca categoria fallback '" + categoryName + "': trovati " + results.size() + " risultati");
+        return results;
+    }
+
+    /**
+     * Determina se cercare nel titolo per una specifica categoria
+     */
+    private boolean shouldCheckTitleForCategory(String categoryName, Book book) {
+        String categoryLower = categoryName.toLowerCase();
+        String titleLower = book.getTitle().toLowerCase();
+
+        // Mapping intelligente titolo -> categoria
+        switch (categoryLower) {
+            case "fantasy":
+                return titleLower.contains("signore") || titleLower.contains("anelli") ||
+                        titleLower.contains("hobbit") || titleLower.contains("principe");
+            case "narrativa":
+                return titleLower.contains("orgoglio") || titleLower.contains("gatsby") ||
+                        titleLower.contains("mockingbird") || titleLower.contains("solitudine");
+            case "thriller":
+                return titleLower.contains("rosa") || titleLower.contains("mystery");
+            case "saggistica":
+                return titleLower.contains("anni") || titleLower.contains("storia");
+            case "romance":
+                return titleLower.contains("orgoglio") || titleLower.contains("pregiudizio");
+            default:
+                return false;
         }
     }
 
-    // ===================================================================
-    // METODI DI RICERCA GENERICA E AVANZATA
-    // ===================================================================
-
     /**
-     * Ricerca libri per titolo o autore (ricerca generica)
+     * Ricerca libri asincrona
      */
     public CompletableFuture<List<Book>> searchBooksAsync(String query) {
         return CompletableFuture.supplyAsync(() -> {
@@ -130,76 +249,39 @@ public class BookService {
                 return searchBooks(query);
             } catch (Exception e) {
                 System.err.println("❌ Errore durante la ricerca: " + e.getMessage());
-                return new ArrayList<>();
+                return searchInFallbackBooks(query);
             }
         });
     }
 
     /**
-     * Ricerca libri per titolo o autore (ricerca generica)
+     * Ricerca libri per titolo
      */
     public List<Book> searchBooks(String query) throws IOException {
-        HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/books/search")
-                .newBuilder()
-                .addQueryParameter("q", query)
-                .build();
+        if (query == null || query.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
 
+        String encodedQuery = java.net.URLEncoder.encode(query.trim(), "UTF-8");
         Request request = new Request.Builder()
-                .url(url)
+                .url(SERVER_BASE_URL + "/books/search?title=" + encodedQuery)
                 .get()
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful() && response.body() != null) {
                 String jsonResponse = response.body().string();
-                List<Book> results = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("🔍 Trovati " + results.size() + " risultati per: " + query);
-                return results;
+                List<Book> books = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
+                System.out.println("✅ Trovati " + books.size() + " libri per query: " + query);
+                return books;
             } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
+                throw new IOException("Errore nella ricerca: " + response.code());
             }
         }
     }
 
     /**
-     * Ricerca libri SOLO per titolo
-     */
-    public CompletableFuture<List<Book>> searchBooksByTitleAsync(String title) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return searchBooksByTitle(title);
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante la ricerca per titolo: " + e.getMessage());
-                return new ArrayList<>();
-            }
-        });
-    }
-
-    public List<Book> searchBooksByTitle(String title) throws IOException {
-        HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/books/search/title")
-                .newBuilder()
-                .addQueryParameter("q", title)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(url)
-                .get()
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                List<Book> results = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("📖 Trovati " + results.size() + " risultati per titolo: " + title);
-                return results;
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
-            }
-        }
-    }
-
-    /**
-     * Ricerca libri SOLO per autore
+     * Ricerca libri per autore asincrona
      */
     public CompletableFuture<List<Book>> searchBooksByAuthorAsync(String author) {
         return CompletableFuture.supplyAsync(() -> {
@@ -207,204 +289,318 @@ public class BookService {
                 return searchBooksByAuthor(author);
             } catch (Exception e) {
                 System.err.println("❌ Errore durante la ricerca per autore: " + e.getMessage());
-                return new ArrayList<>();
+                return searchInFallbackBooksByAuthor(author);
             }
         });
     }
 
-    public List<Book> searchBooksByAuthor(String author) throws IOException {
-        HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/books/search/author")
-                .newBuilder()
-                .addQueryParameter("q", author)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(url)
-                .get()
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                List<Book> results = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("👤 Trovati " + results.size() + " risultati per autore: " + author);
-                return results;
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
-            }
-        }
-    }
-
     /**
-     * Ricerca libri per autore e anno
+     * Ricerca libri per autore
      */
-    public CompletableFuture<List<Book>> searchBooksByAuthorAndYearAsync(String author, String year) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return searchBooksByAuthorAndYear(author, year);
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante la ricerca per autore e anno: " + e.getMessage());
-                return new ArrayList<>();
-            }
-        });
-    }
-
-    public List<Book> searchBooksByAuthorAndYear(String author, String year) throws IOException {
-        HttpUrl.Builder urlBuilder = HttpUrl.parse(SERVER_BASE_URL + "/books/search/author-year")
-                .newBuilder()
-                .addQueryParameter("author", author);
-
-        if (year != null && !year.trim().isEmpty()) {
-            urlBuilder.addQueryParameter("year", year);
+    public List<Book> searchBooksByAuthor(String author) throws IOException {
+        if (author == null || author.trim().isEmpty()) {
+            return new ArrayList<>();
         }
 
+        String encodedAuthor = java.net.URLEncoder.encode(author.trim(), "UTF-8");
         Request request = new Request.Builder()
-                .url(urlBuilder.build())
+                .url(SERVER_BASE_URL + "/books/search?author=" + encodedAuthor)
                 .get()
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
             if (response.isSuccessful() && response.body() != null) {
                 String jsonResponse = response.body().string();
-                List<Book> results = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("👤📅 Trovati " + results.size() + " risultati per autore-anno: " + author + " (" + year + ")");
-                return results;
+                List<Book> books = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
+                System.out.println("✅ Trovati " + books.size() + " libri per autore: " + author);
+                return books;
             } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
+                throw new IOException("Errore nella ricerca per autore: " + response.code());
             }
         }
     }
 
-    // ===================================================================
-    // METODI ESISTENTI (FEATURED, FREE, NEW RELEASES)
-    // ===================================================================
-
     /**
-     * Recupera libri in evidenza
+     * Recupera libri in evidenza (primi 3 dal database)
      */
     public CompletableFuture<List<Book>> getFeaturedBooksAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return getFeaturedBooks();
+                List<Book> allBooks = getAllBooks();
+                List<Book> featured = new ArrayList<>();
+
+                // Primi 3 come featured
+                int limit = Math.min(3, allBooks.size());
+                for (int i = 0; i < limit; i++) {
+                    featured.add(allBooks.get(i));
+                }
+
+                return !featured.isEmpty() ? featured : getFallbackFeaturedBooks();
             } catch (Exception e) {
-                System.err.println("❌ Errore durante il recupero dei libri in evidenza: " + e.getMessage());
-                return getFallbackBooks().subList(0, Math.min(1, getFallbackBooks().size()));
+                System.err.println("❌ Errore recupero libri in evidenza: " + e.getMessage());
+                return getFallbackFeaturedBooks();
             }
         });
     }
 
     /**
-     * Recupera libri in evidenza
-     */
-    public List<Book> getFeaturedBooks() throws IOException {
-        Request request = new Request.Builder()
-                .url(SERVER_BASE_URL + "/books/featured")
-                .get()
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                return objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
-            }
-        }
-    }
-
-    /**
-     * Recupera libri gratuiti
+     * Recupera libri gratuiti (primi 8 dal database)
      */
     public CompletableFuture<List<Book>> getFreeBooksAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return getFreeBooks();
+                List<Book> allBooks = getAllBooks();
+                List<Book> freeBooks = new ArrayList<>();
+
+                // Primi 8 come gratuiti
+                int limit = Math.min(8, allBooks.size());
+                for (int i = 0; i < limit; i++) {
+                    Book book = allBooks.get(i);
+                    book.setIsFree(true);
+                    freeBooks.add(book);
+                }
+
+                return !freeBooks.isEmpty() ? freeBooks : getFallbackFreeBooks();
             } catch (Exception e) {
-                System.err.println("❌ Errore durante il recupero dei libri gratuiti: " + e.getMessage());
-                return getFallbackBooks();
+                System.err.println("❌ Errore recupero libri gratuiti: " + e.getMessage());
+                return getFallbackFreeBooks();
             }
         });
     }
 
     /**
-     * Recupera libri gratuiti
-     */
-    public List<Book> getFreeBooks() throws IOException {
-        Request request = new Request.Builder()
-                .url(SERVER_BASE_URL + "/books/free")
-                .get()
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                return objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
-            }
-        }
-    }
-
-    /**
-     * Recupera nuove uscite
+     * Recupera nuove uscite (ultimi 8 dal database)
      */
     public CompletableFuture<List<Book>> getNewReleasesAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return getNewReleases();
+                List<Book> allBooks = getAllBooks();
+                List<Book> newReleases = new ArrayList<>();
+
+                // Ultimi 8 come nuove uscite (o tutti se meno di 8)
+                int totalBooks = allBooks.size();
+                int startIndex = Math.max(0, totalBooks - 8);
+
+                for (int i = startIndex; i < totalBooks; i++) {
+                    Book book = allBooks.get(i);
+                    book.setIsNew(true);
+                    newReleases.add(book);
+                }
+
+                return !newReleases.isEmpty() ? newReleases : getFallbackNewBooks();
             } catch (Exception e) {
-                System.err.println("❌ Errore durante il recupero delle nuove uscite: " + e.getMessage());
-                return getFallbackBooks();
+                System.err.println("❌ Errore recupero nuove uscite: " + e.getMessage());
+                return getFallbackNewBooks();
             }
         });
     }
 
     /**
-     * Recupera nuove uscite
+     * Ricerca nei libri di fallback
      */
-    public List<Book> getNewReleases() throws IOException {
-        Request request = new Request.Builder()
-                .url(SERVER_BASE_URL + "/books/new-releases")
-                .get()
-                .build();
+    private List<Book> searchInFallbackBooks(String query) {
+        List<Book> fallbackBooks = getFallbackBooks();
+        List<Book> results = new ArrayList<>();
+        String queryLower = query.toLowerCase();
 
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.isSuccessful() && response.body() != null) {
-                String jsonResponse = response.body().string();
-                return objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-            } else {
-                throw new IOException("Errore nella risposta del server: " + response.code());
+        for (Book book : fallbackBooks) {
+            if (book.getTitle().toLowerCase().contains(queryLower) ||
+                    book.getAuthor().toLowerCase().contains(queryLower) ||
+                    (book.getDescription() != null && book.getDescription().toLowerCase().contains(queryLower))) {
+                results.add(book);
             }
         }
+
+        System.out.println("🔍 Ricerca fallback '" + query + "': trovati " + results.size() + " risultati");
+        return results;
     }
 
-    // ===================================================================
-    // UTILITY E FALLBACK
-    // ===================================================================
+    /**
+     * Ricerca per autore nei libri di fallback
+     */
+    private List<Book> searchInFallbackBooksByAuthor(String author) {
+        List<Book> fallbackBooks = getFallbackBooks();
+        List<Book> results = new ArrayList<>();
+        String authorLower = author.toLowerCase();
+
+        for (Book book : fallbackBooks) {
+            if (book.getAuthor().toLowerCase().contains(authorLower)) {
+                results.add(book);
+            }
+        }
+
+        System.out.println("👤 Ricerca autore fallback '" + author + "': trovati " + results.size() + " risultati");
+        return results;
+    }
 
     /**
      * Libri di fallback quando il server non è disponibile
      */
     private List<Book> getFallbackBooks() {
-        System.out.println("📚 Utilizzo libri di fallback (modalità offline)");
         List<Book> books = new ArrayList<>();
-        books.add(new Book(1L, "Il Nome della Rosa", "Umberto Eco",
-                "Un affascinante thriller medievale ambientato in un'abbazia benedettina.", "placeholder.jpg"));
-        books.add(new Book(2L, "1984", "George Orwell",
-                "Un romanzo distopico sul totalitarismo e la sorveglianza di massa.", "placeholder.jpg"));
-        books.add(new Book(3L, "Il Piccolo Principe", "Antoine de Saint-Exupéry",
-                "Una fiaba poetica che ha conquistato il cuore di lettori di tutte le età.", "placeholder.jpg"));
-        books.add(new Book(4L, "Orgoglio e Pregiudizio", "Jane Austen",
-                "Un classico romanzo romantico dell'epoca georgiana.", "placeholder.jpg"));
-        books.add(new Book(5L, "Il Signore degli Anelli", "J.R.R. Tolkien",
-                "L'epica avventura fantasy per eccellenza.", "placeholder.jpg"));
-        books.add(new Book(6L, "To Kill a Mockingbird", "Harper Lee",
-                "Un potente romanzo sulla giustizia e i diritti civili.", "placeholder.jpg"));
-        books.add(new Book(7L, "Il Grande Gatsby", "F. Scott Fitzgerald",
-                "Un ritratto della società americana degli anni '20.", "placeholder.jpg"));
-        books.add(new Book(8L, "Cento Anni di Solitudine", "Gabriel García Márquez",
-                "Un capolavoro del realismo magico latinoamericano.", "placeholder.jpg"));
+
+        // Libri con categorie assegnate per testare la funzionalità
+        books.add(new Book(1L, "978-88-452-9039-1", "Il Nome della Rosa", "Umberto Eco",
+                "Un affascinante thriller medievale ambientato in un'abbazia benedettina nel XIV secolo.",
+                "1980", "placeholder.jpg"));
+
+        books.add(new Book(2L, "978-88-04-68451-1", "1984", "George Orwell",
+                "Un romanzo distopico sul totalitarismo e la sorveglianza di massa.",
+                "1949", "placeholder.jpg"));
+
+        books.add(new Book(3L, "978-88-452-1234-5", "Il Piccolo Principe", "Antoine de Saint-Exupéry",
+                "Una fiaba poetica che ha conquistato il cuore di lettori di tutte le età.",
+                "1943", "placeholder.jpg"));
+
+        books.add(new Book(4L, "978-88-04-98765-4", "Orgoglio e Pregiudizio", "Jane Austen",
+                "Un classico romanzo romantico dell'epoca georgiana.",
+                "1813", "placeholder.jpg"));
+
+        books.add(new Book(5L, "978-88-452-5678-9", "Il Signore degli Anelli", "J.R.R. Tolkien",
+                "L'epica avventura fantasy per eccellenza.",
+                "1954", "placeholder.jpg"));
+
+        books.add(new Book(6L, "978-88-04-11111-1", "To Kill a Mockingbird", "Harper Lee",
+                "Un potente romanzo sulla giustizia e i diritti civili.",
+                "1960", "placeholder.jpg"));
+
+        books.add(new Book(7L, "978-88-452-2222-2", "Il Grande Gatsby", "F. Scott Fitzgerald",
+                "Un ritratto della società americana degli anni '20.",
+                "1925", "placeholder.jpg"));
+
+        books.add(new Book(8L, "978-88-04-3333-3", "Cento Anni di Solitudine", "Gabriel García Márquez",
+                "Un capolavoro del realismo magico latinoamericano.",
+                "1967", "placeholder.jpg"));
+
+        // Assegna categorie ai libri di fallback
+        assignCategoriesToFallbackBooks(books);
+
         return books;
+    }
+
+    /**
+     * Assegna categorie ai libri di fallback
+     */
+    private void assignCategoriesToFallbackBooks(List<Book> books) {
+        for (Book book : books) {
+            if (book.getTitle().contains("Rosa")) {
+                book.setCategory("Thriller");
+            } else if (book.getTitle().contains("1984")) {
+                book.setCategory("Narrativa");
+            } else if (book.getTitle().contains("Principe")) {
+                book.setCategory("Fantasy");
+            } else if (book.getTitle().contains("Orgoglio")) {
+                book.setCategory("Romance");
+            } else if (book.getTitle().contains("Anelli")) {
+                book.setCategory("Fantasy");
+            } else if (book.getTitle().contains("Mockingbird")) {
+                book.setCategory("Narrativa");
+            } else if (book.getTitle().contains("Gatsby")) {
+                book.setCategory("Narrativa");
+            } else if (book.getTitle().contains("Solitudine")) {
+                book.setCategory("Saggistica");
+            }
+        }
+    }
+
+    /**
+     * Libri in evidenza fallback
+     */
+    private List<Book> getFallbackFeaturedBooks() {
+        List<Book> featured = new ArrayList<>();
+        List<Book> allBooks = getFallbackBooks();
+        if (!allBooks.isEmpty()) {
+            featured.add(allBooks.get(0)); // Prima 3 come featured
+            if (allBooks.size() > 1) featured.add(allBooks.get(1));
+            if (allBooks.size() > 2) featured.add(allBooks.get(2));
+        }
+        return featured;
+    }
+
+    /**
+     * Libri gratuiti fallback
+     */
+    private List<Book> getFallbackFreeBooks() {
+        List<Book> free = new ArrayList<>();
+        List<Book> allBooks = getFallbackBooks();
+        // Primi 6 come gratuiti
+        int limit = Math.min(6, allBooks.size());
+        for (int i = 0; i < limit; i++) {
+            Book book = allBooks.get(i);
+            book.setIsFree(true);
+            free.add(book);
+        }
+        return free;
+    }
+
+    /**
+     * Nuove uscite fallback
+     */
+    private List<Book> getFallbackNewBooks() {
+        List<Book> newBooks = new ArrayList<>();
+        List<Book> allBooks = getFallbackBooks();
+        // Ultimi 4 come nuove uscite
+        int start = Math.max(0, allBooks.size() - 4);
+        for (int i = start; i < allBooks.size(); i++) {
+            Book book = allBooks.get(i);
+            book.setIsNew(true);
+            newBooks.add(book);
+        }
+        return newBooks;
+    }
+
+    /**
+     * ✅ METODO MANCANTE: Ricerca libri per titolo (per AdvancedSearchPanel)
+     */
+    public List<Book> searchBooksByTitle(String title) {
+        System.out.println("📖 Ricerca per titolo: " + title);
+
+        if (title == null || title.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        try {
+            // Usa lo stesso endpoint della ricerca generale
+            String encodedTitle = java.net.URLEncoder.encode(title.trim(), "UTF-8");
+            Request request = new Request.Builder()
+                    .url(SERVER_BASE_URL + "/books/search?title=" + encodedTitle)
+                    .get()
+                    .build();
+
+            try (Response response = httpClient.newCall(request).execute()) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String jsonResponse = response.body().string();
+                    List<Book> books = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
+                    System.out.println("✅ Trovati " + books.size() + " libri per titolo: " + title);
+                    return books;
+                } else {
+                    System.err.println("❌ Errore API ricerca titolo: " + response.code());
+                    return searchInFallbackBooksByTitle(title);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore ricerca per titolo: " + e.getMessage());
+            return searchInFallbackBooksByTitle(title);
+        }
+    }
+
+    /**
+     * Ricerca per titolo nei libri di fallback
+     */
+    private List<Book> searchInFallbackBooksByTitle(String title) {
+        List<Book> fallbackBooks = getFallbackBooks();
+        List<Book> results = new ArrayList<>();
+        String titleLower = title.toLowerCase();
+
+        for (Book book : fallbackBooks) {
+            if (book.getTitle().toLowerCase().contains(titleLower)) {
+                results.add(book);
+            }
+        }
+
+        System.out.println("📖 Ricerca titolo fallback '" + title + "': trovati " + results.size() + " risultati");
+        return results;
     }
 
     /**
