@@ -125,6 +125,92 @@ public class Header {
     }
 
     /**
+     * ✅ NUOVO: Debug completo della ricerca
+     */
+    public void debugSearch() {
+        System.out.println("🔧 ===== DEBUG RICERCA HEADER =====");
+
+        // Test stato componenti
+        debugState();
+
+        // Test BookService se disponibile
+        if (bookService != null) {
+            System.out.println("🔧 Test connessione server...");
+            boolean serverOk = bookService.isServerAvailable();
+            System.out.println("Server disponibile: " + (serverOk ? "✅ SI" : "❌ NO"));
+
+            if (serverOk) {
+                System.out.println("🔧 Test endpoint debug server...");
+                try {
+                    // Test con BookService client debug methods
+                    if (bookService instanceof org.BABO.client.service.BookService) {
+                        org.BABO.client.service.BookService clientService =
+                                (org.BABO.client.service.BookService) bookService;
+
+                        // Test connessione
+                        clientService.testServerConnection();
+
+                        // Debug endpoint
+                        //clientService.debugServerEndpoints();
+
+                        // Test ricerca semplice
+                        System.out.println("🔧 Test ricerca 'test'...");
+                        clientService.searchBooksAsync("test")
+                                .thenAccept(results -> {
+                                    System.out.println("🔧 Risultati test ricerca: " + results.size());
+                                })
+                                .exceptionally(throwable -> {
+                                    System.err.println("🔧 Errore test ricerca: " + throwable.getMessage());
+                                    return null;
+                                });
+                    }
+                } catch (Exception e) {
+                    System.err.println("🔧 Errore durante test: " + e.getMessage());
+                }
+            }
+        } else {
+            System.err.println("❌ BookService non disponibile per test");
+        }
+
+        // Test searchHandler
+        if (searchHandler != null) {
+            System.out.println("🔧 Test searchHandler con query 'debug'...");
+            try {
+                searchHandler.accept("debug");
+                System.out.println("✅ SearchHandler chiamato correttamente");
+            } catch (Exception e) {
+                System.err.println("❌ Errore searchHandler: " + e.getMessage());
+            }
+        } else {
+            System.err.println("❌ SearchHandler non configurato");
+        }
+
+        System.out.println("🔧 ===============================");
+    }
+
+    /**
+     * ✅ NUOVO: Test rapido ricerca
+     */
+    public void testQuickSearch(String testQuery) {
+        if (testQuery == null || testQuery.trim().isEmpty()) {
+            testQuery = "test";
+        }
+
+        System.out.println("⚡ Test rapido ricerca: '" + testQuery + "'");
+
+        if (searchField != null) {
+            searchField.setText(testQuery);
+        }
+
+        if (searchHandler != null) {
+            searchHandler.accept(testQuery);
+            System.out.println("✅ Ricerca inviata");
+        } else {
+            System.err.println("❌ SearchHandler non disponibile");
+        }
+    }
+
+    /**
      * Crea il campo di ricerca moderno
      */
     private TextField createSearchField() {
@@ -440,10 +526,30 @@ public class Header {
     /**
      * Esegue la ricerca normale
      */
+    /**
+     * ✅ MIGLIORATO: Esegue la ricerca normale con debug
+     */
     private void performSearch() {
         String query = searchField != null ? searchField.getText().trim() : "";
-        if (!query.isEmpty() && searchHandler != null) {
+        System.out.println("🔍 [HEADER] performSearch chiamato con query: '" + query + "'");
+
+        if (query.isEmpty()) {
+            System.out.println("⚠️ [HEADER] Query vuota, ricerca non eseguita");
+            return;
+        }
+
+        if (searchHandler == null) {
+            System.err.println("❌ [HEADER] SearchHandler non impostato!");
+            return;
+        }
+
+        try {
+            System.out.println("📤 [HEADER] Invio query a searchHandler...");
             searchHandler.accept(query);
+            System.out.println("✅ [HEADER] Query inviata con successo");
+        } catch (Exception e) {
+            System.err.println("❌ [HEADER] Errore durante invio query: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -501,7 +607,9 @@ public class Header {
         StringBuilder query = new StringBuilder();
 
         if (result.getSearchType().contains("Titolo") && !result.getTitleQuery().isEmpty()) {
-            query.append(result.getTitleQuery());
+            // ✅ SPECIFICA CHE È UNA RICERCA SOLO TITOLO
+            query.append("title-only:").append(result.getTitleQuery());
+
         } else if (result.getSearchType().contains("Autore") && !result.getAuthorQuery().isEmpty()) {
             query.append("author:").append(result.getAuthorQuery());
 
@@ -520,7 +628,9 @@ public class Header {
             }
         }
 
-        return query.toString();
+        String finalQuery = query.toString();
+        System.out.println("🔍 Query costruita: '" + finalQuery + "'");
+        return finalQuery;
     }
 
     /**

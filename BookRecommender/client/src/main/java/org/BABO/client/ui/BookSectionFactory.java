@@ -32,6 +32,7 @@ public class BookSectionFactory {
     private FeaturedBookBuilder featuredBuilder;
     private CategorySectionBuilder categoryBuilder;
     private Consumer<List<Book>> cachedBooksCallback;
+    private boolean categoriesLoadedInCurrentSession = false;
 
     // Callback per sezioni specifiche
     private Consumer<List<Book>> featuredBooksCallback;
@@ -129,6 +130,42 @@ public class BookSectionFactory {
         return section;
     }
 
+    public void loadCategoriesAsyncOnce(VBox content) {
+        if (categoriesLoadedInCurrentSession) {
+            System.out.println("🎭 Categorie già caricate in questa sessione, salto");
+            return;
+        }
+
+        System.out.println("🎭 Caricamento categorie per la prima volta in questa sessione");
+        categoriesLoadedInCurrentSession = true;
+
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                Thread.sleep(500);
+                return createDefaultCategories();
+            } catch (Exception e) {
+                System.err.println("❌ Errore nel caricamento categorie: " + e.getMessage());
+                return new ArrayList<Category>();
+            }
+        }).thenAccept(categories -> {
+            Platform.runLater(() -> {
+                if (!categories.isEmpty()) {
+                    VBox categorySection = categoryBuilder.createCategorySection("🎭 Scopri per genere", categories);
+                    content.getChildren().add(categorySection);
+                    System.out.println("✅ Sezione categorie aggiunta (once)");
+                }
+            });
+        });
+    }
+
+    /**
+     * NUOVO: Reset dello stato delle categorie
+     */
+    public void resetCategoryLoadingState() {
+        categoriesLoadedInCurrentSession = false;
+        System.out.println("🔄 Reset stato caricamento categorie");
+    }
+
     /**
      * RIPRISTINATO: Carica dati per sezioni con layout FlowPane per tutte le sezioni
      */
@@ -144,11 +181,11 @@ public class BookSectionFactory {
 
         switch (sectionType) {
             case "free":
-                future = bookService.getFreeBooksAsync(); // Già restituisce 8 libri
+                future = bookService.getFreeBooksAsync();
                 specificCallback = freeBooksCallback;
                 break;
             case "new":
-                future = bookService.getNewReleasesAsync(); // Già restituisce 8 libri
+                future = bookService.getNewReleasesAsync();
                 specificCallback = newBooksCallback;
                 break;
             case "featured":
@@ -257,24 +294,53 @@ public class BookSectionFactory {
      * ORIGINALE: Carica categorie in modo asincrono
      */
     public void loadCategoriesAsync(VBox content) {
+        System.out.println("🎭 Inizio caricamento categorie async");
+
         CompletableFuture.supplyAsync(() -> {
             try {
+                // Simula caricamento
+                Thread.sleep(500);
                 return createDefaultCategories();
             } catch (Exception e) {
-                System.err.println("Errore caricamento categorie: " + e.getMessage());
+                System.err.println("❌ Errore nel caricamento categorie: " + e.getMessage());
                 return new ArrayList<Category>();
             }
         }).thenAccept(categories -> {
             Platform.runLater(() -> {
+                System.out.println("🎭 Callback categorie: controllo se aggiungere...");
+
+                // CONTROLLO SEMPLICE: Verifica se esiste già una sezione "Scopri per genere"
+                boolean categoryExists = content.getChildren().stream()
+                        .anyMatch(node -> {
+                            if (node instanceof VBox) {
+                                VBox section = (VBox) node;
+                                // Controlla se il primo figlio è un HBox header con "Scopri per genere"
+                                if (!section.getChildren().isEmpty() && section.getChildren().get(0) instanceof HBox) {
+                                    HBox header = (HBox) section.getChildren().get(0);
+                                    return header.getChildren().stream()
+                                            .anyMatch(child -> child instanceof Label &&
+                                                    ((Label) child).getText().contains("Scopri per genere"));
+                                }
+                            }
+                            return false;
+                        });
+
+                if (categoryExists) {
+                    System.out.println("⚠️ Sezione categorie già presente, salto aggiunta");
+                    return;
+                }
+
                 if (!categories.isEmpty()) {
-                    try {
-                        VBox categorySection = categoryBuilder.createCategorySection("🎭 Scopri per genere", categories);
-                        content.getChildren().add(categorySection);
-                    } catch (Exception e) {
-                        System.err.println("Errore creazione sezione categorie: " + e.getMessage());
-                    }
+                    VBox categorySection = categoryBuilder.createCategorySection("🎭 Scopri per genere", categories);
+                    content.getChildren().add(categorySection);
+                    System.out.println("✅ Sezione categorie aggiunta (content ora ha " + content.getChildren().size() + " elementi)");
+                } else {
+                    System.out.println("⚠️ Nessuna categoria da aggiungere");
                 }
             });
+        }).exceptionally(throwable -> {
+            System.err.println("❌ Errore nell'aggiunta delle categorie: " + throwable.getMessage());
+            return null;
         });
     }
 

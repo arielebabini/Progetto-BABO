@@ -1,5 +1,6 @@
 package org.BABO.client.ui;
 
+import org.BABO.client.service.ClientRatingService;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
@@ -7,6 +8,7 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
+import org.BABO.client.ui.ImageUtils;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
@@ -32,6 +34,7 @@ import java.util.function.Consumer;
 public class ExploreIntegration {
 
     private final BookService bookService;
+    private final ClientRatingService ratingService;
     private final boolean serverAvailable;
     private Consumer<Book> bookClickHandler;
     private StackPane containerPane;
@@ -40,6 +43,8 @@ public class ExploreIntegration {
     public ExploreIntegration(BookService bookService, boolean serverAvailable) {
         this.bookService = bookService;
         this.serverAvailable = serverAvailable;
+        this.ratingService = new ClientRatingService();
+        System.out.println("🚀🚀🚀 NUOVO EXPLOREINTEGRATION CREATO! 🚀🚀🚀");
     }
 
     public void setContainer(StackPane container) {
@@ -54,6 +59,7 @@ public class ExploreIntegration {
      * Crea la vista Esplora stile Apple Books
      */
     public ScrollPane createExploreView() {
+        System.out.println("🔍 DEBUG: createExploreView() chiamato!");
         isViewingCategory = false;
 
         VBox mainContent = new VBox(0);
@@ -71,815 +77,234 @@ public class ExploreIntegration {
 
         // HEADER CLASSIFICHE
         Label classificheTitle = new Label("Classifiche");
-        classificheTitle.setFont(Font.font("System", FontWeight.BOLD, 48));
+        classificheTitle.setFont(Font.font("System", FontWeight.BOLD, 28));
         classificheTitle.setTextFill(Color.WHITE);
-        classificheTitle.setPadding(new Insets(40, 60, 30, 60));
+        classificheTitle.setPadding(new Insets(40, 25, 20, 25));
 
         scrollContent.getChildren().add(classificheTitle);
 
-        // CONTENITORE CLASSIFICHE con sfondo grigio
-        VBox classificheBackground = new VBox(40);
-        classificheBackground.setStyle("-fx-background-color: #242426;");
-        classificheBackground.setPadding(new Insets(40, 60, 40, 60));
+        // SEZIONI CLASSIFICHE
+        createClassificheSection(scrollContent);
 
-        // Sezione "Più recensiti"
-        VBox mostReviewedSection = createMostReviewedSection();
-        classificheBackground.getChildren().add(mostReviewedSection);
+        // HEADER SCOPRI PER GENERE
+        Label genereTitle = new Label("Scopri per genere");
+        genereTitle.setFont(Font.font("System", FontWeight.BOLD, 28));
+        genereTitle.setTextFill(Color.WHITE);
+        genereTitle.setPadding(new Insets(50, 25, 20, 25));
 
-        // Divisore
-        Region divider = new Region();
-        divider.setPrefHeight(1);
-        divider.setStyle("-fx-background-color: #333335;");
-        classificheBackground.getChildren().add(divider);
+        scrollContent.getChildren().add(genereTitle);
 
-        // Sezione "Meglio valutati"
-        VBox topRatedSection = createTopRatedSection();
-        classificheBackground.getChildren().add(topRatedSection);
+        // GRIGLIA CATEGORIE
+        createCategoriesGrid(scrollContent);
 
-        scrollContent.getChildren().add(classificheBackground);
-
-        // SPAZIO TRA SEZIONI
-        Region spacer1 = new Region();
-        spacer1.setPrefHeight(60);
-        scrollContent.getChildren().add(spacer1);
-
-        // HEADER BOOK STORE
-        Label bookStoreTitle = new Label("Book Store");
-        bookStoreTitle.setFont(Font.font("System", FontWeight.BOLD, 48));
-        bookStoreTitle.setTextFill(Color.WHITE);
-        bookStoreTitle.setPadding(new Insets(0, 60, 30, 60));
-
-        scrollContent.getChildren().add(bookStoreTitle);
-
-        // CARD PROMOZIONALI
-        HBox promoCards = createPromotionalCards();
-        promoCards.setPadding(new Insets(0, 60, 40, 60));
-        scrollContent.getChildren().add(promoCards);
-
-        // SPAZIO TRA SEZIONI
-        Region spacer2 = new Region();
-        spacer2.setPrefHeight(40);
-        scrollContent.getChildren().add(spacer2);
-
-        // SEZIONE NUOVI E DI TENDENZA con sfondo
-        VBox trendsBackground = new VBox(0);
-        trendsBackground.setStyle("-fx-background-color: #242426;");
-        trendsBackground.setPadding(new Insets(40, 60, 60, 60));
-
-        VBox trendsSection = createTrendsSection();
-        trendsBackground.getChildren().add(trendsSection);
-
-        scrollContent.getChildren().add(trendsBackground);
+        // Padding finale
+        Region finalPadding = new Region();
+        finalPadding.setPrefHeight(40);
+        scrollContent.getChildren().add(finalPadding);
 
         scrollPane.setContent(scrollContent);
         return scrollPane;
     }
 
     /**
-     * Header "Classifiche" come nell'immagine di Apple Books
+     * Crea le sezioni delle classifiche - CORRETTE
      */
-    private VBox createClassificheHeader() {
-        VBox headerSection = new VBox(8);
-        headerSection.setPadding(new Insets(40, 40, 20, 40));
-
-        Label mainTitle = new Label("Classifiche");
-        mainTitle.setFont(Font.font("System", FontWeight.BOLD, 48));
-        mainTitle.setTextFill(Color.WHITE);
-
-        headerSection.getChildren().add(mainTitle);
-        return headerSection;
-    }
-
-    /**
-     * Sezione "Più recensiti" semplificata
-     */
-    private VBox createMostReviewedSection() {
-        VBox section = new VBox(20);
-
-        // Header
-        HBox headerBox = new HBox(10);
-        headerBox.setAlignment(Pos.CENTER_LEFT);
-
-        Label title = new Label("Più recensiti");
-        title.setFont(Font.font("System", FontWeight.BOLD, 28));
-        title.setTextFill(Color.WHITE);
-
-        Label arrow = new Label("\u203A");
-        arrow.setFont(Font.font("System", 28));
-        arrow.setTextFill(Color.web("#666666"));
-
-        headerBox.getChildren().addAll(title, arrow);
-        headerBox.setStyle("-fx-cursor: hand;");
-
-        // Griglia libri
-        GridPane booksGrid = new GridPane();
-        booksGrid.setHgap(30);
-        booksGrid.setVgap(20);
-
-        loadMostReviewedBooksGrid(booksGrid);
-
-        section.getChildren().addAll(headerBox, booksGrid);
-        return section;
-    }
-
-    /**
-     * Sezione "Meglio valutati" semplificata
-     */
-    private VBox createTopRatedSection() {
-        VBox section = new VBox(20);
-
-        // Header
-        HBox headerBox = new HBox(10);
-        headerBox.setAlignment(Pos.CENTER_LEFT);
-
-        Label title = new Label("Meglio valutati");
-        title.setFont(Font.font("System", FontWeight.BOLD, 28));
-        title.setTextFill(Color.WHITE);
-
-        Label arrow = new Label("\u203A");
-        arrow.setFont(Font.font("System", 28));
-        arrow.setTextFill(Color.web("#666666"));
-
-        headerBox.getChildren().addAll(title, arrow);
-        headerBox.setStyle("-fx-cursor: hand;");
-
-        // Griglia libri
-        GridPane booksGrid = new GridPane();
-        booksGrid.setHgap(30);
-        booksGrid.setVgap(20);
-
-        loadTopRatedBooksGrid(booksGrid);
-
-        section.getChildren().addAll(headerBox, booksGrid);
-        return section;
-    }
-
-    /**
-     * Carica libri più recensiti in GRIGLIA FISSA
-     */
-    /**
-     * Carica libri più recensiti REALI dal database
-     */
-    private void loadMostReviewedBooksGrid(GridPane grid) {
-        Label loadingLabel = new Label("Caricamento libri più recensiti...");
-        loadingLabel.setFont(Font.font("System", 14));
-        loadingLabel.setTextFill(Color.web("#666666"));
-        grid.add(loadingLabel, 0, 0);
-
-        // USA IL NUOVO METODO per ottenere i libri più recensiti reali
-        bookService.getMostReviewedBooksAsync().thenAccept(books -> {
-            Platform.runLater(() -> {
-                grid.getChildren().clear();
-                if (!books.isEmpty()) {
-                    // Configura le colonne
-                    grid.getColumnConstraints().clear();
-                    for (int i = 0; i < 3; i++) {
-                        javafx.scene.layout.ColumnConstraints column = new javafx.scene.layout.ColumnConstraints();
-                        column.setPercentWidth(33.33);
-                        column.setHgrow(Priority.ALWAYS);
-                        column.setFillWidth(true);
-                        grid.getColumnConstraints().add(column);
-                    }
-
-                    // Popola griglia con i libri più recensiti reali
-                    for (int i = 0; i < Math.min(3, books.size()); i++) {
-                        Book book = books.get(i);
-                        HBox bookCard = createRealReviewedBookCard(book, i + 1);
-                        bookCard.setMaxWidth(Double.MAX_VALUE);
-                        grid.add(bookCard, i, 0);
-                        GridPane.setHgrow(bookCard, Priority.ALWAYS);
-                        GridPane.setFillWidth(bookCard, true);
-                    }
-                } else {
-                    Label noDataLabel = new Label("Nessun dato disponibile");
-                    noDataLabel.setTextFill(Color.web("#666666"));
-                    grid.add(noDataLabel, 0, 0);
-                }
-            });
-        }).exceptionally(throwable -> {
-            Platform.runLater(() -> {
-                grid.getChildren().clear();
-                Label errorLabel = new Label("Errore nel caricamento");
-                errorLabel.setTextFill(Color.web("#FF6B6B"));
-                grid.add(errorLabel, 0, 0);
-            });
-            System.err.println("❌ Errore caricamento libri più recensiti: " + throwable.getMessage());
-            return null;
-        });
-    }
-
-    /**
-     * Crea card libro con valutazioni REALI
-     */
-    private HBox createRealReviewedBookCard(Book book, int rank) {
-        HBox card = new HBox(15);
-        card.setAlignment(Pos.CENTER_LEFT);
-        card.setPadding(new Insets(10));
-        card.setStyle("-fx-cursor: hand; -fx-background-radius: 8;");
-
-        // Hover effect
-        card.setOnMouseEntered(e -> card.setStyle("-fx-cursor: hand; -fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 8;"));
-        card.setOnMouseExited(e -> card.setStyle("-fx-cursor: hand; -fx-background-radius: 8;"));
-
-        // Click handler
-        if (bookClickHandler != null) {
-            card.setOnMouseClicked(e -> bookClickHandler.accept(book));
-        }
-
-        // MODIFICA: Rank con stesso stile della sezione "Meglio valutati"
-        Label rankLabel = new Label(String.valueOf(rank));
-        rankLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        rankLabel.setTextFill(Color.web("#666666")); // Grigio per il numero
-
-        // Copertina libro
-        ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 60, 90);
-        Rectangle clip = new Rectangle(60, 90);
-        clip.setArcWidth(6);
-        clip.setArcHeight(6);
-        cover.setClip(clip);
-
-        // Contenuto testo
-        VBox textContent = new VBox(6);
-        textContent.setAlignment(Pos.CENTER_LEFT);
-
-        // Titolo
-        Label titleLabel = new Label(book.getTitle());
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-        titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setWrapText(true);
-        titleLabel.setMaxWidth(200);
-
-        // Autore
-        Label authorLabel = new Label(book.getAuthor());
-        authorLabel.setFont(Font.font("System", 12));
-        authorLabel.setTextFill(Color.web("#CCCCCC"));
-
-        // VALUTAZIONE REALE
-        HBox ratingBox = new HBox(8);
-        ratingBox.setAlignment(Pos.CENTER_LEFT);
-
-        // Stelle
-        Label starsLabel = createStarsLabel(book.getAverageRating());
-        starsLabel.setFont(Font.font("System", 14));
-
-        // Rating numerico
-        Label ratingLabel = new Label(book.getFormattedRating());
-        ratingLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
-        ratingLabel.setTextFill(Color.web("#FFD700"));
-
-        // Numero recensioni
-        Label reviewsLabel = new Label("(" + book.getReviewCount() + " recensioni)");
-        reviewsLabel.setFont(Font.font("System", 11));
-        reviewsLabel.setTextFill(Color.web("#999999"));
-
-        ratingBox.getChildren().addAll(starsLabel, ratingLabel, reviewsLabel);
-
-        textContent.getChildren().addAll(titleLabel, authorLabel, ratingBox);
-
-        // Layout: Rank a sinistra, poi copertina, poi testo (stesso layout di "Meglio valutati")
-        HBox leftSection = new HBox(15);
-        leftSection.setAlignment(Pos.CENTER_LEFT);
-        leftSection.getChildren().addAll(rankLabel, cover, textContent);
-
-        card.getChildren().add(leftSection);
-
-        return card;
-    }
-
-    /**
-     * Crea label con stelle basato sul rating
-     */
-    private Label createStarsLabel(double rating) {
-        StringBuilder stars = new StringBuilder();
-
-        for (int i = 1; i <= 5; i++) {
-            if (rating >= i) {
-                stars.append("★");
-            } else if (rating >= i - 0.5) {
-                stars.append("★"); // Per ora usa sempre stelle piene per semplicità
-            } else {
-                stars.append("☆");
-            }
-        }
-
-        Label starsLabel = new Label(stars.toString());
-        starsLabel.setTextFill(Color.web("#FFD700")); // Oro per le stelle
-        starsLabel.setFont(Font.font("System", 14));
-
-        return starsLabel;
-    }
-
-    /**
-     * Carica libri meglio valutati in GRIGLIA FISSA
-     */
-    /**
-     * Carica libri meglio valutati REALI dal database
-     */
-    private void loadTopRatedBooksGrid(GridPane grid) {
-        Label loadingLabel = new Label("Caricamento libri meglio valutati...");
-        loadingLabel.setFont(Font.font("System", 14));
-        loadingLabel.setTextFill(Color.web("#666666"));
-        grid.add(loadingLabel, 0, 0);
-
-        // USA IL NUOVO METODO per ottenere i libri meglio valutati reali
-        bookService.getTopRatedBooksAsync().thenAccept(books -> {
-            Platform.runLater(() -> {
-                grid.getChildren().clear();
-                if (!books.isEmpty()) {
-                    // Configura le colonne (3 colonne)
-                    grid.getColumnConstraints().clear();
-                    for (int i = 0; i < 3; i++) {
-                        javafx.scene.layout.ColumnConstraints column = new javafx.scene.layout.ColumnConstraints();
-                        column.setPercentWidth(33.33);
-                        column.setHgrow(Priority.ALWAYS);
-                        column.setFillWidth(true);
-                        grid.getColumnConstraints().add(column);
-                    }
-
-                    // Popola griglia 3x2 (6 libri totali)
-                    for (int i = 0; i < Math.min(6, books.size()); i++) {
-                        Book book = books.get(i);
-                        HBox bookCard = createTopRatedBookCard(book, i + 1);
-                        bookCard.setMaxWidth(Double.MAX_VALUE);
-
-                        int col = i % 3; // Colonna (0, 1, 2)
-                        int row = i / 3; // Riga (0 o 1)
-
-                        grid.add(bookCard, col, row);
-                        GridPane.setHgrow(bookCard, Priority.ALWAYS);
-                        GridPane.setFillWidth(bookCard, true);
-                    }
-                } else {
-                    Label noDataLabel = new Label("Nessun dato disponibile");
-                    noDataLabel.setTextFill(Color.web("#666666"));
-                    grid.add(noDataLabel, 0, 0);
-                }
-            });
-        }).exceptionally(throwable -> {
-            Platform.runLater(() -> {
-                grid.getChildren().clear();
-                Label errorLabel = new Label("Errore nel caricamento");
-                errorLabel.setTextFill(Color.web("#FF6B6B"));
-                grid.add(errorLabel, 0, 0);
-            });
-            System.err.println("❌ Errore caricamento libri meglio valutati: " + throwable.getMessage());
-            return null;
-        });
-    }
-
-    /**
-     * Crea card libro per la sezione "Meglio valutati"
-     **/
-    private HBox createTopRatedBookCard(Book book, int rank) {
-        HBox card = new HBox(15);
-        card.setAlignment(Pos.CENTER_LEFT);
-        card.setPadding(new Insets(10));
-        card.setStyle("-fx-cursor: hand; -fx-background-radius: 8;");
-
-        // Hover effect
-        card.setOnMouseEntered(e -> card.setStyle("-fx-cursor: hand; -fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 8;"));
-        card.setOnMouseExited(e -> card.setStyle("-fx-cursor: hand; -fx-background-radius: 8;"));
-
-        // Click handler
-        if (bookClickHandler != null) {
-            card.setOnMouseClicked(e -> bookClickHandler.accept(book));
-        }
-
-        // Copertina libro
-        ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 60, 90);
-        Rectangle clip = new Rectangle(60, 90);
-        clip.setArcWidth(6);
-        clip.setArcHeight(6);
-        cover.setClip(clip);
-
-        // Contenuto testo
-        VBox textContent = new VBox(6);
-        textContent.setAlignment(Pos.CENTER_LEFT);
-
-        // Rank (senza # per essere più pulito come nell'immagine)
-        Label rankLabel = new Label(String.valueOf(rank));
-        rankLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        rankLabel.setTextFill(Color.web("#666666")); // Grigio per il numero
-
-        // Titolo
-        Label titleLabel = new Label(book.getTitle());
-        titleLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
-        titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setWrapText(true);
-        titleLabel.setMaxWidth(200);
-
-        // Autore
-        Label authorLabel = new Label(book.getAuthor());
-        authorLabel.setFont(Font.font("System", 12));
-        authorLabel.setTextFill(Color.web("#AAAAAA"));
-
-        // AGGIUNTA: Stelle e valutazione numerica
-        HBox ratingBox = new HBox(8);
-        ratingBox.setAlignment(Pos.CENTER_LEFT);
-
-        // Stelle
-        Label starsLabel = createStarsLabel(book.getAverageRating());
-        starsLabel.setFont(Font.font("System", 14));
-
-        // Rating numerico
-        Label ratingLabel = new Label(book.getFormattedRating());
-        ratingLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
-        ratingLabel.setTextFill(Color.web("#FFD700"));
-
-        ratingBox.getChildren().addAll(starsLabel, ratingLabel);
-
-        // Aggiungi tutto al contenuto testo
-        textContent.getChildren().addAll(titleLabel, authorLabel, ratingBox);
-
-        // Layout: Rank a sinistra, poi copertina, poi testo
-        HBox leftSection = new HBox(15);
-        leftSection.setAlignment(Pos.CENTER_LEFT);
-        leftSection.getChildren().addAll(rankLabel, cover, textContent);
-
-        card.getChildren().add(leftSection);
-
-        return card;
-    }
-
-    /**
-     * Crea card ESTESA per griglia - stile Apple Books
-     */
-    private HBox createCompactRankedBookCard(Book book, int rank, boolean showRating) {
-        HBox card = new HBox(15);
-        card.setAlignment(Pos.CENTER_LEFT);
-        card.setPrefHeight(90);
-        card.setMaxHeight(90);
-        card.setPadding(new Insets(12, 20, 12, 12));
-        card.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-cursor: hand;"
+    private void createClassificheSection(VBox parent) {
+        // PIÙ RECENSITI
+        VBox mostReviewedSection = createChartSection(
+                "📊 Più recensiti",
+                "I libri con più recensioni dei lettori"
         );
 
-        // Numero classifica più grande
-        Label rankLabel = new Label(String.valueOf(rank));
-        rankLabel.setFont(Font.font("System", FontWeight.BOLD, 32));
-        rankLabel.setTextFill(Color.web("#8E8E93"));
-        rankLabel.setMinWidth(45);
-        rankLabel.setAlignment(Pos.CENTER);
+        System.out.println("🔍 DEBUG: Caricamento libri più recensiti...");
+        ratingService.getTopRatedBooksAsync()
+                .thenAccept(books -> {
+                    Platform.runLater(() -> {
+                        System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri più recensiti dal rating service");
+                        if (!books.isEmpty()) {
+                            populateBookSection(mostReviewedSection, books.subList(0, Math.min(10, books.size())));
+                        } else {
+                            showErrorInSection(mostReviewedSection, "Nessun libro recensito disponibile");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        System.out.println("❌ DEBUG: Errore rating service più recensiti: " + throwable.getMessage());
+                        showErrorInSection(mostReviewedSection, "Errore caricamento libri più recensiti");
+                    });
+                    return null;
+                });
 
-        // Copertina più grande
-        ImageView cover = ImageUtils.createSafeImageView(
-                book.getImageUrl(),
-                55,
-                75
+        parent.getChildren().add(mostReviewedSection);
+
+        // MEGLIO VALUTATI
+        VBox topRatedSection = createChartSection(
+                "⭐ Migliori valutazioni",
+                "I libri con le valutazioni più alte"
         );
 
-        Rectangle clip = new Rectangle(55, 75);
-        clip.setArcWidth(6);
-        clip.setArcHeight(6);
-        cover.setClip(clip);
+        System.out.println("🔍 DEBUG: Caricamento libri meglio valutati...");
+        ratingService.getBestRatedBooksAsync()
+                .thenAccept(books -> {
+                    Platform.runLater(() -> {
+                        System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri meglio valutati dal rating service");
+                        if (!books.isEmpty()) {
+                            populateBookSection(topRatedSection, books.subList(0, Math.min(10, books.size())));
+                        } else {
+                            showErrorInSection(topRatedSection, "Nessun libro valutato disponibile");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        System.out.println("❌ DEBUG: Errore rating service meglio valutati: " + throwable.getMessage());
+                        showErrorInSection(topRatedSection, "Errore caricamento libri top rated");
+                    });
+                    return null;
+                });
 
-        // Ombra per profondità
-        DropShadow shadow = new DropShadow();
-        shadow.setRadius(4);
-        shadow.setColor(Color.BLACK.deriveColor(0, 1, 1, 0.3));
-        cover.setEffect(shadow);
-
-        // Info libro con più spazio
-        VBox infoBox = new VBox(4);
-        infoBox.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(infoBox, Priority.ALWAYS);
-
-        Label titleLabel = new Label(book.getTitle());
-        titleLabel.setFont(Font.font("System", FontWeight.MEDIUM, 16));
-        titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setWrapText(false);
-        titleLabel.setMaxWidth(Double.MAX_VALUE);
-        titleLabel.setStyle("-fx-text-overrun: ellipsis;");
-
-        Label authorLabel = new Label(book.getAuthor());
-        authorLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
-        authorLabel.setTextFill(Color.web("#8E8E93"));
-        authorLabel.setWrapText(false);
-        authorLabel.setMaxWidth(Double.MAX_VALUE);
-        authorLabel.setStyle("-fx-text-overrun: ellipsis;");
-
-        infoBox.getChildren().addAll(titleLabel, authorLabel);
-
-        // Aggiungi rating se richiesto
-        if (showRating) {
-            HBox ratingBox = new HBox(5);
-            ratingBox.setAlignment(Pos.CENTER_LEFT);
-
-            double rating = 3.5 + (Math.random() * 1.5);
-            int stars = (int) Math.round(rating);
-
-            Label starsLabel = new Label("★".repeat(stars) + "☆".repeat(5 - stars));
-            starsLabel.setFont(Font.font("System", 12));
-            starsLabel.setTextFill(Color.web("#FFD700"));
-
-            Label ratingLabel = new Label(String.format("%.1f", rating));
-            ratingLabel.setFont(Font.font("System", 12));
-            ratingLabel.setTextFill(Color.web("#8E8E93"));
-
-            ratingBox.getChildren().addAll(starsLabel, ratingLabel);
-            infoBox.getChildren().add(ratingBox);
-        }
-
-        card.getChildren().addAll(rankLabel, cover, infoBox);
-
-        // Click handler
-        card.setOnMouseClicked(e -> {
-            if (bookClickHandler != null) {
-                bookClickHandler.accept(book);
-            }
-        });
-
-        // Hover effect
-        card.setOnMouseEntered(e -> {
-            card.setStyle(
-                    "-fx-background-color: rgba(255, 255, 255, 0.05);" +
-                            "-fx-background-radius: 8;" +
-                            "-fx-cursor: hand;"
-            );
-        });
-        card.setOnMouseExited(e -> {
-            card.setStyle(
-                    "-fx-background-color: transparent;" +
-                            "-fx-cursor: hand;"
-            );
-        });
-
-        return card;
+        parent.getChildren().add(topRatedSection);
     }
 
     /**
-     * Crea le card promozionali
+     * ✅ METODO MANCANTE: Crea una sezione classifiche
      */
-    private HBox createPromotionalCards() {
-        HBox cardsContainer = new HBox(25);
-        cardsContainer.setAlignment(Pos.CENTER);
+    private VBox createChartSection(String title, String subtitle) {
+        VBox section = new VBox(15);
+        section.setPadding(new Insets(20, 25, 30, 25));
 
-        VBox card1 = createPromotionalCard(
-                "DI TENDENZA",
-                "Scopri i romanzi del momento",
-                "#4A7C59",
-                "#6B9B7B",
-                createQuoteGraphic("#FFB6C1", -10)
-        );
+        // Header sezione
+        VBox header = new VBox(5);
 
-        VBox card2 = createPromotionalCard(
-                "SCOPRI",
-                "Allarga gli orizzonti con i saggi più amati del momento",
-                "#B85066",
-                "#D47385",
-                createQuoteGraphic("#B6D0FF", 10)
-        );
-
-        VBox card3 = createPromotionalCard(
-                "PREZZI SPECIALI",
-                "Trova splendidi libri a 3,99 € o meno",
-                "#E8B5C7",
-                "#F5D4DF",
-                createPriceGraphic()
-        );
-
-        HBox.setHgrow(card1, Priority.ALWAYS);
-        HBox.setHgrow(card2, Priority.ALWAYS);
-        HBox.setHgrow(card3, Priority.ALWAYS);
-
-        cardsContainer.getChildren().addAll(card1, card2, card3);
-        return cardsContainer;
-    }
-
-    /**
-     * Crea una card promozionale con dimensioni responsive
-     */
-    private VBox createPromotionalCard(String header, String title, String color1, String color2, Region graphic) {
-        VBox card = new VBox();
-        card.setPrefHeight(180);
-        card.setMinHeight(150);
-        card.setMaxWidth(Double.MAX_VALUE);
-        card.setStyle(
-                "-fx-background-color: linear-gradient(to bottom right, " + color1 + ", " + color2 + ");" +
-                        "-fx-background-radius: 16;" +
-                        "-fx-cursor: hand;"
-        );
-        card.setPadding(new Insets(25));
-
-        // Header label
-        Label headerLabel = new Label(header);
-        headerLabel.setFont(Font.font("System", FontWeight.MEDIUM, 12));
-        headerLabel.setTextFill(Color.WHITE);
-        headerLabel.setOpacity(0.9);
-
-        // Title label
         Label titleLabel = new Label(title);
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
         titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setWrapText(true);
 
-        VBox textContainer = new VBox(8);
-        textContainer.getChildren().addAll(headerLabel, titleLabel);
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        subtitleLabel.setTextFill(Color.web("#8E8E93"));
 
-        // Layout con grafica
-        HBox cardContent = new HBox();
-        cardContent.setAlignment(Pos.CENTER);
-        HBox.setHgrow(textContainer, Priority.ALWAYS);
+        header.getChildren().addAll(titleLabel, subtitleLabel);
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+        // Container per i libri (sarà popolato async)
+        HBox booksContainer = new HBox(15);
+        booksContainer.setAlignment(Pos.CENTER_LEFT);
 
-        cardContent.getChildren().addAll(textContainer, spacer, graphic);
-        card.getChildren().add(cardContent);
-
-        // Effetto hover
-        card.setOnMouseEntered(e -> {
-            card.setScaleX(1.02);
-            card.setScaleY(1.02);
-            card.setEffect(new DropShadow(20, Color.BLACK));
-        });
-
-        card.setOnMouseExited(e -> {
-            card.setScaleX(1.0);
-            card.setScaleY(1.0);
-            card.setEffect(null);
-        });
-
-        return card;
-    }
-
-    /**
-     * Crea grafica virgolette per le card
-     */
-    private Region createQuoteGraphic(String color, double rotation) {
-        Label quote = new Label("\u201C");  // Unicode per virgolette aperte
-        quote.setFont(Font.font("System", FontWeight.BOLD, 80));
-        quote.setTextFill(Color.web(color));
-        quote.setOpacity(0.5);
-        quote.setRotate(rotation);
-        return quote;
-    }
-
-    /**
-     * Crea grafica prezzo per la card prezzi speciali
-     */
-    private Region createPriceGraphic() {
-        VBox container = new VBox(-5);
-        container.setAlignment(Pos.CENTER);
-
-        Label price = new Label("3,99 €");
-        price.setFont(Font.font("System", FontWeight.BOLD, 32));
-        price.setTextFill(Color.color(1, 1, 0.2, 0.8));
-        price.setRotate(-5);
-
-        HBox shapes = new HBox(8);
-        shapes.setAlignment(Pos.CENTER);
-
-        Rectangle rect1 = new Rectangle(30, 30);
-        rect1.setFill(Color.color(0.5, 0.7, 1, 0.4));
-        rect1.setArcWidth(8);
-        rect1.setArcHeight(8);
-        rect1.setRotate(15);
-
-        Rectangle rect2 = new Rectangle(20, 20);
-        rect2.setFill(Color.color(1, 0.8, 0.3, 0.4));
-        rect2.setArcWidth(6);
-        rect2.setArcHeight(6);
-        rect2.setRotate(-20);
-
-        shapes.getChildren().addAll(rect1, rect2);
-        container.getChildren().addAll(price, shapes);
-
-        return container;
-    }
-
-    /**
-     * Sezione "Nuovi e di tendenza" semplificata
-     */
-    private VBox createTrendsSection() {
-        VBox section = new VBox(25);
-
-        // Header
-        HBox headerBox = new HBox(10);
-        headerBox.setAlignment(Pos.CENTER_LEFT);
-
-        Label title = new Label("Nuovi e di tendenza");
-        title.setFont(Font.font("System", FontWeight.BOLD, 32));
-        title.setTextFill(Color.WHITE);
-
-        Label arrow = new Label("\u203A");
-        arrow.setFont(Font.font("System", 28));
-        arrow.setTextFill(Color.web("#666666"));
-
-        headerBox.getChildren().addAll(title, arrow);
-        headerBox.setStyle("-fx-cursor: hand;");
-
-        Label subtitle = new Label("Ultime uscite e libri al centro dell'attenzione.");
-        subtitle.setFont(Font.font("System", 18));
-        subtitle.setTextFill(Color.web("#999999"));
-
-        // Griglia libri 4x3
-        GridPane booksGrid = new GridPane();
-        booksGrid.setHgap(30);
-        booksGrid.setVgap(35);
-        booksGrid.setPadding(new Insets(20, 0, 0, 0));
-
-        loadTrendingBooks(booksGrid);
-
-        section.getChildren().addAll(headerBox, subtitle, booksGrid);
+        section.getChildren().addAll(header, booksContainer);
         return section;
     }
 
     /**
-     * Carica libri reali dal server
+     * Popola una sezione con libri
      */
-    private void loadTrendingBooks(GridPane grid) {
-        // Carica libri in evidenza
-        bookService.getFeaturedBooksAsync().thenAccept(books -> {
-            Platform.runLater(() -> {
-                if (!books.isEmpty()) {
-                    grid.getChildren().clear();
-                    populateGrid(grid, books, 0, 8);
-                }
-            });
-        }).exceptionally(throwable -> {
-            System.err.println("❌ Errore caricamento Featured Books: " + throwable.getMessage());
-            return null;
-        });
+    private void populateBookSection(VBox section, List<Book> books) {
+        // Trova il container dei libri (ultimo figlio della sezione)
+        if (section.getChildren().size() >= 2 && section.getChildren().get(1) instanceof HBox) {
+            HBox booksContainer = (HBox) section.getChildren().get(1);
+            booksContainer.getChildren().clear();
 
-        // Carica nuove uscite per completare la griglia
-        bookService.getNewReleasesAsync().thenAccept(books -> {
-            Platform.runLater(() -> {
-                if (!books.isEmpty()) {
-                    populateGrid(grid, books, 8, 4);
-                }
-            });
-        }).exceptionally(throwable -> {
-            System.err.println("❌ Errore caricamento New Releases: " + throwable.getMessage());
-            return null;
-        });
-    }
-
-    /**
-     * Popola griglia con libri - layout fisso 4 colonne
-     */
-    private void populateGrid(GridPane grid, List<Book> books, int startIndex, int maxCount) {
-        int columns = 4;
-        int added = 0;
-
-        for (int i = 0; i < Math.min(books.size(), maxCount); i++) {
-            Book book = books.get(i);
-            VBox bookCard = createBookCard(book);
-
-            int totalIndex = startIndex + i;
-            int col = totalIndex % columns;
-            int row = totalIndex / columns;
-
-            grid.add(bookCard, col, row);
-            GridPane.setHalignment(bookCard, javafx.geometry.HPos.CENTER);
-            added++;
+            for (int i = 0; i < Math.min(books.size(), 8); i++) {
+                Book book = books.get(i);
+                VBox bookCard = createBookCard(book);
+                booksContainer.getChildren().add(bookCard);
+            }
         }
     }
 
     /**
-     * Crea card per un libro
+     * Mostra errore in una sezione
+     */
+    private void showErrorInSection(VBox section, String errorMessage) {
+        if (section.getChildren().size() >= 2 && section.getChildren().get(1) instanceof HBox) {
+            HBox booksContainer = (HBox) section.getChildren().get(1);
+            booksContainer.getChildren().clear();
+
+            Label errorLabel = new Label("❌ " + errorMessage);
+            errorLabel.setTextFill(Color.web("#e74c3c"));
+            errorLabel.setFont(Font.font("System", 14));
+            booksContainer.getChildren().add(errorLabel);
+        }
+    }
+
+    /**
+     * ✅ METODO AGGIORNATO: Crea una card per un libro - CON STELLINE!
      */
     private VBox createBookCard(Book book) {
-        VBox card = new VBox(10);
-        card.setMaxWidth(140);
+        VBox card = new VBox(8);
         card.setAlignment(Pos.TOP_CENTER);
-        card.setStyle("-fx-cursor: hand;");
+        card.setPrefWidth(120);
+        card.setMaxWidth(120);
 
-        // Immagine copertina
-        ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 120, 170);
+        // Immagine libro - USA IMAGEUTILS per caricare immagini vere
+        ImageView bookCover = ImageUtils.createSafeImageView(book.getImageUrl(), 80, 120);
 
-        Rectangle clip = new Rectangle(120, 170);
+        // Applica clip e ombra all'immagine
+        Rectangle clip = new Rectangle(80, 120);
         clip.setArcWidth(8);
         clip.setArcHeight(8);
-        cover.setClip(clip);
+        bookCover.setClip(clip);
 
+        // Effetto ombra
         DropShadow shadow = new DropShadow();
+        shadow.setColor(Color.web("#000000", 0.3));
+        shadow.setOffsetX(0);
+        shadow.setOffsetY(4);
         shadow.setRadius(8);
-        shadow.setColor(Color.BLACK.deriveColor(0, 1, 1, 0.3));
-        cover.setEffect(shadow);
+        bookCover.setEffect(shadow);
 
-        // Titolo
-        String titleText = book.getTitle() != null ? book.getTitle() : "Titolo non disponibile";
-        Label titleLabel = new Label(titleText);
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 13));
-        titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setWrapText(true);
-        titleLabel.setMaxWidth(120);
-        titleLabel.setAlignment(Pos.CENTER);
-        titleLabel.setPrefHeight(35);
+        // Titolo libro
+        Label title = new Label(book.getTitle());
+        title.setFont(Font.font("System", FontWeight.BOLD, 12));
+        title.setTextFill(Color.WHITE);
+        title.setWrapText(true);
+        title.setMaxWidth(120);
+        title.setAlignment(Pos.CENTER);
 
         // Autore
-        String authorText = book.getAuthor() != null ? book.getAuthor() : "Autore sconosciuto";
-        Label authorLabel = new Label(authorText);
-        authorLabel.setFont(Font.font("System", 11));
-        authorLabel.setTextFill(Color.web("#999999"));
-        authorLabel.setWrapText(false);
-        authorLabel.setMaxWidth(120);
-        authorLabel.setAlignment(Pos.CENTER);
-        authorLabel.setStyle("-fx-text-overrun: ellipsis;");
+        Label author = new Label(book.getAuthor());
+        author.setFont(Font.font("System", FontWeight.NORMAL, 10));
+        author.setTextFill(Color.web("#8E8E93"));
+        author.setWrapText(true);
+        author.setMaxWidth(120);
+        author.setAlignment(Pos.CENTER);
 
-        card.getChildren().addAll(cover, titleLabel, authorLabel);
+        // ✅ STELLINE! RATING BOX - container per stelline e valutazione
+        HBox ratingBox = new HBox(4);
+        ratingBox.setAlignment(Pos.CENTER);
+
+        // Se il libro ha già i dati di rating dal server, mostrarli
+        if (book.getAverageRating() > 0.0) {
+            double avgRating = book.getAverageRating();
+            int stars = (int) Math.round(avgRating);
+            String starsDisplay = "★".repeat(stars) + "☆".repeat(5 - stars);
+
+            Label starsLabel = new Label(starsDisplay);
+            starsLabel.setFont(Font.font("System", 10));
+            starsLabel.setTextFill(Color.web("#FFD700")); // Stelline gialle
+
+            Label ratingText = new Label(String.format("%.1f", avgRating));
+            ratingText.setFont(Font.font("System", 9));
+            ratingText.setTextFill(Color.web("#8E8E93"));
+
+            ratingBox.getChildren().addAll(starsLabel, ratingText);
+        } else if (book.getReviewCount() > 0) {
+            // Se ha almeno delle recensioni, mostra il numero
+            Label reviewCount = new Label(book.getReviewCount() + " recensioni");
+            reviewCount.setFont(Font.font("System", 9));
+            reviewCount.setTextFill(Color.web("#8E8E93"));
+            ratingBox.getChildren().add(reviewCount);
+        }
+        // Se non ha rating né recensioni, non mostrare nulla nella ratingBox
+
+        // Aggiungi tutti gli elementi alla card
+        if (ratingBox.getChildren().isEmpty()) {
+            // Se non ci sono rating, layout senza rating box
+            card.getChildren().addAll(bookCover, title, author);
+        } else {
+            // Layout con rating box
+            card.getChildren().addAll(bookCover, title, author, ratingBox);
+        }
 
         // Click handler
         card.setOnMouseClicked(e -> {
@@ -888,22 +313,197 @@ public class ExploreIntegration {
             }
         });
 
-        // Hover effect
+        // Effetti hover
         card.setOnMouseEntered(e -> {
             card.setScaleX(1.05);
             card.setScaleY(1.05);
-            cover.setOpacity(0.9);
         });
+
         card.setOnMouseExited(e -> {
             card.setScaleX(1.0);
             card.setScaleY(1.0);
-            cover.setOpacity(1.0);
         });
+
+        // Stile cursor
+        card.setStyle("-fx-cursor: hand;");
 
         return card;
     }
 
+    /**
+     * Crea la griglia delle categorie
+     */
+    private void createCategoriesGrid(VBox parent) {
+        GridPane categoriesGrid = new GridPane();
+        categoriesGrid.setPadding(new Insets(0, 25, 0, 25));
+        categoriesGrid.setHgap(15);
+        categoriesGrid.setVgap(15);
+
+        // Categorie predefinite
+        String[] categories = {
+                "🔬 Scienze", "💝 Romanzi", "🏛️ Storia", "🎭 Drammi",
+                "🚀 Fantascienza", "⚔️ Fantasy", "🕵️ Gialli", "💕 Romance",
+                "📚 Saggistica", "🎨 Arte", "🏃 Biografia", "🍳 Cucina"
+        };
+
+        String[] colors = {
+                "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
+                "#FECA57", "#FF9FF3", "#54A0FF", "#5F27CD",
+                "#00D2D3", "#FF9F43", "#EE5A24", "#0DD3FF"
+        };
+
+        int row = 0, col = 0;
+        for (int i = 0; i < categories.length; i++) {
+            String category = categories[i];
+            String color = colors[i % colors.length];
+
+            Button categoryButton = createCategoryButton(category, color);
+            categoriesGrid.add(categoryButton, col, row);
+
+            col++;
+            if (col >= 4) {
+                col = 0;
+                row++;
+            }
+        }
+
+        parent.getChildren().add(categoriesGrid);
+    }
+
+    /**
+     * Crea un pulsante categoria
+     */
+    private Button createCategoryButton(String category, String color) {
+        Button button = new Button(category);
+        button.setPrefSize(200, 100);
+        button.setFont(Font.font("System", FontWeight.BOLD, 16));
+        button.setTextFill(Color.WHITE);
+        button.setStyle(
+                "-fx-background-color: " + color + ";" +
+                        "-fx-background-radius: 12;" +
+                        "-fx-border-radius: 12;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);"
+        );
+
+        // Effetti hover
+        button.setOnMouseEntered(e -> {
+            button.setScaleX(1.05);
+            button.setScaleY(1.05);
+        });
+
+        button.setOnMouseExited(e -> {
+            button.setScaleX(1.0);
+            button.setScaleY(1.0);
+        });
+
+        // Click handler
+        button.setOnAction(e -> {
+            handleCategoryClick(category);
+        });
+
+        return button;
+    }
+
+    /**
+     * Gestisce il click su una categoria
+     */
+    private void handleCategoryClick(String category) {
+        System.out.println("🎭 Click categoria: " + category);
+
+        if (containerPane != null) {
+            // Crea vista categoria
+            CategoryView categoryView = new CategoryView(
+                    createCategoryFromString(category),
+                    bookService,
+                    bookClickHandler
+            );
+
+            // Mostra la vista categoria
+            showCategoryView(categoryView);
+        }
+    }
+
+    /**
+     * Crea un oggetto Category da una stringa
+     */
+    private Category createCategoryFromString(String categoryString) {
+        // Rimuovi emoji se presente
+        String name = categoryString.replaceAll("[^\\p{L}\\p{N}\\s]", "").trim();
+        return new Category(name.toLowerCase().replace(" ", "_"), name, name);
+    }
+
+    /**
+     * Mostra la vista categoria
+     */
+    private void showCategoryView(CategoryView categoryView) {
+        if (containerPane == null) {
+            System.err.println("❌ Container non impostato per mostrare categoria");
+            return;
+        }
+
+        try {
+            isViewingCategory = true;
+
+            // Crea overlay per la categoria
+            StackPane categoryOverlay = new StackPane();
+            categoryOverlay.setStyle("-fx-background-color: #1a1a1c;");
+
+            // Crea contenuto categoria
+            ScrollPane categoryContent = categoryView.createCategoryView();
+            categoryOverlay.getChildren().add(categoryContent);
+
+            // Pulsante indietro
+            Button backButton = new Button("← Torna a Esplora");
+            backButton.setStyle(
+                    "-fx-background-color: #007aff;" +
+                            "-fx-text-fill: white;" +
+                            "-fx-font-size: 16;" +
+                            "-fx-padding: 10 20;" +
+                            "-fx-background-radius: 8;" +
+                            "-fx-cursor: hand;"
+            );
+            backButton.setOnAction(e -> closeCategoryView());
+
+            // Posiziona il pulsante indietro
+            StackPane.setAlignment(backButton, Pos.TOP_LEFT);
+            StackPane.setMargin(backButton, new Insets(20));
+            categoryOverlay.getChildren().add(backButton);
+
+            // Aggiungi al container
+            containerPane.getChildren().add(categoryOverlay);
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore visualizzazione categoria: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Chiude la vista categoria
+     */
+    private void closeCategoryView() {
+        if (containerPane != null && isViewingCategory) {
+            // Rimuovi l'overlay della categoria
+            containerPane.getChildren().removeIf(node ->
+                    node instanceof StackPane &&
+                            !((StackPane) node).getChildren().isEmpty() &&
+                            ((StackPane) node).getChildren().get(0) instanceof ScrollPane
+            );
+            isViewingCategory = false;
+        }
+    }
+
+    /**
+     * Verifica se è attualmente visualizzata una categoria
+     */
     public boolean isViewingCategory() {
         return isViewingCategory;
+    }
+
+    /**
+     * Torna alla vista principale Esplora
+     */
+    public void backToExplore() {
+        closeCategoryView();
     }
 }

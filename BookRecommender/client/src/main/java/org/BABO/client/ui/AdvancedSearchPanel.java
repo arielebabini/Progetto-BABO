@@ -813,75 +813,134 @@ public class AdvancedSearchPanel extends VBox {
                 return new ArrayList<>();
             }
 
-            // ✅ CORREZIONE: SOLO 3 tipi di ricerca come richiesto
+            List<Book> results = new ArrayList<>();
+
             if (searchType.contains("Titolo") && !titleQuery.isEmpty()) {
-                System.out.println("📖 Ricerca per titolo: " + titleQuery);
-                return bookService.searchBooksByTitle(titleQuery);
+                System.out.println("📖 Ricerca SPECIFICA per titolo: " + titleQuery);
 
-            } else if (searchType.equals("Ricerca per Autore") && !authorQuery.isEmpty()) {
-                System.out.println("👤 Ricerca per autore: " + authorQuery);
-                return bookService.searchBooksByAuthor(authorQuery);
-
-            } else if (searchType.contains("Autore e Anno") && !authorQuery.isEmpty()) {
-                System.out.println("👤📅 Ricerca per autore e anno: " + authorQuery + " (" + yearFrom + "-" + yearTo + ")");
-
-                // Usa il metodo searchBooksByAuthor e poi filtra per anno se specificato
-                List<Book> authorResults = bookService.searchBooksByAuthor(authorQuery);
-
-                if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
-                    return filterBooksByYear(authorResults, yearFrom, yearTo);
-                } else {
-                    return authorResults;
+                // ✅ USA L'ENDPOINT SPECIFICO per solo titolo
+                try {
+                    results = bookService.searchBooksByTitle(titleQuery);
+                    System.out.println("✅ Ricerca titolo specifica completata: " + results.size() + " risultati");
+                } catch (Exception e) {
+                    System.err.println("❌ Errore ricerca titolo specifica: " + e.getMessage());
+                    // ✅ FALLBACK: usa ricerca generale e filtra lato client
+                    System.out.println("🔄 Fallback: ricerca generale con filtro titolo");
+                    List<Book> generalResults = bookService.searchBooks(titleQuery);
+                    results = filterBooksByTitleOnly(generalResults, titleQuery);
                 }
+
+            } else if (searchType.contains("Autore") && !authorQuery.isEmpty()) {
+                System.out.println("👤 Ricerca per autore: " + authorQuery);
+
+                // Per autore usa ricerca generale + filtro lato client
+                List<Book> generalResults = bookService.searchBooks(authorQuery);
+                results = filterBooksByAuthor(generalResults, authorQuery);
+
+            } else {
+                System.err.println("❌ Tipo di ricerca non riconosciuto o parametri mancanti");
+                System.err.println("   searchType: " + searchType);
+                System.err.println("   titleQuery: '" + titleQuery + "'");
+                System.err.println("   authorQuery: '" + authorQuery + "'");
+                return new ArrayList<>();
             }
 
-            return new ArrayList<>();
+            // ✅ FILTRO ANNO se specificato (sempre lato client)
+            if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
+                System.out.println("📅 Applicazione filtro anno: " + yearFrom + "-" + yearTo);
+                results = filterBooksByYear(results, yearFrom, yearTo);
+            }
+
+            System.out.println("✅ Ricerca avanzata completata: " + results.size() + " risultati finali");
+            return results;
 
         } catch (Exception e) {
-            System.err.println("❌ Errore nella ricerca avanzata: " + e.getMessage());
+            System.err.println("❌ Errore ricerca avanzata: " + e.getMessage());
+            e.printStackTrace();
             return new ArrayList<>();
         }
+    }
+
+    private List<Book> filterBooksByTitleOnly(List<Book> books, String targetTitle) {
+        if (targetTitle == null || targetTitle.trim().isEmpty()) {
+            return books;
+        }
+
+        List<Book> filtered = new ArrayList<>();
+        String searchTitle = targetTitle.toLowerCase().trim();
+
+        for (Book book : books) {
+            if (book.getTitle() != null &&
+                    book.getTitle().toLowerCase().contains(searchTitle)) {
+                filtered.add(book);
+            }
+        }
+
+        System.out.println("📖 Filtro SOLO titolo '" + targetTitle + "': " + books.size() + " → " + filtered.size());
+        return filtered;
+    }
+
+    private List<Book> filterBooksByAuthor(List<Book> books, String targetAuthor) {
+        if (targetAuthor == null || targetAuthor.trim().isEmpty()) {
+            return books;
+        }
+
+        List<Book> filtered = new ArrayList<>();
+        String searchAuthor = targetAuthor.toLowerCase().trim();
+
+        for (Book book : books) {
+            if (book.getAuthor() != null &&
+                    book.getAuthor().toLowerCase().contains(searchAuthor)) {
+                filtered.add(book);
+            }
+        }
+
+        System.out.println("👤 Filtro autore '" + targetAuthor + "': " + books.size() + " → " + filtered.size());
+        return filtered;
     }
 
     /**
      * ✅ CORREZIONE: Filtra i libri per anno di pubblicazione
      */
     private List<Book> filterBooksByYear(List<Book> books, String yearFrom, String yearTo) {
-        try {
-            return books.stream()
-                    .filter(book -> {
-                        if (book.getPublishYear() == null || book.getPublishYear().trim().isEmpty()) {
-                            return false;
-                        }
+        List<Book> filtered = new ArrayList<>();
 
-                        try {
-                            int bookYear = Integer.parseInt(book.getPublishYear().trim());
+        for (Book book : books) {
+            try {
+                String bookYear = book.getPublishYear();
+                if (bookYear == null || bookYear.trim().isEmpty()) {
+                    continue; // Salta libri senza anno
+                }
 
-                            // Controlla anno minimo
-                            if (!yearFrom.isEmpty()) {
-                                int minYear = Integer.parseInt(yearFrom.trim());
-                                if (bookYear < minYear) return false;
-                            }
+                int bookYearInt = Integer.parseInt(bookYear.trim());
+                boolean inRange = true;
 
-                            // Controlla anno massimo
-                            if (!yearTo.isEmpty()) {
-                                int maxYear = Integer.parseInt(yearTo.trim());
-                                if (bookYear > maxYear) return false;
-                            }
+                if (!yearFrom.isEmpty()) {
+                    int yearFromInt = Integer.parseInt(yearFrom);
+                    if (bookYearInt < yearFromInt) {
+                        inRange = false;
+                    }
+                }
 
-                            return true;
+                if (!yearTo.isEmpty() && inRange) {
+                    int yearToInt = Integer.parseInt(yearTo);
+                    if (bookYearInt > yearToInt) {
+                        inRange = false;
+                    }
+                }
 
-                        } catch (NumberFormatException e) {
-                            // Se l'anno del libro non è un numero valido, escludi
-                            return false;
-                        }
-                    })
-                    .collect(java.util.stream.Collectors.toList());
+                if (inRange) {
+                    filtered.add(book);
+                }
 
-        } catch (Exception e) {
-            System.err.println("❌ Errore nel filtro per anno: " + e.getMessage());
-            return books; // Ritorna la lista originale in caso di errore
+            } catch (NumberFormatException e) {
+                // Salta libri con anno non numerico
+                continue;
+            }
         }
+
+        System.out.println("📅 Filtro anno: " + books.size() + " → " + filtered.size() + " risultati");
+        return filtered;
     }
 
     /**

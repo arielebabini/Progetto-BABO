@@ -535,4 +535,77 @@ public class RatingService {
 
         return result.toString();
     }
+
+    public List<String> getBestRatedBooks() {
+        List<String> topBooks = new ArrayList<>();
+        String query = """
+            SELECT isbn, AVG(average) as avg_rating, COUNT(*) as rating_count
+            FROM assessment 
+            GROUP BY isbn 
+            HAVING COUNT(*) >= 2
+            ORDER BY avg_rating DESC
+            LIMIT 10
+        """;
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                double avgRating = rs.getDouble("avg_rating");
+                int count = rs.getInt("rating_count");
+                topBooks.add(isbn + " (" + String.format("%.1f", avgRating) + "★, " + count + " valutazioni)");
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore nel recupero libri meglio valutati: " + e.getMessage());
+        }
+
+        return topBooks;
+    }
+
+    /**
+     * Recupera gli ISBN dei libri meglio valutati (con rating più alto)
+     */
+    public List<String> getBestRatedBooksIsbn(int limit) {
+        System.out.println("⭐ Recupero " + limit + " ISBN libri meglio valutati");
+
+        List<String> topIsbnList = new ArrayList<>();
+        String query = """
+        SELECT isbn, AVG(average) as avg_rating, COUNT(*) as rating_count
+        FROM assessment 
+        WHERE average IS NOT NULL AND average > 0
+        GROUP BY isbn
+        HAVING COUNT(*) >= 2
+        ORDER BY avg_rating DESC, rating_count DESC
+        LIMIT ?
+    """;
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setInt(1, limit);
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                double avgRating = rs.getDouble("avg_rating");
+                int ratingCount = rs.getInt("rating_count");
+
+                topIsbnList.add(isbn);
+                System.out.println("⭐ Libro top rated: ISBN " + isbn +
+                        " (Rating: " + String.format("%.1f", avgRating) +
+                        " da " + ratingCount + " utenti)");
+            }
+
+            System.out.println("✅ Recuperati " + topIsbnList.size() + " ISBN meglio valutati");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore durante il recupero ISBN meglio valutati: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return topIsbnList;
+    }
 }

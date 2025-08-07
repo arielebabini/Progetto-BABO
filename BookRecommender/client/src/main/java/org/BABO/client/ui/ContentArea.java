@@ -37,6 +37,7 @@ public class ContentArea {
     private BookSectionFactory sectionFactory;
     private Consumer<List<Book>> cachedBooksCallback;
     private ExploreIntegration exploreIntegration;
+    private MainWindow mainWindowRef;
 
     // Cache per navigazione contestuale
     private List<Book> featuredBooks = new ArrayList<>();
@@ -182,14 +183,7 @@ public class ContentArea {
 
         try {
             // Crea la vista per la categoria
-            currentCategoryView = new CategoryView(bookService, category);
-
-            // Configura gli handler per la CategoryView
-            currentCategoryView.setBookClickHandler(book -> handleBookClickWithPopupManager(book));
-            currentCategoryView.setBackHandler(unused -> {
-                System.out.println("🔙 Ritorno dalla categoria alla home");
-                loadInitialContent(); // Torna alla home
-            });
+            currentCategoryView = new CategoryView(category, bookService, book -> handleBookClickWithPopupManager(book));
 
             // Sostituisci il contenuto corrente con la vista della categoria
             content.getChildren().clear();
@@ -346,12 +340,12 @@ public class ContentArea {
     }
 
     private void showHome() {
-        System.out.println("🏠 Caricamento Home");
-        loadInitialContent();
+        System.out.println("🏠 ContentArea: Caricamento Home");
+        loadInitialContent(); // Torna al comportamento originale
     }
 
     private void showExplore() {
-        System.out.println("🔍 Caricamento sezione Esplora");
+        System.out.println("🔍 ContentArea: Caricamento sezione Esplora");
 
         if (exploreIntegration != null) {
             try {
@@ -376,7 +370,7 @@ public class ContentArea {
                 // Aggiungi al content area esistente
                 content.getChildren().add(exploreContainer);
 
-                System.out.println("✅ Sezione Esplora caricata correttamente nel content area");
+                System.out.println("✅ Sezione Esplora caricata correttamente");
 
             } catch (Exception e) {
                 System.err.println("❌ Errore caricamento Esplora: " + e.getMessage());
@@ -387,6 +381,53 @@ public class ContentArea {
             System.err.println("❌ ExploreIntegration non inizializzato");
             showPlaceholderSection("🔍 Esplora", "Sezione Esplora non disponibile");
         }
+    }
+
+    /**
+     * NUOVO: Carica il contenuto solo se necessario
+     */
+    public void loadInitialContentIfNeeded() {
+        // Controlla se il content è vuoto o contiene solo placeholder/errori
+        boolean needsLoading = content.getChildren().isEmpty() ||
+                isContentEmpty();
+
+        if (needsLoading) {
+            System.out.println("🏠 ContentArea: Contenuto mancante, caricamento necessario");
+            loadInitialContent();
+        } else {
+            System.out.println("✅ ContentArea: Contenuto già presente, salto il caricamento");
+        }
+    }
+
+    /**
+     * NUOVO: Controlla se il content è "vuoto" (solo placeholder o errori)
+     */
+    private boolean isContentEmpty() {
+        return content.getChildren().stream().allMatch(node -> {
+            if (node instanceof VBox) {
+                VBox vbox = (VBox) node;
+                return vbox.getChildren().stream().anyMatch(child -> {
+                    if (child instanceof Label) {
+                        String text = ((Label) child).getText();
+                        return text.contains("Le Mie Librerie") ||
+                                text.contains("Esplora") ||
+                                text.contains("Errore") ||
+                                text.contains("placeholder") ||
+                                text.contains("non disponibile");
+                    }
+                    return false;
+                });
+            }
+            return false;
+        });
+    }
+
+    /**
+     * NUOVO: Imposta il riferimento al MainWindow
+     */
+    public void setMainWindowReference(MainWindow mainWindow) {
+        this.mainWindowRef = mainWindow;
+        System.out.println("✅ ContentArea: Riferimento MainWindow configurato");
     }
 
     private void showMyLibraries() {
@@ -437,10 +478,38 @@ public class ContentArea {
         }
     }
 
+
+    /**
+     * NUOVO: Carica il contenuto iniziale solo se non è già stato caricato
+     */
+    public void loadInitialContentOnce() {
+        // Controlla se il content è vuoto o contiene solo placeholder
+        boolean needsLoading = content.getChildren().isEmpty() ||
+                content.getChildren().stream().allMatch(node ->
+                        node instanceof VBox &&
+                                ((VBox) node).getChildren().stream().anyMatch(child ->
+                                        child instanceof Label &&
+                                                (((Label) child).getText().contains("placeholder") ||
+                                                        ((Label) child).getText().contains("Errore") ||
+                                                        ((Label) child).getText().contains("Le Mie Librerie") ||
+                                                        ((Label) child).getText().contains("Esplora"))
+                                )
+                );
+
+        if (needsLoading) {
+            System.out.println("🏠 ContentArea: Caricamento necessario, eseguo loadInitialContent");
+            loadInitialContent();
+        } else {
+            System.out.println("✅ ContentArea: Home già caricata, salto il caricamento");
+        }
+    }
+
     /**
      * Carica il contenuto iniziale della home page
      */
     public void loadInitialContent() {
+        System.out.println("🏠 ContentArea: Caricamento contenuto iniziale");
+
         // Reset cache
         featuredBooks.clear();
         freeBooks.clear();
@@ -449,7 +518,9 @@ public class ContentArea {
         advancedSearchResults.clear();
 
         if (content != null) {
+            // Pulisci TUTTO il contenuto esistente
             content.getChildren().clear();
+            System.out.println("🧹 Content pulito completamente");
 
             // Sezioni principali
             content.getChildren().addAll(
@@ -458,8 +529,11 @@ public class ContentArea {
                     sectionFactory.createBookSection("✨ Nuove uscite", "new")
             );
 
-            // Carica categorie async
-            sectionFactory.loadCategoriesAsync(content);
+            // CORREZIONE: Carica categorie con delay per evitare race condition
+            Platform.runLater(() -> {
+                System.out.println("🎭 Avvio caricamento categorie con delay...");
+                sectionFactory.loadCategoriesAsync(content);
+            });
         }
     }
 
@@ -482,7 +556,12 @@ public class ContentArea {
         Consumer<Book> popupManagerHandler = book -> handleBookClickWithPopupManager(book);
 
         // ✅ CORREZIONE: Gestisci query speciali per ricerca avanzata
-        if (query.startsWith("author:")) {
+        if (query.startsWith("title-only:")) {
+            // Query specifica solo per titolo
+            String title = query.substring(11).trim(); // Rimuovi "title-only:"
+            handleTitleOnlySearch(title, popupManagerHandler);
+
+        } else if (query.startsWith("author:")) {
             // Query tipo "author:James year:2002-2003"
             if (query.contains("year:")) {
                 // Ricerca combinata autore + anno
@@ -496,14 +575,76 @@ public class ContentArea {
             // Ricerca con filtro anno (dovrebbe sempre avere anche author:)
             handleYearFilteredSearch(query, popupManagerHandler);
         } else {
-            // Ricerca normale per titolo
+            // Ricerca normale dalla barra (titolo + autore)
             handleTitleSearch(query, popupManagerHandler);
         }
     }
 
     private void handleTitleSearch(String query, Consumer<Book> clickHandler) {
-        System.out.println("📖 Ricerca per titolo: " + query);
+        System.out.println("📖 Ricerca GENERALE (titolo + autore): " + query);
+        // La ricerca normale dalla barra cerca in titolo E autore
         sectionFactory.performSearch(query, content, clickHandler);
+    }
+
+    private void handleTitleOnlySearch(String title, Consumer<Book> clickHandler) {
+        System.out.println("📖 Ricerca SPECIFICA solo titolo: " + title);
+
+        content.getChildren().clear();
+        Label loadingLabel = new Label("🔍 Ricerca per titolo: " + title + "...");
+        loadingLabel.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        loadingLabel.setTextFill(Color.WHITE);
+        content.getChildren().add(loadingLabel);
+
+        // ✅ USA CompletableFuture.supplyAsync con metodo sincrono
+        CompletableFuture.supplyAsync(() -> {
+                    try {
+                        System.out.println("🔍 Tentativo ricerca titolo specifica...");
+                        return bookService.searchBooksByTitle(title);
+                    } catch (Exception e) {
+                        System.err.println("❌ Errore ricerca titolo specifica: " + e.getMessage());
+                        throw new RuntimeException(e);
+                    }
+                })
+                .thenAccept(results -> {
+                    Platform.runLater(() -> {
+                        System.out.println("✅ Ricerca titolo completata: " + results.size() + " risultati");
+                        this.advancedSearchResults = new ArrayList<>(results);
+                        displaySearchResults(results, "📖 Titolo: " + title, clickHandler);
+                    });
+                })
+                .exceptionally(throwable -> {
+                    System.err.println("❌ Errore ricerca titolo: " + throwable.getMessage());
+
+                    // ✅ FALLBACK: ricerca generale + filtro lato client
+                    Platform.runLater(() -> {
+                        System.out.println("🔄 Fallback: ricerca generale con filtro titolo");
+                        handleTitleSearchFallback(title, clickHandler);
+                    });
+                    return null;
+                });
+    }
+
+    private void handleTitleSearchFallback(String title, Consumer<Book> clickHandler) {
+        System.out.println("🔄 Fallback ricerca titolo con filtro client");
+
+        bookService.searchBooksAsync(title)
+                .thenAccept(results -> {
+                    Platform.runLater(() -> {
+                        // ✅ FILTRO SOLO PER TITOLO
+                        List<Book> titleResults = filterBooksByTitleOnly(results, title);
+                        this.advancedSearchResults = new ArrayList<>(titleResults);
+                        displaySearchResults(titleResults, "📖 Titolo: " + title + " (filtrato)", clickHandler);
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        content.getChildren().clear();
+                        Label errorLabel = new Label("❌ Errore ricerca titolo: " + throwable.getMessage());
+                        errorLabel.setTextFill(Color.web("#e74c3c"));
+                        content.getChildren().add(errorLabel);
+                    });
+                    return null;
+                });
     }
 
     private void handleAuthorSearch(String author, Consumer<Book> clickHandler) {
@@ -515,11 +656,14 @@ public class ContentArea {
         loadingLabel.setTextFill(Color.WHITE);
         content.getChildren().add(loadingLabel);
 
-        bookService.searchBooksByAuthorAsync(author)
+        // ✅ FIX: USA SOLO searchBooksAsync() che funziona
+        bookService.searchBooksAsync(author)
                 .thenAccept(results -> {
                     Platform.runLater(() -> {
-                        this.advancedSearchResults = new ArrayList<>(results);
-                        displaySearchResults(results, "👤 Autore: " + author, clickHandler);
+                        // ✅ FILTRO LATO CLIENT per solo autori
+                        List<Book> authorResults = filterBooksByAuthor(results, author);
+                        this.advancedSearchResults = new ArrayList<>(authorResults);
+                        displaySearchResults(authorResults, "👤 Autore: " + author, clickHandler);
                     });
                 })
                 .exceptionally(throwable -> {
@@ -531,6 +675,44 @@ public class ContentArea {
                     });
                     return null;
                 });
+    }
+
+    private List<Book> filterBooksByTitleOnly(List<Book> books, String targetTitle) {
+        if (targetTitle == null || targetTitle.trim().isEmpty()) {
+            return books;
+        }
+
+        List<Book> filtered = new ArrayList<>();
+        String searchTitle = targetTitle.toLowerCase().trim();
+
+        for (Book book : books) {
+            if (book.getTitle() != null &&
+                    book.getTitle().toLowerCase().contains(searchTitle)) {
+                filtered.add(book);
+            }
+        }
+
+        System.out.println("📖 Filtro SOLO titolo '" + targetTitle + "': " + books.size() + " → " + filtered.size());
+        return filtered;
+    }
+
+    private List<Book> filterBooksByAuthor(List<Book> books, String targetAuthor) {
+        if (targetAuthor == null || targetAuthor.trim().isEmpty()) {
+            return books;
+        }
+
+        List<Book> filtered = new ArrayList<>();
+        String searchAuthor = targetAuthor.toLowerCase().trim();
+
+        for (Book book : books) {
+            if (book.getAuthor() != null &&
+                    book.getAuthor().toLowerCase().contains(searchAuthor)) {
+                filtered.add(book);
+            }
+        }
+
+        System.out.println("👤 Filtro autore '" + targetAuthor + "': " + books.size() + " → " + filtered.size());
+        return filtered;
     }
 
     private void handleYearFilteredSearch(String query, Consumer<Book> clickHandler) {
@@ -560,23 +742,83 @@ public class ContentArea {
         loadingLabel.setTextFill(Color.WHITE);
         content.getChildren().add(loadingLabel);
 
-        // Per ora uso solo ricerca per autore, in futuro si può estendere con filtro anno
-        bookService.searchBooksByAuthorAsync(finalAuthor)
+        // ✅ FIX: USA SOLO searchBooksAsync() che funziona
+        bookService.searchBooksAsync(finalAuthor)
                 .thenAccept(results -> {
                     Platform.runLater(() -> {
-                        this.advancedSearchResults = new ArrayList<>(results);
-                        displaySearchResults(results, "🔍🗓️ " + finalAuthor + " (" + finalYearRange + ")", clickHandler);
+                        // ✅ FILTRO LATO CLIENT per autore e anno
+                        List<Book> authorResults = filterBooksByAuthor(results, finalAuthor);
+                        List<Book> filteredResults = filterBooksByYearRange(authorResults, finalYearRange);
+
+                        this.advancedSearchResults = new ArrayList<>(filteredResults);
+                        displaySearchResults(filteredResults,
+                                "👤📅 " + finalAuthor + " (" + finalYearRange + ")", clickHandler);
                     });
                 })
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
                         content.getChildren().clear();
-                        Label errorLabel = new Label("❌ Errore nella ricerca avanzata: " + throwable.getMessage());
+                        Label errorLabel = new Label("❌ Errore ricerca avanzata: " + throwable.getMessage());
                         errorLabel.setTextFill(Color.web("#e74c3c"));
                         content.getChildren().add(errorLabel);
                     });
                     return null;
                 });
+    }
+
+    private List<Book> filterBooksByYearRange(List<Book> books, String yearRange) {
+        if (yearRange == null || yearRange.trim().isEmpty()) {
+            return books;
+        }
+
+        List<Book> filtered = new ArrayList<>();
+
+        // Parse "2002-2003" o "2002"
+        String[] yearParts = yearRange.split("-");
+        Integer yearFrom = null;
+        Integer yearTo = null;
+
+        try {
+            if (yearParts.length >= 1 && !yearParts[0].isEmpty()) {
+                yearFrom = Integer.parseInt(yearParts[0].trim());
+            }
+            if (yearParts.length >= 2 && !yearParts[1].isEmpty()) {
+                yearTo = Integer.parseInt(yearParts[1].trim());
+            }
+        } catch (NumberFormatException e) {
+            System.err.println("❌ Formato anno non valido: " + yearRange);
+            return books; // Restituisci tutti se il formato è sbagliato
+        }
+
+        for (Book book : books) {
+            try {
+                String bookYearStr = book.getPublishYear();
+                if (bookYearStr == null || bookYearStr.trim().isEmpty()) {
+                    continue;
+                }
+
+                int bookYear = Integer.parseInt(bookYearStr.trim());
+                boolean inRange = true;
+
+                if (yearFrom != null && bookYear < yearFrom) {
+                    inRange = false;
+                }
+                if (yearTo != null && bookYear > yearTo) {
+                    inRange = false;
+                }
+
+                if (inRange) {
+                    filtered.add(book);
+                }
+
+            } catch (NumberFormatException e) {
+                // Salta libri con anno non numerico
+                continue;
+            }
+        }
+
+        System.out.println("📅 Filtro anno '" + yearRange + "': " + books.size() + " → " + filtered.size());
+        return filtered;
     }
 
     private void displaySearchResults(List<Book> results, String searchTitle, Consumer<Book> clickHandler) {
@@ -621,7 +863,7 @@ public class ContentArea {
             scroll.setPannable(true);
             scroll.setFitToHeight(true);
             scroll.setPrefHeight(400);
-            scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+            scroll.setStyle("-fx-background: #1e1e1e; -fx-background-color: #1e1e1e;");
 
             resultsContainer.getChildren().add(scroll);
             content.getChildren().add(resultsContainer);

@@ -32,6 +32,7 @@ public class MainWindow {
     private ContentArea contentArea;
     private AuthenticationManager authManager;
     private ExploreIntegration exploreIntegration;
+    private boolean homeContentLoaded = false;
 
     public MainWindow(BookService bookService, boolean serverAvailable) {
         this.bookService = bookService;
@@ -64,6 +65,8 @@ public class MainWindow {
     private void initializeExploreIntegration() {
         exploreIntegration = new ExploreIntegration(bookService, serverAvailable);
 
+        exploreIntegration.setContainer(mainRoot);
+
         // ✅ HANDLER PER I CLICK SUI LIBRI - USA POPUP MANAGER
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via Esplora: " + selectedBook.getTitle());
@@ -82,17 +85,60 @@ public class MainWindow {
         }
     }
 
+    /**
+     * NUOVO: Carica la home page in modo centralizzato e controllato
+     */
+    public void loadHomeContent() {
+        System.out.println("🏠 MainWindow: Richiesta caricamento home (già caricata: " + homeContentLoaded + ")");
+
+        // Carica sempre la home, ma il ContentArea decide se rigenerare o meno
+        if (contentArea != null) {
+            contentArea.loadInitialContentOnce();
+        }
+
+        // Aggiorna flag
+        homeContentLoaded = true;
+        System.out.println("✅ MainWindow: Home caricata, flag impostato");
+    }
+
+    /**
+     * NUOVO: Forza il ricaricamento completo della home
+     */
+    public void forceReloadHome() {
+        System.out.println("🔄 MainWindow: Forzatura ricaricamento home");
+        homeContentLoaded = false;
+        loadHomeContent();
+    }
+
+    /**
+     * NUOVO: Pulisce lo stato quando si cambia sezione
+     */
+    public void clearHomeState() {
+        System.out.println("🧹 MainWindow: Reset stato home");
+        homeContentLoaded = false;
+    }
+
     public StackPane createMainLayout() {
+        System.out.println("🎨 Creazione layout principale...");
+
         mainRoot = new StackPane();
         BorderPane appRoot = new BorderPane();
 
-        // Crea i componenti principali
+        // ===== CREAZIONE COMPONENTI PRINCIPALI =====
+
+        // Crea sidebar
+        System.out.println("📋 Creazione Sidebar...");
         sidebar = new Sidebar(serverAvailable, authManager, this);
 
-        // ✅ CAMBIAMENTO PRINCIPALE: Passa BookService e mainRoot all'Header
+        // ✅ IMPORTANTE: Passa BookService e mainRoot all'Header per popup
+        System.out.println("🔍 Creazione Header con BookService...");
         header = new Header(bookService, mainRoot);
 
+        // Crea content area
+        System.out.println("📄 Creazione ContentArea...");
         contentArea = new ContentArea(bookService, serverAvailable, authManager);
+
+        // ===== CONFIGURAZIONE HANDLERS =====
 
         // ✅ Handler per i click sui libri - USA POPUP MANAGER
         Consumer<Book> bookClickHandler = selectedBook -> {
@@ -104,36 +150,93 @@ public class MainWindow {
             );
         };
 
-        // ✅ MODIFICA: Configura la ricerca con supporto per ricerca avanzata
+        // ✅ CONFIGURAZIONE SEARCH HANDLER CON DEBUG
+        System.out.println("🔧 Configurazione SearchHandler con debug...");
         header.setSearchHandler((query) -> {
-            System.out.println("🔍 Ricerca dal header: " + query);
-            contentArea.handleSearch(query, bookClickHandler);
+            System.out.println("🔍 [MAINWINDOW] SearchHandler ricevuto query: '" + query + "'");
+
+            if (contentArea == null) {
+                System.err.println("❌ [MAINWINDOW] ContentArea non inizializzato!");
+                return;
+            }
+
+            // Usa PopupManager handler invece di bookClickHandler diretto
+            Consumer<Book> popupHandler = selectedBook -> {
+                System.out.println("📖 [MAINWINDOW] Click libro: " + selectedBook.getTitle());
+                AppleBooksClient.openBookDetails(
+                        selectedBook,
+                        cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
+                        authManager
+                );
+            };
+
+            try {
+                System.out.println("📤 [MAINWINDOW] Passaggio query a ContentArea...");
+                contentArea.handleSearch(query, popupHandler);
+                System.out.println("✅ [MAINWINDOW] Query passata con successo a ContentArea");
+            } catch (Exception e) {
+                System.err.println("❌ [MAINWINDOW] Errore durante passaggio query: " + e.getMessage());
+                e.printStackTrace();
+            }
         });
 
-        // Configura il content area
+        // Configura content area
+        System.out.println("⚙️ Configurazione ContentArea...");
         contentArea.setBookClickHandler(bookClickHandler);
-        contentArea.setCachedBooksCallback(books -> this.cachedBooks = books);
+        contentArea.setCachedBooksCallback(books -> {
+            this.cachedBooks = books;
+            System.out.println("📚 Cache aggiornata: " + books.size() + " libri");
+        });
 
         // ✅ INIZIALIZZA INTEGRAZIONE ESPLORA
+        System.out.println("🔍 Inizializzazione ExploreIntegration...");
         initializeExploreIntegration();
 
-        // Assembla il layout
+        // ===== ASSEMBLAGGIO LAYOUT =====
+
+        System.out.println("🔧 Assemblaggio layout...");
+
+        // Sidebar a sinistra
         appRoot.setLeft(sidebar.createSidebar());
+
+        // Area centrale con header + content
         VBox centerBox = new VBox();
         centerBox.setStyle("-fx-background-color: #1e1e1e;");
         centerBox.getChildren().addAll(header.createHeader(), contentArea.createContentArea());
         appRoot.setCenter(centerBox);
 
+        // Aggiungi app root al main root
+        mainRoot.getChildren().add(appRoot);
+
+        // ===== INIZIALIZZAZIONE POPUP MANAGER =====
+
         // ✅ IMPORTANTE: Inizializza PopupManager DOPO aver creato mainRoot
         Platform.runLater(() -> {
+            System.out.println("🚀 Inizializzazione PopupManager...");
             PopupManager.getInstance().initialize(mainRoot);
             System.out.println("✅ PopupManager inizializzato con mainRoot");
+
+            // ✅ AGGIUNGI DEBUG KEY BINDINGS
+            addDebugKeyBindings();
+
+            // ✅ TEST AUTOMATICO DOPO INIZIALIZZAZIONE (opzionale)
+            Platform.runLater(() -> {
+                try {
+                    Thread.sleep(1000); // Aspetta che tutto sia caricato
+                    System.out.println("🧪 Avvio test automatico sistema ricerca...");
+                    testSearchSystemAfterInit();
+                } catch (InterruptedException e) {
+                    // Ignore
+                }
+            });
         });
 
-        // Carica il contenuto DOPO aver creato l'area contenuti
+        // ===== CARICAMENTO CONTENUTO INIZIALE =====
+
+        System.out.println("📚 Caricamento contenuto iniziale...");
         contentArea.loadInitialContent();
 
-        mainRoot.getChildren().add(appRoot);
+        System.out.println("✅ Layout principale creato con successo");
         return mainRoot;
     }
 
@@ -144,30 +247,20 @@ public class MainWindow {
     public void showHomePage() {
         System.out.println("🏠 Chiusura popup e ritorno alla home");
 
-        // ✅ USA POPUP MANAGER per chiudere i popup
+        // Chiudi tutti i popup
         PopupManager.getInstance().closeAllPopups();
 
-        // ✅ NUOVO: Chiudi anche la ricerca avanzata se aperta
-        if (header != null) {
-            header.closeAdvancedSearch();
-        }
-
-        // ✅ IMPORTANTE: Forza il ritorno alla vista home nel ContentArea
+        // Ricarica contenuto normalmente
         if (contentArea != null) {
-            contentArea.forceHomeView();
+            contentArea.loadInitialContent();
         }
 
-        // Pulisci il campo di ricerca
+        // Pulisci ricerca
         if (header != null) {
             header.clearSearch();
         }
 
-        // ✅ AGGIORNATO: Aggiorna la sidebar per evidenziare Home
-        if (sidebar != null) {
-            sidebar.setHomeActive();
-        }
-
-        System.out.println("🏠 Tornato alla home page");
+        System.out.println("✅ Ritorno home completato");
     }
 
     /**
@@ -614,5 +707,171 @@ public class MainWindow {
         cachedBooks.clear();
 
         System.out.println("✅ MainWindow: Cleanup completato");
+    }
+
+    /**
+     * ✅ NUOVO: Test completo sistema di ricerca
+     */
+    public void debugSearchSystem() {
+        System.out.println("🔧 ===== DEBUG SISTEMA RICERCA =====");
+
+        // Test stato componenti
+        System.out.println("Componenti inizializzati:");
+        System.out.println("  BookService: " + (bookService != null ? "✅" : "❌"));
+        System.out.println("  Header: " + (header != null ? "✅" : "❌"));
+        System.out.println("  ContentArea: " + (contentArea != null ? "✅" : "❌"));
+        System.out.println("  Server Available: " + serverAvailable);
+
+        // Test BookService
+        if (bookService != null) {
+            System.out.println("\n🔧 Test BookService...");
+            boolean isAvailable = bookService.isServerAvailable();
+            System.out.println("Server raggiungibile: " + (isAvailable ? "✅" : "❌"));
+
+            if (isAvailable) {
+                // Test chiamata diretta
+                System.out.println("🔧 Test chiamata diretta al BookService...");
+                bookService.getAllBooksAsync()
+                        .thenAccept(books -> {
+                            System.out.println("📚 Libri caricati dal server: " + books.size());
+                            if (!books.isEmpty()) {
+                                System.out.println("📖 Primo libro: " + books.get(0).getTitle());
+                            }
+                        })
+                        .exceptionally(throwable -> {
+                            System.err.println("❌ Errore caricamento libri: " + throwable.getMessage());
+                            return null;
+                        });
+
+                // Test ricerca diretta
+                System.out.println("🔧 Test ricerca diretta...");
+                bookService.searchBooksAsync("test")
+                        .thenAccept(results -> {
+                            System.out.println("🔍 Risultati ricerca diretta: " + results.size());
+                        })
+                        .exceptionally(throwable -> {
+                            System.err.println("❌ Errore ricerca diretta: " + throwable.getMessage());
+                            return null;
+                        });
+            }
+        }
+
+        // Test Header
+        if (header != null) {
+            System.out.println("\n🔧 Test Header...");
+            header.debugState();
+
+            // Test ricerca tramite header
+            System.out.println("🔧 Test ricerca tramite Header...");
+            header.testQuickSearch("debug");
+        }
+
+        System.out.println("🔧 ===============================");
+    }
+
+    /**
+     * ✅ MIGLIORATO: Configura searchHandler con debug dettagliato
+     */
+    private void configureSearchHandler() {
+        header.setSearchHandler((query) -> {
+            System.out.println("🔍 [MAINWINDOW] SearchHandler ricevuto query: '" + query + "'");
+
+            if (contentArea == null) {
+                System.err.println("❌ [MAINWINDOW] ContentArea non inizializzato!");
+                return;
+            }
+
+            // Usa PopupManager handler invece di bookClickHandler
+            Consumer<Book> popupHandler = selectedBook -> {
+                System.out.println("📖 [MAINWINDOW] Click libro: " + selectedBook.getTitle());
+                AppleBooksClient.openBookDetails(
+                        selectedBook,
+                        cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
+                        authManager
+                );
+            };
+
+            try {
+                System.out.println("📤 [MAINWINDOW] Passaggio query a ContentArea...");
+                contentArea.handleSearch(query, popupHandler);
+                System.out.println("✅ [MAINWINDOW] Query passata con successo a ContentArea");
+            } catch (Exception e) {
+                System.err.println("❌ [MAINWINDOW] Errore durante passaggio query: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+
+        System.out.println("✅ [MAINWINDOW] SearchHandler configurato con debug");
+    }
+
+    /**
+     * ✅ NUOVO: Aggiunge binding per test rapidi (solo per debug)
+     */
+    public void addDebugKeyBindings() {
+        if (mainRoot != null) {
+            mainRoot.setOnKeyPressed(event -> {
+                // Ctrl+F1 = debug sistema ricerca
+                if (event.isControlDown() && event.getCode() == KeyCode.F1) {
+                    debugSearchSystem();
+                    event.consume();
+                }
+                // Ctrl+F2 = test ricerca "test"
+                else if (event.isControlDown() && event.getCode() == KeyCode.F2) {
+                    if (header != null) {
+                        header.testQuickSearch("test");
+                    }
+                    event.consume();
+                }
+                // Ctrl+F3 = test ricerca "eco"
+                else if (event.isControlDown() && event.getCode() == KeyCode.F3) {
+                    if (header != null) {
+                        header.testQuickSearch("eco");
+                    }
+                    event.consume();
+                }
+            });
+
+            System.out.println("🔧 Debug key bindings aggiunti:");
+            System.out.println("  Ctrl+F1 = Debug sistema ricerca");
+            System.out.println("  Ctrl+F2 = Test ricerca 'test'");
+            System.out.println("  Ctrl+F3 = Test ricerca 'eco'");
+        }
+    }
+
+    private void testSearchSystemAfterInit() {
+        System.out.println("🧪 ===== TEST POST-INIZIALIZZAZIONE =====");
+
+        // Verifica che tutti i componenti siano inizializzati
+        boolean allReady = isFullyInitialized();
+        System.out.println("Tutti i componenti pronti: " + (allReady ? "✅" : "❌"));
+
+        if (allReady) {
+            // Test connessione server
+            if (bookService != null) {
+                boolean serverOk = bookService.isServerAvailable();
+                System.out.println("Server disponibile: " + (serverOk ? "✅" : "❌"));
+
+                if (serverOk) {
+                    // Test rapido caricamento libri
+                    bookService.getAllBooksAsync()
+                            .thenAccept(books -> {
+                                System.out.println("📚 Test caricamento: " + books.size() + " libri disponibili");
+                                if (books.size() > 0) {
+                                    System.out.println("✅ Sistema funzionante - libri caricati dal database");
+                                } else {
+                                    System.out.println("⚠️ Sistema carica solo libri di fallback");
+                                }
+                            })
+                            .exceptionally(throwable -> {
+                                System.err.println("❌ Errore test caricamento: " + throwable.getMessage());
+                                return null;
+                            });
+                }
+            }
+        } else {
+            System.err.println("❌ Alcuni componenti non sono ancora pronti");
+        }
+
+        System.out.println("🧪 ===============================");
     }
 }

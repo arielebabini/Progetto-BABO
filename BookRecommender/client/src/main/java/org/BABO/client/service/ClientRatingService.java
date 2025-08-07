@@ -1,8 +1,10 @@
 package org.BABO.client.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.BABO.shared.dto.RatingRequest;
 import org.BABO.shared.dto.RatingResponse;
+import org.BABO.shared.model.Book;
 import org.BABO.shared.model.BookRating;
 
 import java.net.URI;
@@ -10,6 +12,9 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -257,6 +262,38 @@ public class ClientRatingService {
         });
     }
 
+    // Classe per rappresentare un libro con rating (lato client)
+    public static class BookWithRating {
+        private Book book;
+        private double averageRating;
+        private int reviewCount;
+
+        public BookWithRating() {} // Costruttore per Jackson
+
+        public BookWithRating(Book book, double averageRating, int reviewCount) {
+            this.book = book;
+            this.averageRating = averageRating;
+            this.reviewCount = reviewCount;
+        }
+
+        // Getters e Setters per Jackson
+        public Book getBook() { return book; }
+        public void setBook(Book book) { this.book = book; }
+
+        public double getAverageRating() { return averageRating; }
+        public void setAverageRating(double averageRating) { this.averageRating = averageRating; }
+
+        public int getReviewCount() { return reviewCount; }
+        public void setReviewCount(int reviewCount) { this.reviewCount = reviewCount; }
+
+        public int getStarRating() {
+            return (int) Math.round(averageRating);
+        }
+
+        public String getStarsDisplay() {
+            return "★".repeat(getStarRating()) + "☆".repeat(5 - getStarRating());
+        }
+    }
     /**
      * Elimina una valutazione
      */
@@ -451,5 +488,134 @@ public class ClientRatingService {
         // HttpClient non ha un metodo close esplicito in Java 11+
         // Il cleanup avviene automaticamente
         System.out.println("🔒 ClientRatingService chiuso");
+    }
+
+    /**
+     * Normalizza l'imageUrl di un libro per usare file locali invece di URL esterni
+     * Converte URL di Amazon in nomi di file basati su ISBN
+     */
+    private void normalizeBookImageUrl(Book book) {
+        if (book == null) return;
+
+        String originalUrl = book.getImageUrl();
+        System.out.println("🔧 Normalizzazione immagine per libro: " + book.getTitle());
+        System.out.println("   URL originale: " + originalUrl);
+
+        // Se è già un nome di file locale, mantienilo
+        if (originalUrl != null && !originalUrl.startsWith("http") &&
+                originalUrl.endsWith(".jpg") && originalUrl.length() < 50) {
+            System.out.println("   ✅ URL già locale: " + originalUrl);
+            return;
+        }
+
+        // Genera nome file locale basato su ISBN
+        String localFileName = generateLocalFileName(book.getIsbn(), book.getTitle());
+        book.setImageUrl(localFileName);
+
+        System.out.println("   ✅ URL normalizzato: " + localFileName);
+    }
+
+    /**
+     * Genera nome file locale basato su ISBN o titolo
+     */
+    private String generateLocalFileName(String isbn, String title) {
+        if (isbn != null && !isbn.trim().isEmpty()) {
+            // Pulisci l'ISBN (rimuovi trattini e caratteri speciali)
+            String cleanIsbn = isbn.replaceAll("[^0-9X]", "");
+            if (cleanIsbn.length() > 0) {
+                return cleanIsbn + ".jpg";
+            }
+        }
+
+        if (title != null && !title.trim().isEmpty()) {
+            // Usa il titolo come fallback (primi 20 caratteri alfanumerici)
+            String cleanTitle = title.replaceAll("[^a-zA-Z0-9]", "").toLowerCase();
+            if (cleanTitle.length() > 20) {
+                cleanTitle = cleanTitle.substring(0, 20);
+            }
+            if (cleanTitle.length() > 0) {
+                return cleanTitle + ".jpg";
+            }
+        }
+
+        return "placeholder.jpg";
+    }
+
+    /**
+     * Recupera i libri più recensiti dal server
+     */
+    public CompletableFuture<List<Book>> getTopRatedBooksAsync() {
+        System.out.println("🏆 Recupero libri più recensiti dal server");
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String url = BASE_URL + "/most-reviewed-books";
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .GET()
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request,
+                        HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("📡 Risposta libri più recensiti: " + response.statusCode());
+
+                if (response.statusCode() == 200) {
+                    // Deserializza array di libri
+                    Book[] booksArray = objectMapper.readValue(response.body(), Book[].class);
+                    List<Book> books = Arrays.asList(booksArray);
+
+                    System.out.println("✅ Libri più recensiti recuperati: " + books.size());
+                    return books;
+                } else {
+                    System.out.println("❌ Errore server: " + response.body());
+                    return new ArrayList<>();
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore nel recupero libri più recensiti: " + e.getMessage());
+                return new ArrayList<>();
+            }
+        });
+    }
+
+    /**
+     * Recupera i libri meglio valutati dal server
+     */
+    public CompletableFuture<List<Book>> getBestRatedBooksAsync() {
+        System.out.println("⭐ Recupero libri meglio valutati dal server");
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String url = BASE_URL + "/best-rated-books";
+
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(url))
+                        .GET()
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request,
+                        HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("📡 Risposta libri meglio valutati: " + response.statusCode());
+
+                if (response.statusCode() == 200) {
+                    // Deserializza array di libri
+                    Book[] booksArray = objectMapper.readValue(response.body(), Book[].class);
+                    List<Book> books = Arrays.asList(booksArray);
+
+                    System.out.println("✅ Libri meglio valutati recuperati: " + books.size());
+                    return books;
+                } else {
+                    System.out.println("❌ Errore server: " + response.body());
+                    return new ArrayList<>();
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore nel recupero libri meglio valutati: " + e.getMessage());
+                return new ArrayList<>();
+            }
+        });
     }
 }

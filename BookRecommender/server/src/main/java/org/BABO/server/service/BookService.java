@@ -397,7 +397,7 @@ public class BookService {
         List<Book> allBooks = getAllBooks();
 
         int startIndex = allBooks.size() / 2;
-        int endIndex = Math.min(startIndex + 8, allBooks.size());
+        int endIndex = Math.min(startIndex + 24, allBooks.size());
 
         if (startIndex >= allBooks.size()) {
             return new ArrayList<>();
@@ -412,11 +412,11 @@ public class BookService {
      */
     public List<Book> getNewReleases() {
         List<Book> allBooks = getAllBooks();
-        if (allBooks.size() <= 8) {
+        if (allBooks.size() <= 24) {
             return allBooks;
         }
 
-        int startIndex = Math.max(0, allBooks.size() - 8);
+        int startIndex = Math.max(0, allBooks.size() - 24);
         return allBooks.subList(startIndex, allBooks.size());
     }
 
@@ -535,7 +535,6 @@ public class BookService {
 
         List<Book> mostReviewed = new ArrayList<>();
 
-        // Query per ottenere i 3 libri con più recensioni, con i dati completi del libro
         String query = """
         SELECT b.isbn, b.books_title, b.book_author, b.description, b.publi_year, 
                COUNT(a.isbn) as review_count,
@@ -544,7 +543,7 @@ public class BookService {
         INNER JOIN assessment a ON b.isbn = a.isbn
         GROUP BY b.isbn, b.books_title, b.book_author, b.description, b.publi_year
         ORDER BY review_count DESC, avg_rating DESC
-        LIMIT 3
+        LIMIT 8
     """;
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
@@ -603,15 +602,11 @@ public class BookService {
     /**
      * Recupera i 6 libri con la valutazione media più alta
      */
-    /**
-     * Recupera i 6 libri con la valutazione media più alta (senza minimo recensioni)
-     */
     public List<Book> getTopRatedBooksWithDetails() {
         System.out.println("🏆 Recupero 6 libri con valutazione assoluta più alta");
 
         List<Book> topRated = new ArrayList<>();
 
-        // Query semplice: i 6 libri con la valutazione media più alta, indipendentemente dal numero di recensioni
         String query = """
         SELECT b.isbn, b.books_title, b.book_author, b.description, b.publi_year, 
                COUNT(a.isbn) as review_count,
@@ -620,7 +615,7 @@ public class BookService {
         INNER JOIN assessment a ON b.isbn = a.isbn
         GROUP BY b.isbn, b.books_title, b.book_author, b.description, b.publi_year
         ORDER BY avg_rating DESC, review_count DESC
-        LIMIT 6
+        LIMIT 8
     """;
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
