@@ -36,6 +36,9 @@ public class CategoryView {
     private VBox content;
     private boolean isLoading = false;
 
+    private Label backText;
+    private Runnable onBackCallback;
+
     public CategoryView(Category category, BookService bookService, Consumer<Book> bookClickHandler) {
         this.category = category;
         this.bookService = bookService;
@@ -47,6 +50,19 @@ public class CategoryView {
         this.category = category;
         this.bookService = bookService;
         this.bookClickHandler = null; // Sarà impostato dopo
+    }
+
+    public void setOnBackCallback(Runnable callback) {
+        this.onBackCallback = callback;
+
+        // Imposta il click handler sul testo indietro se già creato
+        if (backText != null) {
+            backText.setOnMouseClicked(e -> {
+                if (onBackCallback != null) {
+                    onBackCallback.run();
+                }
+            });
+        }
     }
 
     /**
@@ -79,15 +95,38 @@ public class CategoryView {
      * Crea l'header della categoria
      */
     private void createCategoryHeader() {
-        VBox header = new VBox(10);
+        VBox header = new VBox(15);
         header.setAlignment(Pos.CENTER_LEFT);
 
-        // Titolo categoria - USA getName() invece di getDisplayName()
+        // Testo cliccabile per tornare indietro
+        backText = new Label("← Torna a Esplora");
+        backText.setFont(Font.font("System", FontWeight.NORMAL, 16));
+        backText.setTextFill(Color.web("#007AFF"));
+        backText.setStyle("-fx-cursor: hand;");
+
+        // Effetti hover
+        backText.setOnMouseEntered(e -> {
+            backText.setTextFill(Color.web("#0056CC"));
+            backText.setStyle("-fx-cursor: hand; -fx-underline: true;");
+        });
+
+        backText.setOnMouseExited(e -> {
+            backText.setTextFill(Color.web("#007AFF"));
+            backText.setStyle("-fx-cursor: hand; -fx-underline: false;");
+        });
+
+        // Click handler
+        backText.setOnMouseClicked(e -> {
+            if (onBackCallback != null) {
+                onBackCallback.run();
+            }
+        });
+
+        // Resto dell'header...
         Label categoryTitle = new Label(category.getName());
         categoryTitle.setFont(Font.font("System", FontWeight.BOLD, 36));
         categoryTitle.setTextFill(Color.WHITE);
 
-        // Descrizione categoria - USA getDescription() se disponibile, altrimenti getCategoryDescription()
         String description = category.getDescription();
         if (description == null || description.trim().isEmpty()) {
             description = getCategoryDescription();
@@ -98,7 +137,7 @@ public class CategoryView {
         categoryDescription.setTextFill(Color.web("#8E8E93"));
         categoryDescription.setWrapText(true);
 
-        header.getChildren().addAll(categoryTitle, categoryDescription);
+        header.getChildren().addAll(backText, categoryTitle, categoryDescription);
         content.getChildren().add(header);
     }
 
@@ -109,33 +148,37 @@ public class CategoryView {
         String name = category.getName().toLowerCase();
 
         switch (name) {
-            case "scienze":
-                return "Scopri i misteri dell'universo e le meraviglie della scienza";
-            case "romanzi":
-            case "narrativa":
-                return "Storie coinvolgenti che ti terranno incollato alle pagine";
+            case "young adult fiction":
+            case "youngadultfiction":
+                return "Storie coinvolgenti per giovani lettori tra adolescenza e età adulta";
+            case "social science":
+            case "socialscience":
+                return "Esplorazioni della società, cultura e comportamento umano";
+            case "biography & autobiography":
+            case "biography and autobiography":
+            case "biographyautobiography":
+                return "Vite straordinarie raccontate in prima persona o da esperti biografi";
+            case "history":
             case "storia":
                 return "Viaggia nel tempo attraverso eventi che hanno cambiato il mondo";
-            case "drammi":
-            case "teatro":
-                return "Opere teatrali e storie intense che toccano l'anima";
-            case "fantascienza":
-                return "Esplora futuri possibili e mondi immaginari";
-            case "fantasy":
-                return "Avventure magiche in regni fantastici";
-            case "gialli":
-            case "thriller":
-                return "Misteri da risolvere e suspense mozzafiato";
-            case "romance":
-                return "Storie d'amore che scaldano il cuore";
-            case "saggistica":
-                return "Conoscenza e riflessioni sul mondo che ci circonda";
-            case "arte":
-                return "Bellezza, creatività e espressione artistica";
-            case "biografia":
-                return "Vite straordinarie di persone che hanno fatto la storia";
-            case "cucina":
-                return "Ricette e tradizioni culinarie da tutto il mondo";
+            case "juvenile fiction":
+            case "juvenilefiction":
+                return "Avventure e storie pensate per i lettori più giovani";
+            case "humor":
+            case "umorismo":
+                return "Risate garantite con storie divertenti e umoristico";
+            case "religion":
+            case "religione":
+                return "Spiritualità, fede e riflessioni sui grandi temi dell'esistenza";
+            case "business & economics":
+            case "businessandeconomics":
+            case "business":
+            case "economics":
+            case "economia":
+                return "Strategie aziendali, economia e mondo degli affari";
+            case "fiction":
+            case "narrativa":
+                return "Il meglio della narrativa contemporanea e classica";
             default:
                 return "Esplora una selezione curata di libri per questa categoria";
         }
@@ -182,22 +225,22 @@ public class CategoryView {
         }
 
         isLoading = true;
-        System.out.println("📚 Caricamento libri per categoria: " + category.getName());
+        System.out.println("🎭 Caricamento libri per categoria: " + category.getName());
 
-        // ✅ USA RICERCA GENERALE + FILTRO LATO CLIENT
-        // Cerca prima per nome della categoria
-        String searchTerm = extractSearchTermFromCategory();
+        // ✅ MAPPATURA delle categorie dei bottoni con quelle del database
+        String dbCategoryName = mapCategoryToDbFormat(category.getName());
 
-        bookService.searchBooksAsync(searchTerm)
+        // ✅ USA LA RICERCA SPECIFICA PER CATEGORIA
+        bookService.searchBooksByCategoryAsync(dbCategoryName)
                 .thenAccept(books -> {
                     Platform.runLater(() -> {
-                        List<Book> filteredBooks = filterBooksForCategory(books);
-
-                        // Se non trova abbastanza libri, prova con tutti i libri
-                        if (filteredBooks.size() < 3) {
-                            loadAllBooksAndFilter();
+                        if (!books.isEmpty()) {
+                            displayBooks(books);
+                            System.out.println("✅ Caricati " + books.size() + " libri per categoria " + category.getName());
                         } else {
-                            displayBooks(filteredBooks);
+                            // Fallback: prova con ricerca generica se categoria specifica non trova nulla
+                            System.out.println("⚠️ Nessun libro per categoria specifica, provo ricerca generica");
+                            loadWithGenericSearch();
                         }
                         isLoading = false;
                     });
@@ -205,7 +248,7 @@ public class CategoryView {
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
                         System.err.println("❌ Errore caricamento categoria: " + throwable.getMessage());
-                        loadAllBooksAndFilter(); // Fallback
+                        loadWithGenericSearch(); // Fallback
                         isLoading = false;
                     });
                     return null;
@@ -220,33 +263,84 @@ public class CategoryView {
 
         // Mappa categorie a termini di ricerca più generici
         switch (name) {
-            case "scienze":
-                return "scienza";
-            case "romanzi":
-                return "romanzo";
-            case "storia":
-                return "storia";
-            case "drammi":
-                return "teatro";
-            case "fantascienza":
-                return "futuro";
-            case "fantasy":
-                return "magia";
-            case "gialli":
-                return "mistero";
-            case "romance":
-                return "amore";
-            case "saggistica":
-                return "società";
-            case "arte":
-                return "arte";
-            case "biografia":
-                return "vita";
-            case "cucina":
-                return "ricette";
+            case "young adult fiction":
+            case "youngadultfiction":
+                return "young adult";
+            case "social science":
+            case "socialscience":
+                return "society";
+            case "biography & autobiography":
+            case "biography and autobiography":
+            case "biographyautobiography":
+                return "biography";
+            case "history":
+                return "history";
+            case "juvenile fiction":
+            case "juvenilefiction":
+                return "children";
+            case "humor":
+                return "funny";
+            case "religion":
+                return "spiritual";
+            case "business & economics":
+            case "businessandeconomics":
+            case "business":
+            case "economics":
+            case "economia":
+                return "business";
+            case "fiction":
+                return "novel";
             default:
                 return category.getName();
         }
+    }
+
+    /**
+     * Mappa le categorie dei bottoni con quelle del database
+     */
+    private String mapCategoryToDbFormat(String buttonCategoryName) {
+        switch (buttonCategoryName.toLowerCase()) {
+            case "young adult fiction":
+                return "Young Adult Fiction";
+            case "social science":
+                return "Social Science";
+            case "biography & autobiography":
+                return "Biography & Autobiography";
+            case "history":
+                return "History";
+            case "juvenile fiction":
+                return "Juvenile Fiction";
+            case "humor":
+                return "Humor";
+            case "religion":
+                return "Religion";
+            case "business & economics":
+                return "Business & Economics";
+            case "fiction":
+                return "Fiction";
+            default:
+                return buttonCategoryName; // Usa il nome originale come fallback
+        }
+    }
+
+    /**
+     * Fallback con ricerca generica se categoria specifica non funziona
+     */
+    private void loadWithGenericSearch() {
+        String searchTerm = extractSearchTermFromCategory();
+        bookService.searchBooksAsync(searchTerm)
+                .thenAccept(books -> {
+                    Platform.runLater(() -> {
+                        List<Book> filteredBooks = filterBooksForCategory(books);
+
+                        if (filteredBooks.size() < 3) {
+                            // Se ancora pochi risultati, prova con tutti i libri
+                            loadAllBooksAndFilter();
+                        } else {
+                            displayBooks(filteredBooks);
+                        }
+                    });
+                });
     }
 
     /**
@@ -404,13 +498,14 @@ public class CategoryView {
         card.setMaxWidth(150);
         card.setPadding(new Insets(10));
 
-        // Immagine libro (placeholder)
-        Rectangle bookCover = new Rectangle(100, 140);
-        bookCover.setFill(Color.web("#3a3a3c"));
-        bookCover.setArcWidth(8);
-        bookCover.setArcHeight(8);
-        bookCover.setStroke(Color.web("#48484a"));
-        bookCover.setStrokeWidth(1);
+        // ✅ CORRETTO: Usa ImageUtils come nelle altre sezioni che già funzionano
+        ImageView bookCover = ImageUtils.createSafeImageView(book.getImageUrl(), 100, 140);
+
+        // Applica clip arrotondato
+        Rectangle clip = new Rectangle(100, 140);
+        clip.setArcWidth(8);
+        clip.setArcHeight(8);
+        bookCover.setClip(clip);
 
         // Effetto ombra
         DropShadow shadow = new DropShadow();

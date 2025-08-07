@@ -288,10 +288,61 @@ public class BookService {
         }
     }
 
-    // ===================================================================
-    // METODI ESISTENTI (FEATURED, FREE, NEW RELEASES)
-    // ===================================================================
+    /**
+     * Cerca libri per categoria specifica
+     */
+    public CompletableFuture<List<Book>> searchBooksByCategoryAsync(String categoryName) {
+        System.out.println("🎭 Client: Ricerca libri per categoria: " + categoryName);
 
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // USA OkHttp come gli altri metodi, NON HttpClient
+                HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/books/category")
+                        .newBuilder()
+                        .addQueryParameter("name", categoryName)
+                        .build();
+
+                System.out.println("🌐 [DEBUG] URL categoria: " + url.toString());
+
+                Request request = new Request.Builder()
+                        .url(url)
+                        .get()
+                        .build();
+
+                try (Response response = httpClient.newCall(request).execute()) {
+                    System.out.println("📨 [DEBUG] Response categoria: " + response.code());
+
+                    if (response.isSuccessful() && response.body() != null) {
+                        String jsonResponse = response.body().string();
+                        List<Book> books = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
+
+                        System.out.println("✅ Trovati " + books.size() + " libri per categoria: " + categoryName);
+
+                        // Debug: mostra le categorie trovate
+                        if (!books.isEmpty()) {
+                            System.out.println("🎭 Prime categorie trovate:");
+                            for (int i = 0; i < Math.min(3, books.size()); i++) {
+                                Book book = books.get(i);
+                                System.out.println("  - " + book.getTitle() + " (Cat: " + book.getCategory() + ")");
+                            }
+                        }
+
+                        return books;
+                    } else {
+                        String errorBody = response.body() != null ? response.body().string() : "No body";
+                        System.out.println("❌ Errore server categoria " + response.code() + ": " + errorBody);
+                        return new ArrayList<>();
+                    }
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore ricerca categoria: " + e.getMessage());
+                e.printStackTrace();
+                return new ArrayList<>();
+            }
+        });
+    }
+    
     /**
      * Recupera libri in evidenza
      */

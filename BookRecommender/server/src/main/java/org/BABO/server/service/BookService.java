@@ -249,7 +249,6 @@ public class BookService {
 
     /**
      * Ricerca libri per autore e anno
-     * ✅ CORRETTO: Ora include il campo category
      */
     public List<Book> searchBooksByAuthorAndYear(String authorQuery, String year) {
         System.out.println("👤📅 Ricerca per AUTORE e ANNO: '" + authorQuery + "' (" + year + ")");
@@ -259,13 +258,11 @@ public class BookService {
 
         // Costruisci query in base ai parametri
         if (year != null && !year.trim().isEmpty()) {
-            // ✅ AGGIUNTO 'category' alla SELECT
             query = "SELECT isbn, books_title, book_author, description, publi_year, category FROM books " +
                     "WHERE LOWER(book_author) LIKE LOWER(?) AND CAST(publi_year AS TEXT) = ? " +
                     "ORDER BY books_title";
             System.out.println("📊 Query con FILTRO ANNO: " + query);
         } else {
-            // ✅ AGGIUNTO 'category' alla SELECT
             query = "SELECT isbn, books_title, book_author, description, publi_year, category FROM books " +
                     "WHERE LOWER(book_author) LIKE LOWER(?) " +
                     "ORDER BY books_title";
@@ -324,6 +321,61 @@ public class BookService {
         }
 
         return books;
+    }
+
+    /**
+     * Ricerca libri per categoria specifica
+     */
+    public List<Book> searchBooksByCategory(String categoryName) {
+        System.out.println("🎭 Ricerca per CATEGORIA: '" + categoryName + "'");
+
+        List<Book> books = new ArrayList<>();
+        String query = " SELECT isbn, books_title, book_author, description, publi_year, category FROM books " +
+                " WHERE LOWER(category) LIKE LOWER(?) " +
+                " ORDER BY books_title LIMIT 50";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            String searchPattern = "%" + categoryName + "%";
+            stmt.setString(1, searchPattern);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                String title = rs.getString("books_title");
+                String author = rs.getString("book_author");
+                String description = rs.getString("description");
+                String year = rs.getString("publi_year");
+                String category = rs.getString("category");
+
+                Long id = (long) (books.size() + 1);
+                String fileName = (isbn != null && !isbn.trim().isEmpty())
+                        ? isbn.replaceAll("[^a-zA-Z0-9]", "") + ".jpg"
+                        : (title != null ? title.replaceAll("[^a-zA-Z0-9]", "") + ".jpg" : "placeholder.jpg");
+
+                Book book = new Book(id, isbn, title, author, description, year, fileName);
+                if (category != null && !category.trim().isEmpty()) {
+                    book.setCategory(category);
+                }
+                books.add(book);
+
+                System.out.println("🎭 Trovato: " + title + " - Categoria DB: " + category);
+            }
+
+            System.out.println("✅ Ricerca categoria '" + categoryName + "': trovati " + books.size() + " risultati");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore ricerca per categoria: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return books;
+    }
+
+    public CompletableFuture<List<Book>> searchBooksByCategoryAsync(String categoryName) {
+        return CompletableFuture.supplyAsync(() -> searchBooksByCategory(categoryName));
     }
 
     /**
@@ -488,6 +540,113 @@ public class BookService {
                 return null;
             }
         });
+    }
+
+    /**
+     * Ricerca libri per categoria esatta dal database
+     */
+    public List<Book> getBooksByCategory(String categoryName) {
+        System.out.println("🎭 Ricerca nel DB per categoria: '" + categoryName + "'");
+
+        List<Book> books = new ArrayList<>();
+
+        // Query SQL che cerca ESATTAMENTE per categoria (case-insensitive)
+        String query = "SELECT isbn, books_title, book_author, description, publi_year, category FROM books " +
+                "WHERE LOWER(TRIM(category)) = LOWER(TRIM(?)) " +
+                "ORDER BY books_title";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, categoryName);
+
+            ResultSet rs = stmt.executeQuery();
+            int count = 0;
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                String title = rs.getString("books_title");
+                String author = rs.getString("book_author");
+                String description = rs.getString("description");
+                String year = rs.getString("publi_year");
+                String category = rs.getString("category");
+
+                Long id = (long) (books.size() + 1);
+                String fileName = (isbn != null && !isbn.trim().isEmpty())
+                        ? isbn.replaceAll("[^a-zA-Z0-9]", "") + ".jpg"
+                        : (title != null ? title.replaceAll("[^a-zA-Z0-9]", "") + ".jpg" : "placeholder.jpg");
+
+                Book book = new Book(id, isbn, title, author, description, year, fileName);
+                if (category != null && !category.trim().isEmpty()) {
+                    book.setCategory(category);
+                }
+                books.add(book);
+
+                count++;
+                if (count <= 3) {
+                    System.out.println("🎭 Risultato " + count + ": " + title + " (Categoria DB: '" + category + "')");
+                }
+            }
+
+            System.out.println("🎭 Ricerca categoria COMPLETATA: trovati " + books.size() + " libri per '" + categoryName + "'");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore SQL durante la ricerca per categoria: " + e.getMessage());
+            e.printStackTrace();
+
+            // Fallback: prova con ricerca LIKE se la ricerca esatta non funziona
+            System.out.println("🔄 Fallback: ricerca con LIKE per categoria");
+            books = getBooksByCategoryLike(categoryName);
+        }
+
+        return books;
+    }
+
+    /**
+     * Fallback: ricerca categoria con LIKE
+     */
+    private List<Book> getBooksByCategoryLike(String categoryName) {
+        List<Book> books = new ArrayList<>();
+
+        String query = "SELECT isbn, books_title, book_author, description, publi_year, category FROM books " +
+                "WHERE LOWER(category) LIKE LOWER(?) " +
+                "ORDER BY books_title";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            String searchPattern = "%" + categoryName + "%";
+            stmt.setString(1, searchPattern);
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                String title = rs.getString("books_title");
+                String author = rs.getString("book_author");
+                String description = rs.getString("description");
+                String year = rs.getString("publi_year");
+                String category = rs.getString("category");
+
+                Long id = (long) (books.size() + 1);
+                String fileName = (isbn != null && !isbn.trim().isEmpty())
+                        ? isbn.replaceAll("[^a-zA-Z0-9]", "") + ".jpg"
+                        : (title != null ? title.replaceAll("[^a-zA-Z0-9]", "") + ".jpg" : "placeholder.jpg");
+
+                Book book = new Book(id, isbn, title, author, description, year, fileName);
+                if (category != null && !category.trim().isEmpty()) {
+                    book.setCategory(category);
+                }
+                books.add(book);
+            }
+
+            System.out.println("🔄 Fallback LIKE trovato " + books.size() + " libri");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore anche nel fallback categoria: " + e.getMessage());
+        }
+
+        return books;
     }
 
     /**

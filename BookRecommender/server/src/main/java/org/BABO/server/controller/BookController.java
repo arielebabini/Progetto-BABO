@@ -100,6 +100,38 @@ public class BookController {
     }
 
     /**
+     * Ricerca libri per categoria ESATTA
+     * GET /api/books/category?name={categoryName}
+     */
+    @GetMapping("/category")
+    public ResponseEntity<List<Book>> getBooksByCategory(@RequestParam(value = "name", required = true) String categoryName) {
+        try {
+            System.out.println("🎭 Ricerca per CATEGORIA richiesta: '" + categoryName + "'");
+
+            if (categoryName == null || categoryName.trim().isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            List<Book> books = bookService.getBooksByCategory(categoryName.trim());
+            System.out.println("🎭 Categoria '" + categoryName + "': trovati " + books.size() + " libri");
+
+            // Debug: stampa i primi risultati
+            if (!books.isEmpty()) {
+                System.out.println("📖 Primi libri per categoria '" + categoryName + "':");
+                for (int i = 0; i < Math.min(3, books.size()); i++) {
+                    Book book = books.get(i);
+                    System.out.println("  - " + book.getTitle() + " (Categoria: " + book.getCategory() + ")");
+                }
+            }
+
+            return ResponseEntity.ok(books);
+        } catch (Exception e) {
+            System.err.println("❌ Errore nella ricerca per categoria '" + categoryName + "': " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    /**
      * Recupera libri in evidenza
      * GET /api/books/featured
      */

@@ -142,37 +142,46 @@ public class LibraryPanel extends VBox {
 
     private Button createModernCloseButton() {
         Button closeButton = new Button("✕");
-        closeButton.setPrefSize(36, 36);
+        closeButton.setPrefSize(40, 40);
         closeButton.setStyle(
-                "-fx-background-color: rgba(255,255,255,0.1);" +
-                        "-fx-background-radius: 18;" +
-                        "-fx-border-color: transparent;" +
-                        "-fx-text-fill: #8E8E93;" +
-                        "-fx-font-size: 16;" +
+                "-fx-background-color: rgba(255,255,255,0.15);" +
+                        "-fx-background-radius: 20;" +
+                        "-fx-border-color: rgba(255,255,255,0.2);" +
+                        "-fx-border-width: 1;" +
+                        "-fx-border-radius: 20;" +
+                        "-fx-text-fill: #FFFFFF;" +
+                        "-fx-font-size: 18;" +
+                        "-fx-font-weight: bold;" +
                         "-fx-cursor: hand;"
         );
 
-        // Effetti hover moderni
+        // Effetti hover migliorati
         closeButton.setOnMouseEntered(e -> {
             closeButton.setStyle(
-                    "-fx-background-color: rgba(255,255,255,0.2);" +
-                            "-fx-background-radius: 18;" +
-                            "-fx-border-color: transparent;" +
+                    "-fx-background-color: rgba(255,255,255,0.25);" +
+                            "-fx-background-radius: 20;" +
+                            "-fx-border-color: rgba(255,255,255,0.4);" +
+                            "-fx-border-width: 1.5;" +
+                            "-fx-border-radius: 20;" +
                             "-fx-text-fill: white;" +
-                            "-fx-font-size: 16;" +
+                            "-fx-font-size: 18;" +
+                            "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
-            closeButton.setScaleX(1.1);
-            closeButton.setScaleY(1.1);
+            closeButton.setScaleX(1.15);
+            closeButton.setScaleY(1.15);
         });
 
         closeButton.setOnMouseExited(e -> {
             closeButton.setStyle(
-                    "-fx-background-color: rgba(255,255,255,0.1);" +
-                            "-fx-background-radius: 18;" +
-                            "-fx-border-color: transparent;" +
-                            "-fx-text-fill: #8E8E93;" +
-                            "-fx-font-size: 16;" +
+                    "-fx-background-color: rgba(255,255,255,0.15);" +
+                            "-fx-background-radius: 20;" +
+                            "-fx-border-color: rgba(255,255,255,0.2);" +
+                            "-fx-border-width: 1;" +
+                            "-fx-border-radius: 20;" +
+                            "-fx-text-fill: #FFFFFF;" +
+                            "-fx-font-size: 18;" +
+                            "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
             closeButton.setScaleX(1.0);
@@ -622,49 +631,98 @@ public class LibraryPanel extends VBox {
 
     private Button createActionButton(String icon, String tooltip) {
         Button button = new Button(icon);
-        button.setPrefSize(36, 36);
-        button.setStyle(
-                "-fx-background-color: rgba(0,122,255,0.15);" +
-                        "-fx-background-radius: 18;" +
-                        "-fx-border-color: rgba(0,122,255,0.3);" +
-                        "-fx-border-radius: 18;" +
-                        "-fx-border-width: 1;" +
-                        "-fx-text-fill: #007AFF;" +
-                        "-fx-font-size: 14;" +
-                        "-fx-cursor: hand;"
-        );
+        button.setPrefSize(40, 40);
 
-        button.setOnMouseEntered(e -> {
+        if (icon.equals("🗑")) {
+
+            button.setText("🗑");
             button.setStyle(
-                    "-fx-background-color: rgba(0,122,255,0.25);" +
-                            "-fx-background-radius: 18;" +
-                            "-fx-border-color: #007AFF;" +
-                            "-fx-border-radius: 18;" +
-                            "-fx-border-width: 1;" +
-                            "-fx-text-fill: #007AFF;" +
-                            "-fx-font-size: 14;" +
+                    "-fx-background-color: rgba(255,59,48,0.2);" +
+                            "-fx-background-radius: 20;" +
+                            "-fx-border-color: rgba(255,59,48,0.5);" +
+                            "-fx-border-radius: 20;" +
+                            "-fx-border-width: 1.5;" +
+                            "-fx-text-fill: #FF3B30;" +
+                            "-fx-font-size: 18;" +
+                            "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
-            button.setScaleX(1.1);
-            button.setScaleY(1.1);
-        });
 
-        button.setOnMouseExited(e -> {
+            button.setOnMouseEntered(e -> {
+                button.setStyle(
+                        "-fx-background-color: rgba(255,59,48,0.4);" +
+                                "-fx-background-radius: 20;" +
+                                "-fx-border-color: #FF3B30;" +
+                                "-fx-border-radius: 20;" +
+                                "-fx-border-width: 2;" +
+                                "-fx-text-fill: white;" +
+                                "-fx-font-size: 18;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-cursor: hand;"
+                );
+                button.setScaleX(1.15);
+                button.setScaleY(1.15);
+            });
+
+            button.setOnMouseExited(e -> {
+                button.setStyle(
+                        "-fx-background-color: rgba(255,59,48,0.2);" +
+                                "-fx-background-radius: 20;" +
+                                "-fx-border-color: rgba(255,59,48,0.5);" +
+                                "-fx-border-radius: 20;" +
+                                "-fx-border-width: 1.5;" +
+                                "-fx-text-fill: #FF3B30;" +
+                                "-fx-font-size: 18;" +
+                                "-fx-font-weight: bold;" +
+                                "-fx-cursor: hand;"
+                );
+                button.setScaleX(1.0);
+                button.setScaleY(1.0);
+            });
+
+        } else {
             button.setStyle(
-                    "-fx-background-color: rgba(0,122,255,0.15);" +
-                            "-fx-background-radius: 18;" +
-                            "-fx-border-color: rgba(0,122,255,0.3);" +
-                            "-fx-border-radius: 18;" +
-                            "-fx-border-width: 1;" +
+                    "-fx-background-color: rgba(0,122,255,0.2);" +
+                            "-fx-background-radius: 20;" +
+                            "-fx-border-color: rgba(0,122,255,0.4);" +
+                            "-fx-border-radius: 20;" +
+                            "-fx-border-width: 1.5;" +
                             "-fx-text-fill: #007AFF;" +
-                            "-fx-font-size: 14;" +
+                            "-fx-font-size: 16;" +
                             "-fx-cursor: hand;"
             );
-            button.setScaleX(1.0);
-            button.setScaleY(1.0);
-        });
 
-        Tooltip.install(button, new Tooltip(tooltip));
+            button.setOnMouseEntered(e -> {
+                button.setStyle(
+                        "-fx-background-color: rgba(0,122,255,0.3);" +
+                                "-fx-background-radius: 20;" +
+                                "-fx-border-color: #007AFF;" +
+                                "-fx-border-radius: 20;" +
+                                "-fx-border-width: 2;" +
+                                "-fx-text-fill: #007AFF;" +
+                                "-fx-font-size: 16;" +
+                                "-fx-cursor: hand;"
+                );
+                button.setScaleX(1.1);
+                button.setScaleY(1.1);
+            });
+
+            button.setOnMouseExited(e -> {
+                button.setStyle(
+                        "-fx-background-color: rgba(0,122,255,0.2);" +
+                                "-fx-background-radius: 20;" +
+                                "-fx-border-color: rgba(0,122,255,0.4);" +
+                                "-fx-border-radius: 20;" +
+                                "-fx-border-width: 1.5;" +
+                                "-fx-text-fill: #007AFF;" +
+                                "-fx-font-size: 16;" +
+                                "-fx-cursor: hand;"
+                );
+                button.setScaleX(1.0);
+                button.setScaleY(1.0);
+            });
+        }
+
         return button;
     }
 

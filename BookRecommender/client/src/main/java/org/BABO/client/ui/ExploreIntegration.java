@@ -341,15 +341,27 @@ public class ExploreIntegration {
 
         // Categorie predefinite
         String[] categories = {
-                "🔬 Scienze", "💝 Romanzi", "🏛️ Storia", "🎭 Drammi",
-                "🚀 Fantascienza", "⚔️ Fantasy", "🕵️ Gialli", "💕 Romance",
-                "📚 Saggistica", "🎨 Arte", "🏃 Biografia", "🍳 Cucina"
+                "Young Adult Fiction",
+                "Social Science",
+                "Biography & Autobiography",
+                "History",
+                "Juvenile Fiction",
+                "Humor",
+                "Religion",
+                "Business & Economics",
+                "Fiction"
         };
 
         String[] colors = {
-                "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
-                "#FECA57", "#FF9FF3", "#54A0FF", "#5F27CD",
-                "#00D2D3", "#FF9F43", "#EE5A24", "#0DD3FF"
+                "#FF6B6B",
+                "#4ECDC4",
+                "#45B7D1",
+                "#96CEB4",
+                "#FECA57",
+                "#FF9FF3",
+                "#54A0FF",
+                "#5F27CD",
+                "#00D2D3"
         };
 
         int row = 0, col = 0;
@@ -361,7 +373,7 @@ public class ExploreIntegration {
             categoriesGrid.add(categoryButton, col, row);
 
             col++;
-            if (col >= 4) {
+            if (col >= 3) {
                 col = 0;
                 row++;
             }
@@ -428,9 +440,11 @@ public class ExploreIntegration {
      * Crea un oggetto Category da una stringa
      */
     private Category createCategoryFromString(String categoryString) {
-        // Rimuovi emoji se presente
-        String name = categoryString.replaceAll("[^\\p{L}\\p{N}\\s]", "").trim();
-        return new Category(name.toLowerCase().replace(" ", "_"), name, name);
+        // Mantieni il formato originale, rimuovi solo eventuali emoji
+        String cleanName = categoryString.replaceAll("[^\\p{L}\\p{N}\\s&]", "").trim();
+
+
+        return new Category(cleanName, "", "");
     }
 
     /**
@@ -445,30 +459,16 @@ public class ExploreIntegration {
         try {
             isViewingCategory = true;
 
-            // Crea overlay per la categoria
+            // Imposta il callback per tornare indietro nel testo integrato
+            categoryView.setOnBackCallback(() -> closeCategoryView());
+
+            // Crea overlay per la categoria (SENZA bottone separato)
             StackPane categoryOverlay = new StackPane();
             categoryOverlay.setStyle("-fx-background-color: #1a1a1c;");
 
             // Crea contenuto categoria
             ScrollPane categoryContent = categoryView.createCategoryView();
             categoryOverlay.getChildren().add(categoryContent);
-
-            // Pulsante indietro
-            Button backButton = new Button("← Torna a Esplora");
-            backButton.setStyle(
-                    "-fx-background-color: #007aff;" +
-                            "-fx-text-fill: white;" +
-                            "-fx-font-size: 16;" +
-                            "-fx-padding: 10 20;" +
-                            "-fx-background-radius: 8;" +
-                            "-fx-cursor: hand;"
-            );
-            backButton.setOnAction(e -> closeCategoryView());
-
-            // Posiziona il pulsante indietro
-            StackPane.setAlignment(backButton, Pos.TOP_LEFT);
-            StackPane.setMargin(backButton, new Insets(20));
-            categoryOverlay.getChildren().add(backButton);
 
             // Aggiungi al container
             containerPane.getChildren().add(categoryOverlay);
