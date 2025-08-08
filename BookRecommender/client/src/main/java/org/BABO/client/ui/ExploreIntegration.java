@@ -341,15 +341,15 @@ public class ExploreIntegration {
 
         // Categorie predefinite
         String[] categories = {
-                "Young Adult Fiction",
-                "Social Science",
-                "Biography & Autobiography",
-                "History",
-                "Juvenile Fiction",
-                "Humor",
-                "Religion",
-                "Business & Economics",
-                "Fiction"
+                "Narrativa per giovani adulti",
+                "Scienze sociali",
+                "Biografia e autobiografia",
+                "Storia",
+                "Narrativa per ragazzi",
+                "Umore",
+                "Religione",
+                "Economia e Commercio",
+                "Narrativa"
         };
 
         String[] colors = {

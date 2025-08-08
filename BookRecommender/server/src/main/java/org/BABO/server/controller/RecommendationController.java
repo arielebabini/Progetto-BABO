@@ -342,4 +342,32 @@ public class RecommendationController {
             return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
         }
     }
+
+    /**
+     * Ottieni statistiche delle raccomandazioni per un utente
+     * GET /api/recommendations/stats/{username}
+     */
+    @GetMapping("/stats/{username}")
+    public ResponseEntity<RecommendationResponse> getUserRecommendationStats(@PathVariable("username") String username) {
+        try {
+            System.out.println("📊 Richiesta statistiche raccomandazioni per: " + username);
+
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new RecommendationResponse(false, "Username è obbligatorio"));
+            }
+
+            int totalRecommendations = recommendationService.getUserRecommendationsCount(username);
+
+            return ResponseEntity.ok(
+                    new RecommendationResponse(true, "Raccomandazioni totali: " + totalRecommendations)
+            );
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore durante il recupero statistiche: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new RecommendationResponse(false, "Errore interno del server"));
+        }
+    }
 }

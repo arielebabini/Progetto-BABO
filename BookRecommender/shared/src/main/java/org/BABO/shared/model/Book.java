@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Classe che rappresenta un libro
  * Condivisa tra client e server per la serializzazione JSON
- * AGGIORNATA: Aggiunta @JsonIgnoreProperties per ignorare campi sconosciuti
+ * ✅ MANTENUTO: Campo imageUrl per uso interno, rimossi solo riferimenti database
  */
 @JsonIgnoreProperties(ignoreUnknown = true) // IMPORTANTE: Ignora campi sconosciuti nel JSON
 public class Book {
@@ -42,7 +42,7 @@ public class Book {
     @JsonProperty("isNew")
     private Boolean isNew;
 
-    // NUOVI CAMPI per gestire response dal server
+    // CAMPI per gestire response dal server
     @JsonProperty("category")
     private String category;
 
@@ -84,31 +84,6 @@ public class Book {
         return "N/A";
     }
 
-    /**
-     * Restituisce le stelle come stringa per la UI
-     */
-    /*public String getStarsDisplay() {
-        if (averageRating <= 0) return "☆☆☆☆☆";
-
-        StringBuilder stars = new StringBuilder();
-        double rating = averageRating;
-
-        for (int i = 1; i <= 5; i++) {
-            if (rating >= i) {
-                // Stella piena
-                stars.append("★");
-            } else if (rating >= i - 0.5) {
-                // Stella a metà (usando carattere Unicode per mezza stella)
-                stars.append("⭐"); // Oppure usa "★" se preferisci sempre stelle piene
-            } else {
-                // Stella vuota
-                stars.append("☆");
-            }
-        }
-
-        return stars.toString();
-    }*/
-
     // Costruttori
     public Book() {} // Costruttore vuoto per Jackson
 
@@ -143,7 +118,7 @@ public class Book {
         this.isNew = false;
     }
 
-    // Getters esistenti
+    // Getters
     public String getTitle() {
         return title;
     }
@@ -200,7 +175,7 @@ public class Book {
         return pages;
     }
 
-    // Setters esistenti
+    // Setters
     public void setTitle(String title) {
         this.title = title;
     }

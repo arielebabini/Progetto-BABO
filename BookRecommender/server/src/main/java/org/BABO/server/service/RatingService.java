@@ -608,4 +608,31 @@ public class RatingService {
 
         return topIsbnList;
     }
+
+    /**
+     * Ottieni il numero totale di recensioni/valutazioni fatte da un utente
+     */
+    public int getUserRatingsCount(String username) {
+        System.out.println("📊 Conteggio recensioni per utente: " + username);
+
+        String query = "SELECT COUNT(*) as total_ratings FROM assessment WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, username.toLowerCase().trim());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int count = rs.getInt("total_ratings");
+                System.out.println("✅ Recensioni totali per " + username + ": " + count);
+                return count;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore nel conteggio recensioni utente: " + e.getMessage());
+        }
+
+        return 0;
+    }
 }

@@ -9,8 +9,6 @@ import java.util.List;
 
 /**
  * Versione migliorata di ApplicationProtection che lavora con il progetto esistente
- * SOSTITUISCI la tua ApplicationProtection.java esistente con questa versione
- * OPPURE rinomina questa classe se vuoi mantenere entrambe
  */
 public class ApplicationProtection {
 
@@ -19,7 +17,6 @@ public class ApplicationProtection {
 
     /**
      * Registra lo stage principale dell'applicazione
-     * CHIAMALO nel metodo start() di AppleBooksClient
      */
     public static void registerMainStage(Stage mainStage) {
         if (mainStage == null) {
@@ -39,7 +36,7 @@ public class ApplicationProtection {
         System.out.println("   Titolo: " + mainStage.getTitle());
         System.out.println("   Classe: " + mainStage.getClass().getSimpleName());
 
-        // NUOVO: Protezione dalla chiusura con integrazione PopupManager migliorata
+        // Protezione dalla chiusura con integrazione PopupManager migliorata
         mainStage.setOnCloseRequest(e -> {
             System.out.println("🔒 Richiesta chiusura applicazione principale");
 
@@ -80,7 +77,7 @@ public class ApplicationProtection {
             }
         });
 
-        // NUOVO: Setup handler ESC globale dopo che la scene è disponibile
+        // Setup handler ESC globale dopo che la scene è disponibile
         mainStage.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 Platform.runLater(() -> setupGlobalKeyHandlers(mainStage));

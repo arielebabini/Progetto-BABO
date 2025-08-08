@@ -78,7 +78,7 @@ public class BookGridBuilder {
         card.setStyle("-fx-cursor: hand;");
 
         // Immagine copertina
-        ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 120, 170);
+        ImageView cover = ImageUtils.createSafeImageView(book.getSafeImageFileName(), 120, 170);
 
         Rectangle clip = new Rectangle(120, 170);
         clip.setArcWidth(8);

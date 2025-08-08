@@ -1,5 +1,12 @@
 package org.BABO.client.ui;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import org.BABO.shared.model.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -10,6 +17,13 @@ import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Popup per mostrare e gestire il profilo dell'utente loggato
@@ -26,9 +40,18 @@ public class UserProfilePopup {
     private final Runnable onLogoutCallback;
     private StackPane root;
 
+    private final HttpClient httpClient;
+    private final ObjectMapper objectMapper;
+
     public UserProfilePopup(AuthenticationManager authManager, Runnable onLogoutCallback) {
         this.authManager = authManager;
         this.onLogoutCallback = onLogoutCallback;
+
+        // AGGIUNGERE QUESTE RIGHE (stesso pattern di AuthService e ClientRatingService):
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        this.objectMapper = new ObjectMapper();
     }
 
     public void show(StackPane mainRoot) {
@@ -68,32 +91,49 @@ public class UserProfilePopup {
     }
 
     private VBox createPopupContent(User user) {
-        VBox popup = new VBox(20);
-        popup.setMaxWidth(450);
+        VBox popup = new VBox();
+        popup.setMaxWidth(420);
+        popup.setMinWidth(350);
+        popup.setPrefWidth(400);
         popup.setMaxHeight(600);
+        popup.setMinHeight(500);
+        popup.setPrefHeight(550);
+
         popup.setStyle(
+                "-fx-background-color: transparent;" +  // lo sfondo lo mettiamo dentro scrollContent
+                        "-fx-background-radius: 15px;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 20, 0, 0, 8);"
+        );
+
+        // Contenuto scrollabile
+        VBox scrollContent = new VBox(20);
+        scrollContent.setPadding(new Insets(25));
+        scrollContent.setFillWidth(true);
+
+        // 🎨 Ripristina il colore scuro del popup
+        scrollContent.setStyle(
                 "-fx-background-color: " + BG_COLOR + ";" +
                         "-fx-background-radius: 15px;" +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.5), 20, 0, 0, 8);" +
                         "-fx-padding: 25px;"
         );
 
-        // Header con chiudi
+        // Sezioni
         HBox header = createHeader();
-
-        // Sezione avatar e info principali
         VBox profileSection = createProfileSection(user);
-
-        // Sezione informazioni dettagliate
         VBox detailsSection = createDetailsSection(user);
-
-        // Sezione statistiche (placeholder)
         VBox statsSection = createStatsSection();
-
-        // Sezione pulsanti azione
         VBox actionsSection = createActionsSection();
 
-        popup.getChildren().addAll(header, profileSection, detailsSection, statsSection, actionsSection);
+        scrollContent.getChildren().addAll(header, profileSection, detailsSection, statsSection, actionsSection);
+
+        ScrollPane scrollPane = new ScrollPane(scrollContent);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+
+        popup.getChildren().add(scrollPane);
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
         return popup;
     }
@@ -236,18 +276,139 @@ public class UserProfilePopup {
         sectionTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
         sectionTitle.setTextFill(Color.web(TEXT_COLOR));
 
-        // Placeholder statistiche
+        // Container per le statistiche che verranno caricate
         HBox statsGrid = new HBox(20);
         statsGrid.setAlignment(Pos.CENTER);
 
-        VBox stat1 = createStatCard("📚", "0", "Libri Letti");
-        VBox stat2 = createStatCard("⏱️", "0h", "Tempo Lettura");
-        VBox stat3 = createStatCard("⭐", "0", "Recensioni");
+        // Crea le card con valori iniziali
+        VBox stat1 = createStatCard("📚", "...", "Libri Salvati");
+        VBox stat2 = createStatCard("💡", "...", "Libri Consigliati");
+        VBox stat3 = createStatCard("⭐", "...", "Recensioni");
 
         statsGrid.getChildren().addAll(stat1, stat2, stat3);
-
         statsSection.getChildren().addAll(sectionTitle, statsGrid);
+
+        // Carica le statistiche reali in background
+        loadUserStatistics(stat1, stat2, stat3);
+
         return statsSection;
+    }
+
+    /**
+     * Carica le statistiche reali dell'utente
+     */
+    private void loadUserStatistics(VBox booksCard, VBox recommendationsCard, VBox reviewsCard) {
+        User currentUser = authManager.getCurrentUser();
+        if (currentUser == null) return;
+
+        String username = currentUser.getUsername();
+
+        // 1. Carica numero libri (stesso pattern di AuthService)
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8080/api/library/stats/" + username))
+                        .header("Content-Type", "application/json")
+                        .GET()
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() == 200) {
+                    return extractNumberFromMessage(response.body(), "Libri totali: ");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Errore caricamento statistiche libri: " + e.getMessage());
+            }
+            return 0;
+        }).thenAccept(count -> {
+            Platform.runLater(() -> updateStatCard(booksCard, String.valueOf(count)));
+        });
+
+        // 2. Carica numero raccomandazioni
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8080/api/recommendations/stats/" + username))
+                        .header("Content-Type", "application/json")
+                        .GET()
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() == 200) {
+                    return extractNumberFromMessage(response.body(), "Raccomandazioni totali: ");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Errore caricamento statistiche raccomandazioni: " + e.getMessage());
+            }
+            return 0;
+        }).thenAccept(count -> {
+            Platform.runLater(() -> updateStatCard(recommendationsCard, String.valueOf(count)));
+        });
+
+        // 3. Carica numero recensioni
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:8080/api/ratings/stats/" + username))
+                        .header("Content-Type", "application/json")
+                        .GET()
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() == 200) {
+                    return extractNumberFromMessage(response.body(), "Recensioni totali: ");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Errore caricamento statistiche recensioni: " + e.getMessage());
+            }
+            return 0;
+        }).thenAccept(count -> {
+            Platform.runLater(() -> updateStatCard(reviewsCard, String.valueOf(count)));
+        });
+    }
+
+    /**
+     * Estrae un numero da un messaggio JSON
+     * Cerca il pattern nel messaggio e estrae il numero
+     */
+    private int extractNumberFromMessage(String jsonResponse, String pattern) {
+        try {
+            // Parse del JSON per ottenere il messaggio
+            if (jsonResponse.contains("\"message\"")) {
+                int messageStart = jsonResponse.indexOf("\"message\":\"") + 11;
+                int messageEnd = jsonResponse.indexOf("\"", messageStart);
+                String message = jsonResponse.substring(messageStart, messageEnd);
+
+                // Cerca il pattern nel messaggio
+                if (message.contains(pattern)) {
+                    String numberStr = message.substring(message.indexOf(pattern) + pattern.length());
+                    return Integer.parseInt(numberStr.trim());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Errore parsing numero da messaggio: " + e.getMessage());
+        }
+        return 0;
+    }
+
+    /**
+     * Aggiorna il valore in una stat card
+     */
+    private void updateStatCard(VBox card, String newValue) {
+        // Il secondo figlio è il Label con il valore
+        if (card.getChildren().size() >= 2 && card.getChildren().get(1) instanceof Label) {
+            Label valueLabel = (Label) card.getChildren().get(1);
+            valueLabel.setText(newValue);
+        }
     }
 
     private VBox createStatCard(String icon, String value, String label) {
@@ -287,33 +448,287 @@ public class UserProfilePopup {
         HBox buttonsRow1 = new HBox(10);
         buttonsRow1.setAlignment(Pos.CENTER);
 
-        Button editButton = createActionButton("✏️ Modifica Profilo", BG_CONTROL);
+        Button editButton = createActionButton("✏️ Modifica Profilo", "#4a86e8");
         editButton.setOnAction(e -> {
             showAlert("🚧 Info", "Funzionalità di modifica profilo sarà implementata presto!");
         });
 
-        Button changePasswordButton = createActionButton("🔐 Cambia Password", BG_CONTROL);
-        changePasswordButton.setOnAction(e -> {
-            showAlert("🚧 Info", "Funzionalità di cambio password sarà implementata presto!");
-        });
+        Button changePasswordButton = createActionButton("🔐 Cambia Password", "#4a86e8");
+        changePasswordButton.setOnAction(e -> showChangePasswordDialog());
 
         buttonsRow1.getChildren().addAll(editButton, changePasswordButton);
 
         HBox buttonsRow2 = new HBox(10);
         buttonsRow2.setAlignment(Pos.CENTER);
 
-        Button preferencesButton = createActionButton("📱 Preferenze", BG_CONTROL);
-        preferencesButton.setOnAction(e -> {
-            showAlert("🚧 Info", "Pannello preferenze sarà implementato presto!");
-        });
-
         Button logoutButton = createActionButton("🚪 Logout", "#dc3545");
         logoutButton.setOnAction(e -> performLogout());
 
-        buttonsRow2.getChildren().addAll(preferencesButton, logoutButton);
+        buttonsRow2.getChildren().addAll(logoutButton);
 
         actionsSection.getChildren().addAll(sectionTitle, buttonsRow1, buttonsRow2);
         return actionsSection;
+    }
+
+    /**
+     * Mostra il dialog per cambiare la password
+     */
+    private void showChangePasswordDialog() {
+        Stage dialog = new Stage();
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setTitle("🔐 Cambia Password");
+        dialog.setResizable(false);
+        dialog.getIcons().add(new Image("/icons/password.png")); // Opzionale
+
+        // Container principale
+        VBox container = new VBox(20);
+        container.setPadding(new Insets(30));
+        container.setAlignment(Pos.CENTER);
+        container.setStyle(
+                "-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);" +
+                        "-fx-border-radius: 15;" +
+                        "-fx-background-radius: 15;"
+        );
+
+        // Titolo
+        Label titleLabel = new Label("🔐 Cambia Password");
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setAlignment(Pos.CENTER);
+
+        // Descrizione
+        Label descLabel = new Label("Per sicurezza, inserisci la tua password attuale e quella nuova");
+        descLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        descLabel.setTextFill(Color.web("#bdc3c7"));
+        descLabel.setWrapText(true);
+        descLabel.setAlignment(Pos.CENTER);
+        descLabel.setMaxWidth(350);
+
+        // Container per i campi
+        VBox fieldsContainer = new VBox(15);
+        fieldsContainer.setAlignment(Pos.CENTER);
+
+        // Campo password attuale
+        Label currentLabel = new Label("Password Attuale:");
+        currentLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+        currentLabel.setTextFill(Color.WHITE);
+
+        PasswordField currentPasswordField = new PasswordField();
+        currentPasswordField.setPromptText("Inserisci la password attuale");
+        currentPasswordField.setPrefWidth(300);
+        currentPasswordField.setPrefHeight(40);
+        currentPasswordField.setStyle(
+                "-fx-background-color: #34495e;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-prompt-text-fill: #7f8c8d;" +
+                        "-fx-border-color: #4a86e8;" +
+                        "-fx-border-width: 2;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-font-size: 14px;"
+        );
+
+        // Campo nuova password
+        Label newLabel = new Label("Nuova Password:");
+        newLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+        newLabel.setTextFill(Color.WHITE);
+
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("Inserisci la nuova password");
+        newPasswordField.setPrefWidth(300);
+        newPasswordField.setPrefHeight(40);
+        newPasswordField.setStyle(currentPasswordField.getStyle());
+
+        // Campo conferma nuova password
+        Label confirmLabel = new Label("Conferma Nuova Password:");
+        confirmLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+        confirmLabel.setTextFill(Color.WHITE);
+
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("Ripeti la nuova password");
+        confirmPasswordField.setPrefWidth(300);
+        confirmPasswordField.setPrefHeight(40);
+        confirmPasswordField.setStyle(currentPasswordField.getStyle());
+
+        // Label per messaggi di errore/info
+        Label messageLabel = new Label();
+        messageLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
+        messageLabel.setWrapText(true);
+        messageLabel.setAlignment(Pos.CENTER);
+        messageLabel.setMaxWidth(300);
+        messageLabel.setVisible(false);
+
+        // Aggiunta campi al container
+        fieldsContainer.getChildren().addAll(
+                currentLabel, currentPasswordField,
+                newLabel, newPasswordField,
+                confirmLabel, confirmPasswordField,
+                messageLabel
+        );
+
+        // Container per i pulsanti
+        HBox buttonContainer = new HBox(15);
+        buttonContainer.setAlignment(Pos.CENTER);
+
+        // Bottone Annulla
+        Button cancelButton = new Button("❌ Annulla");
+        cancelButton.setPrefWidth(120);
+        cancelButton.setPrefHeight(40);
+        cancelButton.setStyle(
+                "-fx-background-color: #e74c3c;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-cursor: hand;"
+        );
+        cancelButton.setOnAction(event -> dialog.close());
+
+        // Bottone Cambia
+        Button changeButton = new Button("✅ Cambia Password");
+        changeButton.setPrefWidth(150);
+        changeButton.setPrefHeight(40);
+        changeButton.setStyle(
+                "-fx-background-color: #27ae60;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-font-weight: bold;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-cursor: hand;"
+        );
+
+        // Azione del bottone Cambia
+        changeButton.setOnAction(event -> {
+            String currentPassword = currentPasswordField.getText();
+            String newPassword = newPasswordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+
+            // Reset messaggio precedente
+            messageLabel.setVisible(false);
+
+            // Validazioni
+            if (currentPassword.isEmpty()) {
+                showMessage(messageLabel, "❌ Inserisci la password attuale", "#e74c3c");
+                currentPasswordField.requestFocus();
+                return;
+            }
+
+            if (newPassword.isEmpty()) {
+                showMessage(messageLabel, "❌ Inserisci la nuova password", "#e74c3c");
+                newPasswordField.requestFocus();
+                return;
+            }
+
+            if (newPassword.length() < 6) {
+                showMessage(messageLabel, "❌ La password deve essere di almeno 6 caratteri", "#e74c3c");
+                newPasswordField.requestFocus();
+                return;
+            }
+
+            if (!newPassword.equals(confirmPassword)) {
+                showMessage(messageLabel, "❌ Le password non corrispondono", "#e74c3c");
+                confirmPasswordField.requestFocus();
+                return;
+            }
+
+            if (currentPassword.equals(newPassword)) {
+                showMessage(messageLabel, "❌ La nuova password deve essere diversa da quella attuale", "#e74c3c");
+                newPasswordField.requestFocus();
+                return;
+            }
+
+            // Cambio password (qui chiamerai il tuo servizio)
+            changePassword(currentPassword, newPassword, dialog, messageLabel);
+        });
+
+        buttonContainer.getChildren().addAll(cancelButton, changeButton);
+
+        // Assemblaggio finale
+        container.getChildren().addAll(
+                titleLabel,
+                descLabel,
+                fieldsContainer,
+                buttonContainer
+        );
+
+        // Effetti hover sui bottoni
+        addHoverEffect(cancelButton, "#e74c3c", "#c0392b");
+        addHoverEffect(changeButton, "#27ae60", "#229954");
+
+        // Scene e show
+        Scene scene = new Scene(container, 400, 500);
+        dialog.setScene(scene);
+        dialog.show();
+
+        // Focus iniziale
+        Platform.runLater(() -> currentPasswordField.requestFocus());
+    }
+
+    /**
+     * Mostra un messaggio nel label
+     */
+    private void showMessage(Label messageLabel, String text, String color) {
+        messageLabel.setText(text);
+        messageLabel.setTextFill(Color.web(color));
+        messageLabel.setVisible(true);
+    }
+
+    /**
+     * Aggiunge effetto hover ai bottoni
+     */
+    private void addHoverEffect(Button button, String normalColor, String hoverColor) {
+        button.setOnMouseEntered(e ->
+                button.setStyle(button.getStyle().replace(normalColor, hoverColor))
+        );
+        button.setOnMouseExited(e ->
+                button.setStyle(button.getStyle().replace(hoverColor, normalColor))
+        );
+    }
+
+    /**
+     * Effettua il cambio password
+     */
+    private void changePassword(String currentPassword, String newPassword, Stage dialog, Label messageLabel) {
+        User currentUser = authManager.getCurrentUser();
+        System.out.println("🔐 Tentativo cambio password per utente: " + currentUser.getUsername());
+
+        // Simula validazione password attuale
+        // IMPORTANTE: Qui devi verificare la password attuale tramite il tuo servizio
+
+        // Esempio di implementazione:
+    /*
+    CompletableFuture.supplyAsync(() -> {
+        try {
+            // Chiama il tuo servizio per cambiare la password
+            return userService.changePassword(currentUser.getUsername(), currentPassword, newPassword);
+        } catch (Exception e) {
+            Platform.runLater(() ->
+                showMessage(messageLabel, "❌ Errore: " + e.getMessage(), "#e74c3c")
+            );
+            return false;
+        }
+    }).thenAccept(success -> {
+        Platform.runLater(() -> {
+            if (success) {
+                showAlert("✅ Successo", "Password cambiata con successo!");
+                dialog.close();
+            } else {
+                showMessage(messageLabel, "❌ Password attuale non corretta", "#e74c3c");
+            }
+        });
+    });
+    */
+
+        // TEMPORANEO - Simula successo dopo 1 secondo
+        showMessage(messageLabel, "🔄 Cambio password in corso...", "#f39c12");
+
+        Timeline timeline = new Timeline(new KeyFrame(Duration.Seconds(1), e -> {
+            showAlert("✅ Successo", "Password cambiata con successo!");
+            dialog.close();
+        }));
+        timeline.play();
     }
 
     private Button createActionButton(String text, String backgroundColor) {

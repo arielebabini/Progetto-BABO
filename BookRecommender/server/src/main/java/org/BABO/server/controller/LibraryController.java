@@ -327,36 +327,6 @@ public class LibraryController {
     }
 
     /**
-     * Ottieni statistiche delle librerie di un utente
-     * GET /api/library/stats/{username}
-     * CORRETTO: Aggiunto nome esplicito al @PathVariable
-     */
-    @GetMapping("/stats/{username}")
-    public ResponseEntity<LibraryResponse> getUserStats(@PathVariable("username") String username) {
-        try {
-            System.out.println("📊 Richiesta statistiche librerie per: " + username);
-
-            if (username == null || username.trim().isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(new LibraryResponse(false, "Username è obbligatorio"));
-            }
-
-            String stats = libraryService.getUserLibraryStats(username);
-            System.out.println("✅ Statistiche generate per: " + username);
-
-            return ResponseEntity.ok(
-                    new LibraryResponse(true, stats)
-            );
-
-        } catch (Exception e) {
-            System.err.println("❌ Errore durante il calcolo statistiche: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new LibraryResponse(false, "Errore interno del server"));
-        }
-    }
-
-    /**
      * Endpoint di test per verificare che il servizio librerie funzioni
      * GET /api/library/health
      */
@@ -419,6 +389,34 @@ public class LibraryController {
             System.err.println("❌ Errore nel debug librerie: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ottieni statistiche dell'utente per le librerie
+     * GET /api/library/stats/{username}
+     */
+    @GetMapping("/stats/{username}")
+    public ResponseEntity<LibraryResponse> getUserStats(@PathVariable("username") String username) {
+        try {
+            System.out.println("📊 Richiesta statistiche librerie per: " + username);
+
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new LibraryResponse(false, "Username è obbligatorio"));
+            }
+
+            int totalBooks = libraryService.getUserTotalBooksCount(username);
+
+            return ResponseEntity.ok(
+                    new LibraryResponse(true, "Libri totali: " + totalBooks)
+            );
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore durante il recupero statistiche: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new LibraryResponse(false, "Errore interno del server"));
         }
     }
 }

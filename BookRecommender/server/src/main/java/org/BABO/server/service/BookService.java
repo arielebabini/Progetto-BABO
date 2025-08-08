@@ -476,14 +476,18 @@ public class BookService {
      * Recupera un libro per ISBN
      */
     public Book getBookByIsbn(String isbn) {
-        System.out.println("🔍 Ricerca libro per ISBN: " + isbn);
-
         if (isbn == null || isbn.trim().isEmpty()) {
-            System.out.println("⚠️ ISBN vuoto o null");
             return null;
         }
 
-        String query = "SELECT * FROM books WHERE isbn = ?";
+        System.out.println("🔍 Ricerca libro per ISBN: " + isbn);
+
+        // ✅ Query corretta per database aggiornato
+        String query = """
+        SELECT isbn, books_title, book_author, description, publi_year, category 
+        FROM books 
+        WHERE isbn = ?
+        """;
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -492,31 +496,38 @@ public class BookService {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                // Crea il libro con i campi della tua tabella
-                Book book = new Book();
+                // Leggi i campi dal database aggiornato
+                String dbIsbn = rs.getString("isbn");
+                String title = rs.getString("books_title");        // ✅ Nome colonna corretto nel DB
+                String author = rs.getString("book_author");
+                String description = rs.getString("description");
+                String publishYear = rs.getString("publi_year");
+                String category = rs.getString("category");
 
-                // Campi obbligatori
-                book.setIsbn(rs.getString("isbn"));
-                book.setTitle(rs.getString("books_title"));
-                book.setAuthor(rs.getString("book_author"));
-                book.setDescription(rs.getString("description"));
-                book.setPublishYear(rs.getString("publi_year"));
-                book.setImageUrl(rs.getString("image_url_m"));
+                // Genera ID basato sull'ISBN per compatibilità
+                Long id = (long) Math.abs(dbIsbn.hashCode());
 
-                // Campi opzionali
-                if (rs.getString("category") != null) {
-                    book.setCategory(rs.getString("category"));
+                // Genera nome file immagine locale (come negli altri metodi)
+                String fileName = (dbIsbn != null && !dbIsbn.trim().isEmpty())
+                        ? dbIsbn.replaceAll("[^a-zA-Z0-9]", "") + ".jpg"
+                        : "placeholder.jpg";
+
+                // Crea oggetto Book con costruttore standard
+                Book book = new Book(id, dbIsbn, title, author, description, publishYear, fileName);
+
+                // Imposta categoria se presente
+                if (category != null && !category.trim().isEmpty()) {
+                    book.setCategory(category);
                 }
-                if (rs.getString("publisher") != null) {
-                    book.setPublisher(rs.getString("publisher"));
-                }
 
-                // Imposta valori di default per campi mancanti
+                // Valori di default
                 book.setIsFree(true);
                 book.setIsNew(false);
 
-                System.out.println("✅ Libro trovato: " + book.getTitle() + " (Categoria: " + book.getCategory() + ")");
+                System.out.println("✅ Libro trovato: " + title + " di " + author +
+                        " (ISBN: " + dbIsbn + ", Categoria: " + category + ")");
                 return book;
+
             } else {
                 System.out.println("⚠️ Nessun libro trovato con ISBN: " + isbn);
                 return null;
@@ -524,6 +535,7 @@ public class BookService {
 
         } catch (SQLException e) {
             System.err.println("❌ Errore nella ricerca per ISBN: " + e.getMessage());
+            e.printStackTrace();
             return null;
         }
     }

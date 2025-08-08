@@ -334,6 +334,42 @@ public class RecommendationService {
     }
 
     /**
+     * Ottieni il numero totale di raccomandazioni fatte da un utente
+     */
+    public int getUserRecommendationsCount(String username) {
+        System.out.println("📊 Conteggio raccomandazioni per utente: " + username);
+
+        String query = """
+        SELECT 
+            SUM(CASE WHEN isbn1 IS NOT NULL THEN 1 ELSE 0 END) +
+            SUM(CASE WHEN isbn2 IS NOT NULL THEN 1 ELSE 0 END) +
+            SUM(CASE WHEN isbn3 IS NOT NULL THEN 1 ELSE 0 END) as total_recommendations
+        FROM advise 
+        WHERE username = ?
+    """;
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, username.toLowerCase().trim());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int count = rs.getInt("total_recommendations");
+                System.out.println("✅ Raccomandazioni totali per " + username + ": " + count);
+                return count;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore nel conteggio raccomandazioni utente: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return 0;
+    }
+
+
+    /**
      * Recupera tutte le raccomandazioni per un libro
      */
     public List<BookRecommendation> getRecommendationsForBook(String targetBookIsbn) {
@@ -383,7 +419,7 @@ public class RecommendationService {
                 username,
                 targetIsbn,
                 recommendedIsbn,
-                null // La tabella advise non ha campo reason
+                null
         );
     }
 

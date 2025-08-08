@@ -455,19 +455,19 @@ public class BookService {
         books.add(new Book(1L, "Il Nome della Rosa", "Umberto Eco",
                 "Un affascinante thriller medievale ambientato in un'abbazia benedettina.", "placeholder.jpg"));
         books.add(new Book(2L, "1984", "George Orwell",
-                "Un romanzo distopico sul totalitarismo e la sorveglianza di massa.", "placeholder.jpg"));
+                "Un romanzo distopico sul totalitarismo e la sorveglianza di massa.","placeholder.jpg"));
         books.add(new Book(3L, "Il Piccolo Principe", "Antoine de Saint-Exupéry",
-                "Una fiaba poetica che ha conquistato il cuore di lettori di tutte le età.", "placeholder.jpg"));
+                "Una fiaba poetica che ha conquistato il cuore di lettori di tutte le età.","placeholder.jpg"));
         books.add(new Book(4L, "Orgoglio e Pregiudizio", "Jane Austen",
-                "Un classico romanzo romantico dell'epoca georgiana.", "placeholder.jpg"));
+                "Un classico romanzo romantico dell'epoca georgiana.","placeholder.jpg"));
         books.add(new Book(5L, "Il Signore degli Anelli", "J.R.R. Tolkien",
-                "L'epica avventura fantasy per eccellenza.", "placeholder.jpg"));
+                "L'epica avventura fantasy per eccellenza.","placeholder.jpg"));
         books.add(new Book(6L, "To Kill a Mockingbird", "Harper Lee",
-                "Un potente romanzo sulla giustizia e i diritti civili.", "placeholder.jpg"));
+                "Un potente romanzo sulla giustizia e i diritti civili.","placeholder.jpg"));
         books.add(new Book(7L, "Il Grande Gatsby", "F. Scott Fitzgerald",
-                "Un ritratto della società americana degli anni '20.", "placeholder.jpg"));
+                "Un ritratto della società americana degli anni '20.","placeholder.jpg"));
         books.add(new Book(8L, "Cento Anni di Solitudine", "Gabriel García Márquez",
-                "Un capolavoro del realismo magico latinoamericano.", "placeholder.jpg"));
+                "Un capolavoro del realismo magico latinoamericano.","placeholder.jpg"));
         return books;
     }
 

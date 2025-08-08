@@ -90,6 +90,7 @@ public class LibraryService {
         System.out.println("📖 Recupero libri nella libreria '" + libraryName + "' per: " + username);
 
         List<Book> books = new ArrayList<>();
+
         String query = """
         SELECT b.isbn, b.books_title, b.book_author, b.description, b.publi_year, 
                b.category, b.publisher
@@ -97,7 +98,7 @@ public class LibraryService {
         JOIN books b ON lb.isbn = b.isbn
         WHERE lb.username = ? AND lb.library_name = ?
         ORDER BY lb.added_at DESC
-    """;
+        """;
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(query)) {
@@ -107,25 +108,20 @@ public class LibraryService {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                // Usa costruttore vuoto + setters per massima compatibilità
+                // Crea oggetto Book con costruttore vuoto
                 Book book = new Book();
 
-                // Setters obbligatori con i nomi corretti delle colonne
+                // Imposta campi obbligatori con nomi colonne CORRETTI
                 String isbn = rs.getString("isbn");
                 book.setIsbn(isbn);
-                book.setTitle(rs.getString("books_title"));
+                book.setTitle(rs.getString("books_title"));        // ✅ Nome colonna corretto
                 book.setAuthor(rs.getString("book_author"));
 
-                // Setters opzionali (controlla che non siano null)
+                // Imposta campi opzionali (con controllo null)
                 String description = rs.getString("description");
                 if (description != null) {
                     book.setDescription(description);
                 }
-
-                // IMPORTANTE: Imposta SOLO il nome del file locale, mai URL remoti
-                String localImageFileName = generateLocalImageFileName(isbn, rs.getString("books_title"));
-                book.setImageUrl(localImageFileName);  // Solo nome file, non URL completo
-                System.out.println("📷 Impostato file immagine locale: " + localImageFileName + " per ISBN: " + isbn);
 
                 String publishYear = rs.getString("publi_year");
                 if (publishYear != null) {
@@ -141,6 +137,17 @@ public class LibraryService {
                 if (publisher != null) {
                     book.setPublisher(publisher);
                 }
+
+                String localImageFileName = generateLocalImageFileName(isbn, book.getTitle());
+                book.setImageUrl(localImageFileName);
+                System.out.println("📷 Impostato file immagine locale: " + localImageFileName + " per ISBN: " + isbn);
+
+                // Genera ID per compatibilità
+                book.setId((long) Math.abs(isbn.hashCode()));
+
+                // Imposta valori di default
+                book.setIsFree(true);
+                book.setIsNew(false);
 
                 books.add(book);
             }
@@ -399,6 +406,33 @@ public class LibraryService {
     }
 
     /**
+     * Ottieni il numero totale di libri nelle librerie di un utente
+     */
+    public int getUserTotalBooksCount(String username) {
+        System.out.println("📊 Conteggio libri totali per utente: " + username);
+
+        String query = "SELECT COUNT(*) as total_books FROM library_books WHERE username = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, username.toLowerCase().trim());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int count = rs.getInt("total_books");
+                System.out.println("✅ Libri totali per " + username + ": " + count);
+                return count;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore nel conteggio libri utente: " + e.getMessage());
+        }
+
+        return 0;
+    }
+
+    /**
      * Controlla se il database è disponibile
      */
     public boolean isDatabaseAvailable() {
@@ -455,28 +489,27 @@ public class LibraryService {
 
     /**
      * Verifica se un libro esiste nel catalogo
-     * CORRETTO per la struttura della tabella books
      */
     private boolean bookExists(String isbn) {
+        // ✅ Query corretta: usa books_title invece di book_title se il DB è stato aggiornato
         String query = "SELECT 1 FROM books WHERE isbn = ?";
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(query)) {
 
             stmt.setString(1, isbn.trim());
-
             ResultSet rs = stmt.executeQuery();
             boolean exists = rs.next();
 
             if (!exists) {
                 System.out.println("📚 Libro con ISBN '" + isbn + "' non trovato. Libri disponibili:");
-                // Mostra alcuni libri disponibili per debug
+                // Debug query: mostra alcuni libri disponibili
                 String debugQuery = "SELECT isbn, books_title, book_author FROM books LIMIT 5";
                 try (PreparedStatement debugStmt = conn.prepareStatement(debugQuery);
                      ResultSet debugRs = debugStmt.executeQuery()) {
                     while (debugRs.next()) {
                         System.out.println("  - " + debugRs.getString("isbn") + ": " +
-                                debugRs.getString("books_title") + " by " +
+                                debugRs.getString("books_title") + " by " +    // ✅ books_title
                                 debugRs.getString("book_author"));
                     }
                 }

@@ -56,9 +56,10 @@ public class AuthPanel extends VBox {
         );
 
         // Impostazione dimensioni
-        setMinWidth(350);
-        setMinHeight(500);
-        setMaxWidth(450);
+        setMinWidth(320);
+        setMinHeight(460);
+        setMaxWidth(420);
+        setMaxHeight(730);
 
         // Logo o titolo dell'applicazione
         Label appTitle = new Label("📚 Apple Books");
@@ -226,7 +227,8 @@ public class AuthPanel extends VBox {
     /**
      * Crea il pannello per la registrazione
      */
-    private VBox createSignupPanel() {
+    private ScrollPane createSignupPanel() {
+        // Crea il pannello di contenuto originale
         VBox signupPanel = new VBox(15);
         signupPanel.setPadding(new Insets(25, 15, 15, 15));
         signupPanel.setAlignment(Pos.TOP_CENTER);
@@ -270,11 +272,11 @@ public class AuthPanel extends VBox {
         termsCheck.setTextFill(Color.web(HINT_COLOR));
         termsBox.getChildren().add(termsCheck);
 
-        // Pulsante di registrazione
-        Button signupBtn = new Button("🎉 REGISTRATI");
+        // Pulsante registrazione
+        Button signupBtn = new Button("✨ Registrati");
         styleActionButton(signupBtn);
 
-        // Progress indicator per il caricamento
+        // Progress indicator
         ProgressIndicator progressIndicator = new ProgressIndicator();
         progressIndicator.setVisible(false);
         progressIndicator.setMaxSize(30, 30);
@@ -300,8 +302,8 @@ public class AuthPanel extends VBox {
                 return;
             }
 
-            if (password.length() < 6) {
-                showAlert("⚠️ Errore", "La password deve essere almeno 6 caratteri");
+            if (password.length() < 8) {
+                showAlert("⚠️ Errore", "La password deve essere almeno 8 caratteri");
                 return;
             }
 
@@ -365,6 +367,7 @@ public class AuthPanel extends VBox {
 
         socialBox.getChildren().addAll(googleBtn, facebookBtn);
 
+        // Aggiungi tutti gli elementi al pannello
         signupPanel.getChildren().addAll(
                 signupTitle,
                 nameField,
@@ -382,7 +385,13 @@ public class AuthPanel extends VBox {
                 socialBox
         );
 
-        return signupPanel;
+        ScrollPane scrollPane = new ScrollPane(signupPanel);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scrollPane.setFitToWidth(true);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+
+        return scrollPane;
     }
 
     /**

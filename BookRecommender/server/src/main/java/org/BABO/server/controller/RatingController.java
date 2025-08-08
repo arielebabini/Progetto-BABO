@@ -543,4 +543,32 @@ public class RatingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ArrayList<>());
         }
     }
+
+    /**
+     * Ottieni statistiche delle valutazioni per un utente
+     * GET /api/ratings/stats/{username}
+     */
+    @GetMapping("/stats/{username}")
+    public ResponseEntity<RatingResponse> getUserRatingStats(@PathVariable("username") String username) {
+        try {
+            System.out.println("📊 Richiesta statistiche valutazioni per: " + username);
+
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new RatingResponse(false, "Username è obbligatorio"));
+            }
+
+            int totalRatings = ratingService.getUserRatingsCount(username);
+
+            return ResponseEntity.ok(
+                    new RatingResponse(true, "Recensioni totali: " + totalRatings)
+            );
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore durante il recupero statistiche: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new RatingResponse(false, "Errore interno del server"));
+        }
+    }
 }

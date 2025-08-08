@@ -261,33 +261,32 @@ public class CategoryView {
 
         // Mappa categorie a termini di ricerca più generici
         switch (name) {
-            case "young adult fiction":
-            case "youngadultfiction":
-                return "young adult";
-            case "social science":
-            case "socialscience":
-                return "society";
-            case "biography & autobiography":
-            case "biography and autobiography":
-            case "biographyautobiography":
-                return "biography";
-            case "history":
-                return "history";
-            case "juvenile fiction":
-            case "juvenilefiction":
-                return "children";
-            case "humor":
-                return "funny";
-            case "religion":
-                return "spiritual";
-            case "business & economics":
-            case "businessandeconomics":
-            case "business":
-            case "economics":
+            case "narrativa per giovani adulti":
+            case "narrativapergiovaniadulti":
+                return "giovani adulti";
+            case "scienze sociali":
+            case "cienzesociali":
+                return "sociale";
+            case "biografia & autobiografia":
+            case "biografia e autobiografia":
+            case "biografiaautobiografia":
+                return "biografia";
+            case "storia":
+                return "storia";
+            case "narrativa ragazzi":
+            case "narrativaragazzi":
+                return "ragazzi";
+            case "umore":
+                return "divertente";
+            case "religione":
+                return "spirituale";
+            case "economia & commercio":
+            case "economiaecommercio":
             case "economia":
-                return "business";
-            case "fiction":
-                return "novel";
+            case "commercio":
+                return "commercio";
+            case "narrativa":
+                return "narrativa";
             default:
                 return category.getName();
         }
