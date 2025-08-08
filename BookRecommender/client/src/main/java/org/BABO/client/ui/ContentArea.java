@@ -525,20 +525,14 @@ public class ContentArea {
             // Sezioni principali
             content.getChildren().addAll(
                     sectionFactory.createFeaturedSection(),
-                    sectionFactory.createBookSection("📚 Libri gratuiti", "free"),
-                    sectionFactory.createBookSection("✨ Nuove uscite", "new")
+                    sectionFactory.createBookSection("📚 I Nostri Consigli", "free"),
+                    sectionFactory.createBookSection("✨ Nuovi", "new")
             );
-
-            // CORREZIONE: Carica categorie con delay per evitare race condition
-            Platform.runLater(() -> {
-                System.out.println("🎭 Avvio caricamento categorie con delay...");
-                sectionFactory.loadCategoriesAsync(content);
-            });
         }
     }
 
     /**
-     * ✅ AGGIORNATO: Gestisce le ricerche con supporto per ricerca avanzata
+     * Gestisce le ricerche con supporto per ricerca avanzata
      */
     public void handleSearch(String query, Consumer<Book> clickHandler) {
         if (query == null || query.trim().isEmpty()) {
@@ -555,24 +549,23 @@ public class ContentArea {
         // Usa PopupManager handler invece di quello passato
         Consumer<Book> popupManagerHandler = book -> handleBookClickWithPopupManager(book);
 
-        // ✅ CORREZIONE: Gestisci query speciali per ricerca avanzata
+        // Gestisci query speciali per ricerca avanzata
         if (query.startsWith("title-only:")) {
             // Query specifica solo per titolo
-            String title = query.substring(11).trim(); // Rimuovi "title-only:"
+            String title = query.substring(11).trim();
             handleTitleOnlySearch(title, popupManagerHandler);
 
         } else if (query.startsWith("author:")) {
-            // Query tipo "author:James year:2002-2003"
             if (query.contains("year:")) {
                 // Ricerca combinata autore + anno
                 handleYearFilteredSearch(query, popupManagerHandler);
             } else {
-                // Solo ricerca per autore - estrai solo la parte dopo "author:"
+                // Solo ricerca per autore
                 String author = query.substring(7).trim();
                 handleAuthorSearch(author, popupManagerHandler);
             }
         } else if (query.contains("year:")) {
-            // Ricerca con filtro anno (dovrebbe sempre avere anche author:)
+            // Ricerca con filtro anno
             handleYearFilteredSearch(query, popupManagerHandler);
         } else {
             // Ricerca normale dalla barra (titolo + autore)
@@ -595,7 +588,6 @@ public class ContentArea {
         loadingLabel.setTextFill(Color.WHITE);
         content.getChildren().add(loadingLabel);
 
-        // ✅ USA CompletableFuture.supplyAsync con metodo sincrono
         CompletableFuture.supplyAsync(() -> {
                     try {
                         System.out.println("🔍 Tentativo ricerca titolo specifica...");

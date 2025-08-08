@@ -15,17 +15,15 @@ public class ClientApplication {
         System.out.println("📡 Verifica connessione server su http://localhost:8080");
 
         try {
-            // Avvia l'applicazione JavaFX - METODO CORRETTO
+            // Avvia l'applicazione JavaFX
             Application.launch(AppleBooksClient.class, args);
         } catch (Exception e) {
             System.err.println("❌ Errore durante l'avvio del client: " + e.getMessage());
             e.printStackTrace();
 
-            // Debug di emergenza (solo se l'app è stata avviata)
+            // Debug di emergenza
             try {
                 System.out.println("🔍 Tentativo debug di emergenza...");
-                // Rimuovi questa chiamata perché l'app potrebbe non essere stata avviata
-                // AppleBooksClient.debugPopupState();
             } catch (Exception debugError) {
                 System.err.println("❌ Anche il debug è fallito: " + debugError.getMessage());
             }

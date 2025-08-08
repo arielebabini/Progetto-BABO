@@ -141,46 +141,46 @@ public class LibraryPanel extends VBox {
     }
 
     private Button createModernCloseButton() {
-        Button closeButton = new Button("✕");
+        Button closeButton = new Button("x");
         closeButton.setPrefSize(40, 40);
+
         closeButton.setStyle(
-                "-fx-background-color: rgba(255,255,255,0.15);" +
+                "-fx-background-color: rgba(255,255,255,0.1);" +
                         "-fx-background-radius: 20;" +
                         "-fx-border-color: rgba(255,255,255,0.2);" +
                         "-fx-border-width: 1;" +
                         "-fx-border-radius: 20;" +
                         "-fx-text-fill: #FFFFFF;" +
-                        "-fx-font-size: 18;" +
+                        "-fx-font-size: 20;" +
                         "-fx-font-weight: bold;" +
                         "-fx-cursor: hand;"
         );
 
-        // Effetti hover migliorati
         closeButton.setOnMouseEntered(e -> {
             closeButton.setStyle(
-                    "-fx-background-color: rgba(255,255,255,0.25);" +
+                    "-fx-background-color: #FF3B30;" +
                             "-fx-background-radius: 20;" +
-                            "-fx-border-color: rgba(255,255,255,0.4);" +
-                            "-fx-border-width: 1.5;" +
+                            "-fx-border-color: #FF3B30;" +
+                            "-fx-border-width: 1;" +
                             "-fx-border-radius: 20;" +
                             "-fx-text-fill: white;" +
-                            "-fx-font-size: 18;" +
+                            "-fx-font-size: 20;" +
                             "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
-            closeButton.setScaleX(1.15);
-            closeButton.setScaleY(1.15);
+            closeButton.setScaleX(1.1);
+            closeButton.setScaleY(1.1);
         });
 
         closeButton.setOnMouseExited(e -> {
             closeButton.setStyle(
-                    "-fx-background-color: rgba(255,255,255,0.15);" +
+                    "-fx-background-color: rgba(255,255,255,0.1);" +
                             "-fx-background-radius: 20;" +
                             "-fx-border-color: rgba(255,255,255,0.2);" +
                             "-fx-border-width: 1;" +
                             "-fx-border-radius: 20;" +
                             "-fx-text-fill: #FFFFFF;" +
-                            "-fx-font-size: 18;" +
+                            "-fx-font-size: 20;" +
                             "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );

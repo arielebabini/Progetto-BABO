@@ -119,16 +119,6 @@ public class FeaturedBookBuilder {
         HBox buttonBox = new HBox(15);
         buttonBox.setPadding(new Insets(10, 0, 0, 0));
 
-        Button getButton = new Button("📖 OTTIENI");
-        getButton.setStyle(
-                "-fx-background-color: #0a84ff;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 20;" +
-                        "-fx-padding: 10 25;" +
-                        "-fx-cursor: hand;"
-        );
-
         Button sampleButton = new Button("👁️ ANTEPRIMA");
         sampleButton.setStyle(
                 "-fx-background-color: rgba(255,255,255,0.2);" +
@@ -143,7 +133,7 @@ public class FeaturedBookBuilder {
             sampleButton.setOnAction(e -> bookClickHandler.accept(book));
         }
 
-        buttonBox.getChildren().addAll(getButton, sampleButton);
+        buttonBox.getChildren().addAll(sampleButton);
         return buttonBox;
     }
 

@@ -152,7 +152,6 @@ public class UserService {
 
     /**
      * Recupera un utente per ID
-     * AGGIORNATO per compatibilità String userId
      */
     public User getUserById(String userId) {
         String query = "SELECT * FROM users WHERE id = ?";
@@ -184,7 +183,6 @@ public class UserService {
 
     /**
      * Recupera un utente per email
-     * AGGIORNATO per compatibilità con il nuovo modello User
      */
     public User getUserByEmail(String email) {
         String query = "SELECT * FROM users WHERE email = ?";
@@ -196,7 +194,6 @@ public class UserService {
             ResultSet rs = stmt.executeQuery();
 
             if (rs.next()) {
-                // COSTRUTTORE CORRETTO: Long id, String name, String surname, String cf, String email, String username
                 return new User(
                         rs.getLong("id"),           // Long id
                         rs.getString("name"),       // String name
@@ -216,7 +213,6 @@ public class UserService {
 
     /**
      * Aggiorna il profilo dell'utente
-     * AGGIORNATO per compatibilità String userId
      */
     public User updateUserProfile(String userId, String name, String surname, String cf) {
         String query = "UPDATE users SET name = ?, surname = ?, cf = ? WHERE id = ? RETURNING *";
@@ -380,6 +376,34 @@ public class UserService {
         } catch (NoSuchAlgorithmException e) {
             System.err.println("❌ Errore hashing password: " + e.getMessage());
             return password; // Fallback non sicuro, solo per test
+        }
+    }
+
+    /**
+     * Reset password tramite email
+     */
+    public boolean resetPasswordByEmail(String email, String newPassword) {
+        String query = "UPDATE users SET password = ? WHERE email = ?";
+        String hashedNewPassword = hashPassword(newPassword);
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, hashedNewPassword);
+            stmt.setString(2, email.toLowerCase().trim());
+
+            int updated = stmt.executeUpdate();
+            if (updated > 0) {
+                System.out.println("✅ Password reimpostata per email: " + email);
+                return true;
+            } else {
+                System.out.println("❌ Email non trovata: " + email);
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore reset password: " + e.getMessage());
+            return false;
         }
     }
 

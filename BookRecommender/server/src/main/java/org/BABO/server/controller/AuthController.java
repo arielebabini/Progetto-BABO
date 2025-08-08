@@ -136,6 +136,60 @@ public class AuthController {
     }
 
     /**
+     * Endpoint per reset password (senza vecchia password)
+     * POST /api/auth/reset-password
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<AuthResponse> resetPassword(@RequestBody ResetPasswordRequest request) {
+        try {
+            System.out.println("🔄 Richiesta reset password per email: " + request.getEmail());
+
+            // Validazione
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new AuthResponse(false, "Email è obbligatoria"));
+            }
+
+            if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
+                return ResponseEntity.badRequest()
+                        .body(new AuthResponse(false, "La nuova password deve essere almeno 8 caratteri"));
+            }
+
+            boolean success = userService.resetPasswordByEmail(
+                    request.getEmail(),
+                    request.getNewPassword()
+            );
+
+            if (success) {
+                return ResponseEntity.ok(
+                        new AuthResponse(true, "Password reimpostata con successo")
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new AuthResponse(false, "Email non trovata nel sistema"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore reset password: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponse(false, "Errore interno del server"));
+        }
+    }
+
+    public static class ResetPasswordRequest {
+        private String email;
+        private String newPassword;
+
+        public ResetPasswordRequest() {}
+
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+
+        public String getNewPassword() { return newPassword; }
+        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
+
+    /**
      * Endpoint per verificare se un email/username è disponibile
      * GET /api/auth/check-availability?email={email}&username={username}
      */

@@ -21,7 +21,6 @@ import java.util.function.Consumer;
 
 /**
  * Factory per creare le varie sezioni di libri
- * AGGIORNATO: Supporta layout fisso a 8 colonne per sezioni "Libri gratuiti" e "Nuove uscite"
  */
 public class BookSectionFactory {
 
@@ -32,7 +31,6 @@ public class BookSectionFactory {
     private FeaturedBookBuilder featuredBuilder;
     private CategorySectionBuilder categoryBuilder;
     private Consumer<List<Book>> cachedBooksCallback;
-    private boolean categoriesLoadedInCurrentSession = false;
 
     // Callback per sezioni specifiche
     private Consumer<List<Book>> featuredBooksCallback;
@@ -114,8 +112,8 @@ public class BookSectionFactory {
         ScrollPane scroll = createScrollPane();
         scroll.setContent(loadingBox);
 
-        Button seeAllBtn = createSeeAllButton();
-        HBox headerBox = createSectionHeader(title, seeAllBtn);
+       // Button seeAllBtn = createSeeAllButton();
+        HBox headerBox = createSectionHeader(title);
 
         VBox section = new VBox(5, headerBox, scroll);
         section.setPadding(new Insets(15, 20, 20, 20));
@@ -124,50 +122,14 @@ public class BookSectionFactory {
                         "-fx-background-radius: 12;"
         );
 
-        // RIPRISTINATO: Tutte le sezioni usano FlowPane
+        // Tutte le sezioni usano FlowPane
         loadBooksForSectionFlowPane(sectionType, scroll);
 
         return section;
     }
 
-    public void loadCategoriesAsyncOnce(VBox content) {
-        if (categoriesLoadedInCurrentSession) {
-            System.out.println("🎭 Categorie già caricate in questa sessione, salto");
-            return;
-        }
-
-        System.out.println("🎭 Caricamento categorie per la prima volta in questa sessione");
-        categoriesLoadedInCurrentSession = true;
-
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                Thread.sleep(500);
-                return createDefaultCategories();
-            } catch (Exception e) {
-                System.err.println("❌ Errore nel caricamento categorie: " + e.getMessage());
-                return new ArrayList<Category>();
-            }
-        }).thenAccept(categories -> {
-            Platform.runLater(() -> {
-                if (!categories.isEmpty()) {
-                    VBox categorySection = categoryBuilder.createCategorySection("🎭 Scopri per genere", categories);
-                    content.getChildren().add(categorySection);
-                    System.out.println("✅ Sezione categorie aggiunta (once)");
-                }
-            });
-        });
-    }
-
     /**
-     * NUOVO: Reset dello stato delle categorie
-     */
-    public void resetCategoryLoadingState() {
-        categoriesLoadedInCurrentSession = false;
-        System.out.println("🔄 Reset stato caricamento categorie");
-    }
-
-    /**
-     * RIPRISTINATO: Carica dati per sezioni con layout FlowPane per tutte le sezioni
+     * Carica dati per sezioni con layout FlowPane per tutte le sezioni
      */
     private void loadBooksForSectionFlowPane(String sectionType, ScrollPane scroll) {
         FlowPane bookGrid = new FlowPane();
@@ -237,7 +199,7 @@ public class BookSectionFactory {
     }
 
     /**
-     * ORIGINALE: Crea sezione in evidenza (mantiene comportamento originale)
+     * Crea sezione in evidenza (mantiene comportamento originale)
      */
     public VBox createFeaturedSection() {
         VBox container = new VBox();
@@ -291,60 +253,6 @@ public class BookSectionFactory {
     }
 
     /**
-     * ORIGINALE: Carica categorie in modo asincrono
-     */
-    public void loadCategoriesAsync(VBox content) {
-        System.out.println("🎭 Inizio caricamento categorie async");
-
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                // Simula caricamento
-                Thread.sleep(500);
-                return createDefaultCategories();
-            } catch (Exception e) {
-                System.err.println("❌ Errore nel caricamento categorie: " + e.getMessage());
-                return new ArrayList<Category>();
-            }
-        }).thenAccept(categories -> {
-            Platform.runLater(() -> {
-                System.out.println("🎭 Callback categorie: controllo se aggiungere...");
-
-                // CONTROLLO SEMPLICE: Verifica se esiste già una sezione "Scopri per genere"
-                boolean categoryExists = content.getChildren().stream()
-                        .anyMatch(node -> {
-                            if (node instanceof VBox) {
-                                VBox section = (VBox) node;
-                                // Controlla se il primo figlio è un HBox header con "Scopri per genere"
-                                if (!section.getChildren().isEmpty() && section.getChildren().get(0) instanceof HBox) {
-                                    HBox header = (HBox) section.getChildren().get(0);
-                                    return header.getChildren().stream()
-                                            .anyMatch(child -> child instanceof Label &&
-                                                    ((Label) child).getText().contains("Scopri per genere"));
-                                }
-                            }
-                            return false;
-                        });
-
-                if (categoryExists) {
-                    System.out.println("⚠️ Sezione categorie già presente, salto aggiunta");
-                    return;
-                }
-
-                if (!categories.isEmpty()) {
-                    VBox categorySection = categoryBuilder.createCategorySection("🎭 Scopri per genere", categories);
-                    content.getChildren().add(categorySection);
-                    System.out.println("✅ Sezione categorie aggiunta (content ora ha " + content.getChildren().size() + " elementi)");
-                } else {
-                    System.out.println("⚠️ Nessuna categoria da aggiungere");
-                }
-            });
-        }).exceptionally(throwable -> {
-            System.err.println("❌ Errore nell'aggiunta delle categorie: " + throwable.getMessage());
-            return null;
-        });
-    }
-
-    /**
      * Crea sezione risultati ricerca (usa FlowPane)
      */
     public VBox createSearchResultsSection(List<Book> searchResults, Consumer<Book> onBookClick, String query) {
@@ -381,7 +289,7 @@ public class BookSectionFactory {
     }
 
     /**
-     * ORIGINALE: Esegue ricerca con callback
+     * Esegue ricerca con callback
      */
     public void performSearch(String query, VBox content, Consumer<Book> clickHandler) {
         content.getChildren().clear();
@@ -436,20 +344,20 @@ public class BookSectionFactory {
         return scroll;
     }
 
-    private Button createSeeAllButton() {
+    /*private Button createSeeAllButton() {
         Button seeAllBtn = new Button("Vedi tutti");
         seeAllBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #0a84ff; -fx-border-color: transparent; -fx-cursor: hand;");
         return seeAllBtn;
-    }
+    }*/
 
-    private HBox createSectionHeader(Label title, Button seeAllBtn) {
+    private HBox createSectionHeader(Label title) {
         HBox headerBox = new HBox();
         headerBox.setAlignment(Pos.CENTER_LEFT);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        headerBox.getChildren().addAll(title, spacer, seeAllBtn);
+        headerBox.getChildren().addAll(title, spacer);
         return headerBox;
     }
 
@@ -506,36 +414,14 @@ public class BookSectionFactory {
     }
 
     /**
-     * CORRETTO: Crea categorie di default usando il costruttore corretto
-     */
-    private List<Category> createDefaultCategories() {
-        List<Category> categories = new ArrayList<>();
-
-        // Creo categorie di esempio usando il costruttore corretto:
-        // Category(Long id, String name, String description, String imageUrl, String iconPath)
-        try {
-            categories.add(new Category(1L, "Fiction", "Romanzi e narrativa", "placeholder.jpg", "fiction-icon.png"));
-            categories.add(new Category(2L, "Science Fiction", "Fantascienza e fantasy", "placeholder.jpg", "sci-fi-icon.png"));
-            categories.add(new Category(3L, "Mystery", "Gialli e thriller", "placeholder.jpg", "mystery-icon.png"));
-            categories.add(new Category(4L, "Romance", "Romanzi rosa", "placeholder.jpg", "romance-icon.png"));
-            categories.add(new Category(5L, "Biography", "Biografie e autobiografie", "placeholder.jpg", "biography-icon.png"));
-        } catch (Exception e) {
-            System.err.println("⚠️ Errore creazione categorie default: " + e.getMessage());
-            // Ritorna lista vuota se c'è un errore
-        }
-
-        return categories;
-    }
-
-    /**
-     * RIPRISTINATO: Aggiorna una sezione esistente con layout FlowPane per tutte
+     * Aggiorna una sezione esistente con layout FlowPane per tutte
      */
     public void updateSection(VBox section, List<Book> books, String sectionType) {
         if (section.getChildren().size() < 2) return;
 
         ScrollPane scroll = (ScrollPane) section.getChildren().get(1);
 
-        // RIPRISTINATO: Usa sempre FlowPane per tutte le sezioni
+        // Usa sempre FlowPane per tutte le sezioni
         FlowPane bookGrid = gridBuilder.createOptimizedBookGrid();
         gridBuilder.populateBookGrid(books, bookGrid, scroll);
         scroll.setContent(bookGrid);

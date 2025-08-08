@@ -227,10 +227,8 @@ public class CategoryView {
         isLoading = true;
         System.out.println("🎭 Caricamento libri per categoria: " + category.getName());
 
-        // ✅ MAPPATURA delle categorie dei bottoni con quelle del database
         String dbCategoryName = mapCategoryToDbFormat(category.getName());
 
-        // ✅ USA LA RICERCA SPECIFICA PER CATEGORIA
         bookService.searchBooksByCategoryAsync(dbCategoryName)
                 .thenAccept(books -> {
                     Platform.runLater(() -> {

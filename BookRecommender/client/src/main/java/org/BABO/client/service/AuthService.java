@@ -10,6 +10,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -232,6 +233,42 @@ public class AuthService {
 
             } catch (Exception e) {
                 System.err.println("❌ Errore logout: " + e.getMessage());
+                return new AuthResponse(false, "Errore di connessione: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Reset password asincrono
+     */
+    public CompletableFuture<AuthResponse> resetPasswordAsync(String email, String newPassword) {
+        System.out.println("🔄 Tentativo reset password per: " + email);
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Crea DTO per reset password
+                String requestBody = objectMapper.writeValueAsString(Map.of(
+                        "email", email,
+                        "newPassword", newPassword
+                ));
+
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(BASE_URL + "/reset-password"))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("📡 Risposta reset password - Status: " + response.statusCode());
+
+                AuthResponse authResponse = objectMapper.readValue(response.body(), AuthResponse.class);
+                return authResponse;
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore reset password: " + e.getMessage());
                 return new AuthResponse(false, "Errore di connessione: " + e.getMessage());
             }
         });

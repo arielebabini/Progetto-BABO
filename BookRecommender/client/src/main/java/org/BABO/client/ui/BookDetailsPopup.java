@@ -386,7 +386,7 @@ public class BookDetailsPopup {
                 createDetailsSection(book, authManager),
                 createPublisherSection(book),
                 createRatingSection(book, authManager),
-                createRecommendationsSection(book, authManager),  // AGGIUNTO: Sezione raccomandazioni
+                createRecommendationsSection(book, authManager),
                 createReviewsSection()
         );
 
@@ -447,7 +447,7 @@ public class BookDetailsPopup {
         infoBox.setAlignment(Pos.TOP_LEFT);
 
         infoBox.getChildren().addAll(
-                createCategoryBadge(),
+                //createCategoryBadge(),
                 createTitleLabel(book.getTitle()),
                 createAuthorLabel(book.getAuthor()),
                 createRatingBox(book),
@@ -458,7 +458,7 @@ public class BookDetailsPopup {
         return infoBox;
     }
 
-    private static Label createCategoryBadge() {
+    /*private static Label createCategoryBadge() {
         Label categoryBadge = new Label("#1, BESTSELLER ❯");
         categoryBadge.setStyle(
                 "-fx-background-color: #444;" +
@@ -468,7 +468,7 @@ public class BookDetailsPopup {
                         "-fx-font-size: 12;"
         );
         return categoryBadge;
-    }
+    }*/
 
     private static Label createTitleLabel(String title) {
         Label titleLabel = new Label(title);
@@ -493,7 +493,6 @@ public class BookDetailsPopup {
         averageRatingLabel.setTextFill(Color.WHITE);
         averageRatingLabel.setFont(Font.font("SF Pro Text", 14));
 
-        // ✅ USA LA CATEGORIA EFFETTIVA DAL DATABASE invece del valore hardcoded
         String categoryText = "• " + (book.getCategory() != null && !book.getCategory().isEmpty()
                 ? book.getCategory()
                 : "Narrativa"); // fallback solo se category è null/vuota
@@ -530,30 +529,61 @@ public class BookDetailsPopup {
             bookInfoBox.getChildren().add(yearInfo);
         }
 
-        Label pagesInfo = new Label("📄 ~300 pagine");
-        pagesInfo.setFont(Font.font("SF Pro Text", 14));
-        pagesInfo.setTextFill(Color.LIGHTGRAY);
-        bookInfoBox.getChildren().add(pagesInfo);
-
         return bookInfoBox;
     }
 
     private static HBox createButtonBox(Book book, AuthenticationManager authManager) {
         HBox buttonBox = new HBox(10);
         buttonBox.setPadding(new Insets(20, 0, 0, 0));
+        Button addToLibraryButton = createStyledButton("📚 Aggiungi a Libreria", "#9b59b6", "white");
 
-        Button getButton = createStyledButton("📖 Ottieni", "white", "black");
-        Button previewButton = createStyledButton("👁️ Estratto", "rgba(255,255,255,0.2)", "white");
+        addToLibraryButton.setOnAction(e -> {
+            if (authManager != null && authManager.isAuthenticated()) {
+                // Utente loggato: mostra dialog per aggiungere alla libreria
+                showAddToLibraryDialog(book, authManager);
+            } else {
+                // Utente non loggato: apri popup di login
+                if (authManager != null) {
+                    // Recupera il mainRoot dalla scena corrente
+                    StackPane mainRoot = getMainRootFromButton(addToLibraryButton);
+                    if (mainRoot != null) {
+                        authManager.showAuthPanel(mainRoot);
+                    } else {
+                        System.err.println("❌ Impossibile trovare mainRoot per aprire il pannello di login");
+                    }
+                } else {
+                    // Fallback se authManager è null
+                    System.err.println("❌ AuthManager non disponibile");
+                }
+            }
+        });
 
-        buttonBox.getChildren().addAll(getButton, previewButton);
-
-        if (authManager != null && authManager.isAuthenticated()) {
-            Button addToLibraryButton = createStyledButton("📚 Aggiungi a Libreria", "#9b59b6", "white");
-            addToLibraryButton.setOnAction(e -> showAddToLibraryDialog(book, authManager));
-            buttonBox.getChildren().add(addToLibraryButton);
-        }
-
+        buttonBox.getChildren().add(addToLibraryButton);
         return buttonBox;
+    }
+
+    /**
+     * Metodo helper per recuperare il mainRoot dalla gerarchia dei nodi
+     */
+    private static StackPane getMainRootFromButton(Button button) {
+        try {
+            // Risali la gerarchia dei nodi fino a trovare il StackPane principale
+            javafx.scene.Node currentNode = button;
+            while (currentNode != null) {
+                if (currentNode instanceof StackPane) {
+                    StackPane stackPane = (StackPane) currentNode;
+                    // Verifica se questo è il mainRoot controllando se ha figli appropriati
+                    if (stackPane.getChildren().size() >= 2) {
+                        return stackPane;
+                    }
+                }
+                currentNode = currentNode.getParent();
+            }
+            return null;
+        } catch (Exception e) {
+            System.err.println("❌ Errore nel recupero mainRoot: " + e.getMessage());
+            return null;
+        }
     }
 
     private static Button createStyledButton(String text, String bgColor, String textColor) {
@@ -1869,19 +1899,17 @@ public class BookDetailsPopup {
             }
         }
 
-        // NUOVO: Prova a caricare il libro dal servizio in modo sincrono
+        // Prova a caricare il libro dal servizio in modo sincrono
         try {
             // Se non abbiamo i dettagli, potremmo avere il servizio libri disponibile
             if (currentBook != null) {
                 System.out.println("🔍 Tentativo recupero titolo per ISBN: " + rec.getRecommendedBookIsbn());
-                // TODO: Qui dovresti avere accesso al BookService per recuperare il libro
-                // Per ora usiamo un fallback intelligente basato sui pattern ISBN
             }
         } catch (Exception e) {
             System.out.println("⚠️ Errore recupero titolo libro: " + e.getMessage());
         }
 
-        // Fallback migliorato: cerca nel pattern dei libri noti
+
         String isbn = rec.getRecommendedBookIsbn();
         if (isbn != null) {
             // Basato sui libri che vedo nell'immagine, prova a mappare alcuni ISBN noti
@@ -1897,7 +1925,7 @@ public class BookDetailsPopup {
                 case "684819066":
                     return "Libro di Fantascienza";
                 default:
-                    return "Libro consigliato"; // Più generico di "Titolo non disponibile"
+                    return "Libro consigliato";
             }
         }
 
@@ -1914,7 +1942,7 @@ public class BookDetailsPopup {
             }
         }
 
-        // CORREZIONE: Fallback con Book con titolo intelligente
+        // Fallback con Book con titolo intelligente
         Book book = new Book();
         book.setIsbn(rec.getRecommendedBookIsbn());
 

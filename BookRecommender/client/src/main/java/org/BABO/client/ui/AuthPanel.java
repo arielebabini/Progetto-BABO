@@ -1,5 +1,6 @@
 package org.BABO.client.ui;
 
+import javafx.event.ActionEvent;
 import org.BABO.client.service.AuthService;
 import org.BABO.shared.dto.AuthResponse;
 import org.BABO.shared.model.User;
@@ -123,7 +124,7 @@ public class AuthPanel extends VBox {
         // Link per password dimenticata
         Hyperlink forgotPassword = new Hyperlink("❓ Password dimenticata?");
         forgotPassword.setTextFill(Color.web(ACCENT_COLOR));
-        forgotPassword.setOnAction(e -> showAlert("🚧 Info", "Funzionalità di recupero password sarà implementata in futuro!"));
+        forgotPassword.setOnAction(e -> showPasswordResetDialog());
 
         HBox forgotBox = new HBox(forgotPassword);
         forgotBox.setAlignment(Pos.CENTER_RIGHT);
@@ -382,6 +383,136 @@ public class AuthPanel extends VBox {
         );
 
         return signupPanel;
+    }
+
+    /**
+     * Mostra dialog per reset password
+     */
+    private void showPasswordResetDialog() {
+        Alert resetDialog = new Alert(Alert.AlertType.NONE);
+        resetDialog.setTitle("🔄 Reimposta Password");
+        resetDialog.setHeaderText(null);
+
+        // Crea contenuto personalizzato
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+        content.setStyle("-fx-background-color: " + BG_COLOR + ";");
+
+        // Header personalizzato
+        Label titleLabel = new Label("🔄 Reimposta Password");
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
+        titleLabel.setTextFill(Color.web(TEXT_COLOR));
+
+        Label subtitleLabel = new Label("Inserisci email e nuova password");
+        subtitleLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
+        subtitleLabel.setTextFill(Color.web(HINT_COLOR));
+        subtitleLabel.setPadding(new Insets(0, 0, 10, 0));
+
+        TextField emailField = new TextField();
+        emailField.setPromptText("📧 La tua email");
+        styleInput(emailField);
+
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("🔒 Nuova password (min 8 caratteri)");
+        styleInput(newPasswordField);
+
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("🔒 Conferma nuova password");
+        styleInput(confirmPasswordField);
+
+        content.getChildren().addAll(
+                titleLabel,
+                subtitleLabel,
+                emailField,
+                newPasswordField,
+                confirmPasswordField
+        );
+
+        resetDialog.getDialogPane().setContent(content);
+
+        // Pulsanti
+        ButtonType resetButtonType = new ButtonType("🔄 Reimposta", ButtonBar.ButtonData.OK_DONE);
+        ButtonType cancelButtonType = new ButtonType("❌ Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+        resetDialog.getButtonTypes().addAll(resetButtonType, cancelButtonType);
+
+        // Styling
+        DialogPane dialogPane = resetDialog.getDialogPane();
+        dialogPane.setStyle(
+                "-fx-background-color: #404040;" +
+                        "-fx-text-fill: #FFFFFF;"
+        );
+
+        // Gestione click pulsante reset
+        Button resetButton = (Button) resetDialog.getDialogPane().lookupButton(resetButtonType);
+        resetButton.addEventFilter(ActionEvent.ACTION, event -> {
+            event.consume(); // Previeni chiusura automatica
+
+            String email = emailField.getText().trim();
+            String newPassword = newPasswordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+
+            // Validazioni
+            if (email.isEmpty()) {
+                showAlert("⚠️ Errore", "Inserisci la tua email");
+                return;
+            }
+
+            if (newPassword.length() < 6) {
+                showAlert("⚠️ Errore", "La password deve essere almeno 6 caratteri");
+                return;
+            }
+
+            if (!newPassword.equals(confirmPassword)) {
+                showAlert("⚠️ Errore", "Le password non coincidono");
+                return;
+            }
+
+            // Disabilita pulsante durante operazione
+            resetButton.setDisable(true);
+            resetButton.setText("⏳ Reimpostazione...");
+
+            // Esegui reset password
+            authService.resetPasswordAsync(email, newPassword)
+                    .thenAccept(response -> {
+                        Platform.runLater(() -> {
+                            resetButton.setDisable(false);
+                            resetButton.setText("🔄 Reimposta");
+
+                            if (response.isSuccess()) {
+                                resetDialog.close();
+
+                                // Crea popup di successo personalizzato
+                                Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                                successAlert.setTitle("✅ Successo");
+                                successAlert.setHeaderText(null);
+                                successAlert.setContentText("Reset Password effettuato");
+
+                                DialogPane successPane = successAlert.getDialogPane();
+                                successPane.setStyle(
+                                        "-fx-background-color: #404040;" +
+                                                "-fx-text-fill: #ffffff;"
+                                );
+
+                                // Forza sfondo anche sul contenuto
+                                successPane.lookup(".content").setStyle("-fx-background-color: #404040;");
+
+                                successAlert.showAndWait();
+                            } else {
+                                showAlert("❌ Errore", response.getMessage());
+                            }
+                        });
+                    })
+                    .exceptionally(throwable -> {
+                        Platform.runLater(() -> {
+                            resetButton.setDisable(false);
+                            resetButton.setText("🔄 Reimposta");
+                            showAlert("❌ Errore", "Errore di connessione: " + throwable.getMessage());
+                        });
+                        return null;
+                    });
+        });
+
+        resetDialog.showAndWait();
     }
 
     /**

@@ -1,5 +1,6 @@
 package org.BABO.client.ui;
 
+import javafx.scene.text.TextAlignment;
 import org.BABO.shared.model.Category;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,11 +21,11 @@ import java.util.function.Consumer;
  */
 public class CategorySectionBuilder {
 
-    // ✅ AGGIUNTO: Handler per i click sulle categorie
+    // Handler per i click sulle categorie
     private Consumer<Category> categoryClickHandler;
 
     /**
-     * ✅ NUOVO: Imposta il gestore dei click sulle categorie
+     *  Imposta il gestore dei click sulle categorie
      */
     public void setCategoryClickHandler(Consumer<Category> handler) {
         this.categoryClickHandler = handler;
@@ -82,11 +83,9 @@ public class CategorySectionBuilder {
     }
 
     /**
-     * Crea una card di categoria con placeholder colorato sicuro
-     * ✅ AGGIORNATO: Ora include il click handler
+     * Crea una card di categoria
      */
     private VBox createCategoryCard(Category category) {
-        // Crea un rettangolo colorato invece di caricare immagini esterne
         Rectangle colorRect = new Rectangle(290, 155);
 
         // Colori diversi per categoria
@@ -95,9 +94,12 @@ public class CategorySectionBuilder {
         colorRect.setArcWidth(20);
         colorRect.setArcHeight(20);
 
-        Label categoryLabel = new Label(category.getName());
+        Label categoryLabel = new Label(category.getName().replace(" ", "\n"));
         categoryLabel.setFont(Font.font("System", FontWeight.BOLD, 18));
         categoryLabel.setTextFill(Color.WHITE);
+        categoryLabel.setTextAlignment(TextAlignment.CENTER);
+        categoryLabel.setWrapText(true);
+        categoryLabel.setMaxWidth(260);
 
         // Aggiungi ombra al testo per leggibilità
         DropShadow textShadow = new DropShadow();
@@ -123,7 +125,7 @@ public class CategorySectionBuilder {
             colorRect.setFill(cardColor);
         });
 
-        // ✅ AGGIUNTO: Click handler per la categoria
+        // Click handler per la categoria
         card.setOnMouseClicked(e -> {
             System.out.println("🎭 Click su categoria: " + category.getName());
             if (categoryClickHandler != null) {

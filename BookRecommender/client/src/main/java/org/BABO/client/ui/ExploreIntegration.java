@@ -269,7 +269,7 @@ public class ExploreIntegration {
         author.setMaxWidth(120);
         author.setAlignment(Pos.CENTER);
 
-        // ✅ STELLINE! RATING BOX - container per stelline e valutazione
+        // container per stelline e valutazione
         HBox ratingBox = new HBox(4);
         ratingBox.setAlignment(Pos.CENTER);
 
@@ -281,7 +281,7 @@ public class ExploreIntegration {
 
             Label starsLabel = new Label(starsDisplay);
             starsLabel.setFont(Font.font("System", 10));
-            starsLabel.setTextFill(Color.web("#FFD700")); // Stelline gialle
+            starsLabel.setTextFill(Color.web("#A58D03")); // Stelline gialle
 
             Label ratingText = new Label(String.format("%.1f", avgRating));
             ratingText.setFont(Font.font("System", 9));
@@ -353,15 +353,15 @@ public class ExploreIntegration {
         };
 
         String[] colors = {
-                "#FF6B6B",
-                "#4ECDC4",
-                "#45B7D1",
-                "#96CEB4",
-                "#FECA57",
-                "#FF9FF3",
-                "#54A0FF",
-                "#5F27CD",
-                "#00D2D3"
+                "#E9B29B",
+                "#B5BA8C",
+                "#52557A",
+                "#8F5D5D",
+                "#9AAAB4",
+                "#F0C57F",
+                "#5F797B",
+                "#E0875E",
+                "#81B29A"
         };
 
         int row = 0, col = 0;
@@ -386,16 +386,19 @@ public class ExploreIntegration {
      * Crea un pulsante categoria
      */
     private Button createCategoryButton(String category, String color) {
-        Button button = new Button(category);
+        Button button = new Button(category.replace(" ", "\n"));
         button.setPrefSize(200, 100);
         button.setFont(Font.font("System", FontWeight.BOLD, 16));
         button.setTextFill(Color.WHITE);
+        button.setWrapText(true);
         button.setStyle(
                 "-fx-background-color: " + color + ";" +
                         "-fx-background-radius: 12;" +
                         "-fx-border-radius: 12;" +
                         "-fx-cursor: hand;" +
-                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);"
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 8, 0, 0, 2);" +
+                        "-fx-text-alignment: center;" +
+                        "-fx-line-spacing: -5px;" // ← AGGIUNTA: riduce spazio tra righe (valore negativo)
         );
 
         // Effetti hover

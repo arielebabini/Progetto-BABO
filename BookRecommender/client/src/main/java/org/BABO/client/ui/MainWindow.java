@@ -18,7 +18,6 @@ import java.util.function.Consumer;
 /**
  * Gestisce la finestra principale dell'applicazione
  * Coordina tutti i componenti UI principali
- * AGGIORNATO: Con integrazione completa ricerca avanzata e PopupManager
  */
 public class MainWindow {
 
@@ -67,7 +66,6 @@ public class MainWindow {
 
         exploreIntegration.setContainer(mainRoot);
 
-        // ✅ HANDLER PER I CLICK SUI LIBRI - USA POPUP MANAGER
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via Esplora: " + selectedBook.getTitle());
             AppleBooksClient.openBookDetails(
@@ -86,7 +84,7 @@ public class MainWindow {
     }
 
     /**
-     * NUOVO: Carica la home page in modo centralizzato e controllato
+     * Carica la home page in modo centralizzato e controllato
      */
     public void loadHomeContent() {
         System.out.println("🏠 MainWindow: Richiesta caricamento home (già caricata: " + homeContentLoaded + ")");
@@ -102,7 +100,7 @@ public class MainWindow {
     }
 
     /**
-     * NUOVO: Forza il ricaricamento completo della home
+     * Forza il ricaricamento completo della home
      */
     public void forceReloadHome() {
         System.out.println("🔄 MainWindow: Forzatura ricaricamento home");
@@ -111,7 +109,7 @@ public class MainWindow {
     }
 
     /**
-     * NUOVO: Pulisce lo stato quando si cambia sezione
+     * Pulisce lo stato quando si cambia sezione
      */
     public void clearHomeState() {
         System.out.println("🧹 MainWindow: Reset stato home");
@@ -130,7 +128,7 @@ public class MainWindow {
         System.out.println("📋 Creazione Sidebar...");
         sidebar = new Sidebar(serverAvailable, authManager, this);
 
-        // ✅ IMPORTANTE: Passa BookService e mainRoot all'Header per popup
+        // Passa BookService e mainRoot all'Header per popup
         System.out.println("🔍 Creazione Header con BookService...");
         header = new Header(bookService, mainRoot);
 
@@ -140,7 +138,7 @@ public class MainWindow {
 
         // ===== CONFIGURAZIONE HANDLERS =====
 
-        // ✅ Handler per i click sui libri - USA POPUP MANAGER
+        // Handler per i click sui libri
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via MainWindow: " + selectedBook.getTitle());
             AppleBooksClient.openBookDetails(
@@ -150,7 +148,6 @@ public class MainWindow {
             );
         };
 
-        // ✅ CONFIGURAZIONE SEARCH HANDLER CON DEBUG
         System.out.println("🔧 Configurazione SearchHandler con debug...");
         header.setSearchHandler((query) -> {
             System.out.println("🔍 [MAINWINDOW] SearchHandler ricevuto query: '" + query + "'");
@@ -188,7 +185,6 @@ public class MainWindow {
             System.out.println("📚 Cache aggiornata: " + books.size() + " libri");
         });
 
-        // ✅ INIZIALIZZA INTEGRAZIONE ESPLORA
         System.out.println("🔍 Inizializzazione ExploreIntegration...");
         initializeExploreIntegration();
 
@@ -210,19 +206,17 @@ public class MainWindow {
 
         // ===== INIZIALIZZAZIONE POPUP MANAGER =====
 
-        // ✅ IMPORTANTE: Inizializza PopupManager DOPO aver creato mainRoot
+        // Inizializza PopupManager DOPO aver creato mainRoot
         Platform.runLater(() -> {
             System.out.println("🚀 Inizializzazione PopupManager...");
             PopupManager.getInstance().initialize(mainRoot);
             System.out.println("✅ PopupManager inizializzato con mainRoot");
 
-            // ✅ AGGIUNGI DEBUG KEY BINDINGS
             addDebugKeyBindings();
 
-            // ✅ TEST AUTOMATICO DOPO INIZIALIZZAZIONE (opzionale)
             Platform.runLater(() -> {
                 try {
-                    Thread.sleep(1000); // Aspetta che tutto sia caricato
+                    Thread.sleep(1000);
                     System.out.println("🧪 Avvio test automatico sistema ricerca...");
                     testSearchSystemAfterInit();
                 } catch (InterruptedException e) {
@@ -264,7 +258,7 @@ public class MainWindow {
     }
 
     /**
-     * ✅ NUOVO: Mostra la sezione Esplora (chiamato dalla Sidebar)
+     * Mostra la sezione Esplora (chiamato dalla Sidebar)
      */
     public void showExploreSection() {
         System.out.println("🔍 Richiesta apertura sezione Esplora da sidebar");
@@ -276,7 +270,7 @@ public class MainWindow {
     }
 
     /**
-     * ✅ AGGIORNATO: Metodo ricerca avanzata ora delega all'Header
+     * Metodo ricerca avanzata ora delega all'Header
      */
     public void showAdvancedSearch() {
         System.out.println("🔍 Richiesta ricerca avanzata - delegata all'Header");
@@ -284,20 +278,15 @@ public class MainWindow {
         if (header != null && header.isFullyInitialized()) {
             // L'Header gestisce già l'apertura della ricerca avanzata tramite il pulsante ⚙️
             System.out.println("💡 La ricerca avanzata è disponibile tramite il pulsante ⚙️ nell'header");
-
-            // Se necessario, potresti forzare l'apertura programmaticamente
-            // ma per ora lasciamo che l'utente usi il pulsante nell'interfaccia
-
         } else {
             System.err.println("❌ Header non inizializzato correttamente");
 
-            // Fallback: usa il vecchio metodo se l'Header non funziona
             showAdvancedSearchFallback();
         }
     }
 
     /**
-     * ✅ NUOVO: Metodo fallback per ricerca avanzata
+     * Metodo fallback per ricerca avanzata
      */
     private void showAdvancedSearchFallback() {
         System.out.println("🔄 Uso fallback per ricerca avanzata");
@@ -306,7 +295,6 @@ public class MainWindow {
 
         // Configura il callback per i risultati di ricerca
         searchPanel.setOnSearchExecuted(searchResult -> {
-            // ✅ USA POPUP MANAGER per chiudere
             PopupManager.getInstance().closeAllPopups();
 
             // Mostra i risultati nell'area contenuti
@@ -321,7 +309,6 @@ public class MainWindow {
         overlay.getChildren().add(searchPanel);
         StackPane.setAlignment(searchPanel, Pos.CENTER);
 
-        // ✅ CHIUDI tramite PopupManager cliccando sullo sfondo
         overlay.setOnMouseClicked(e -> {
             if (e.getTarget() == overlay) {
                 PopupManager.getInstance().closeAllPopups();
@@ -346,7 +333,7 @@ public class MainWindow {
     }
 
     /**
-     * ✅ METODO AGGIORNATO: showLibraryPanel con gestione corretta PopupManager
+     * showLibraryPanel con gestione corretta PopupManager
      */
     public void showLibraryPanel() {
         if (!authManager.isAuthenticated()) {
