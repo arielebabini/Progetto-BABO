@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller REST per gestire l'autenticazione e la gestione utenti
@@ -283,15 +284,17 @@ public class AuthController {
     }
 
     /**
-     * Endpoint per cambiare password
-     * POST /api/auth/change-password/{userId}
-     * AGGIORNATO per compatibilità String/Long
+     * Endpoint per cambiare password - VERSIONE ALTERNATIVA
+     * POST /api/auth/change-password
      */
     @PostMapping("/change-password/{userId}")
     public ResponseEntity<AuthResponse> changePassword(
-            @PathVariable String userId,
+            @PathVariable("userId") String userId,
             @RequestBody ChangePasswordRequest request) {
         try {
+            System.out.println("🔐 Richiesta cambio password per utente ID: " + userId);
+
+            // ✅ CORRETTO - senza getUserId()
             if (request.getOldPassword() == null || request.getNewPassword() == null) {
                 return ResponseEntity.badRequest()
                         .body(new AuthResponse(false, "Password vecchia e nuova sono obbligatorie"));
@@ -303,7 +306,7 @@ public class AuthController {
             }
 
             boolean success = userService.changePassword(
-                    userId,  // Ora String, convertito internamente nel service
+                    userId,  // ✅ USA QUESTO (dal @PathVariable)
                     request.getOldPassword(),
                     request.getNewPassword()
             );
@@ -319,6 +322,7 @@ public class AuthController {
 
         } catch (Exception e) {
             System.err.println("❌ Errore cambio password: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponse(false, "Errore interno del server"));
         }
@@ -397,7 +401,7 @@ public class AuthController {
     }
 
     /**
-     * DTO per la richiesta di cambio password
+     * DTO per la richiesta di cambio password - VERSIONE AGGIORNATA
      */
     public static class ChangePasswordRequest {
         private String oldPassword;
@@ -410,5 +414,57 @@ public class AuthController {
 
         public String getNewPassword() { return newPassword; }
         public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
+
+    /**
+     * Endpoint per aggiornare l'email dell'utente
+     * PUT /api/auth/update-email/{userId}
+     */
+    @PutMapping("/update-email/{userId}")
+    public ResponseEntity<AuthResponse> updateEmail(
+            @PathVariable("userId") String userId,
+            @RequestBody Map<String, String> request) {
+        try {
+            String newEmail = request.get("email");
+
+            if (newEmail == null || newEmail.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new AuthResponse(false, "La nuova email è obbligatoria"));
+            }
+
+            newEmail = newEmail.trim().toLowerCase();
+
+            // Valida formato email
+            if (!newEmail.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$")) {
+                return ResponseEntity.badRequest()
+                        .body(new AuthResponse(false, "Formato email non valido"));
+            }
+
+            // Verifica che l'email non sia già in uso da un altro utente
+            User existingUser = userService.getUserByEmail(newEmail);
+            if (existingUser != null && !existingUser.getId().equals(Long.parseLong(userId))) {
+                return ResponseEntity.badRequest()
+                        .body(new AuthResponse(false, "Email già in uso da un altro utente"));
+            }
+
+            // Aggiorna l'email
+            boolean success = userService.updateUserEmail(userId, newEmail);
+
+            if (success) {
+                // Recupera l'utente aggiornato
+                User updatedUser = userService.getUserById(userId);
+                return ResponseEntity.ok(
+                        new AuthResponse(true, "Email aggiornata con successo", updatedUser)
+                );
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(new AuthResponse(false, "Errore durante l'aggiornamento dell'email"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore aggiornamento email: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AuthResponse(false, "Errore interno del server"));
+        }
     }
 }

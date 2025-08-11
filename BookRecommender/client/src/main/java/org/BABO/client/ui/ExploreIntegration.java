@@ -1,5 +1,6 @@
 package org.BABO.client.ui;
 
+import org.BABO.client.ui.AppleBooksClient;
 import org.BABO.client.service.ClientRatingService;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
@@ -39,6 +40,8 @@ public class ExploreIntegration {
     private Consumer<Book> bookClickHandler;
     private StackPane containerPane;
     private boolean isViewingCategory = false;
+    private List<Book> mostReviewedBooks = new ArrayList<>();
+    private List<Book> topRatedBooks = new ArrayList<>();
 
     public ExploreIntegration(BookService bookService, boolean serverAvailable) {
         this.bookService = bookService;
@@ -122,7 +125,10 @@ public class ExploreIntegration {
                     Platform.runLater(() -> {
                         System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri più recensiti dal rating service");
                         if (!books.isEmpty()) {
-                            populateBookSection(mostReviewedSection, books.subList(0, Math.min(10, books.size())));
+                            // ✅ SALVA LA LISTA COMPLETA per la navigazione
+                            this.mostReviewedBooks = new ArrayList<>(books);
+
+                            populateBookSection(mostReviewedSection, books.subList(0, Math.min(10, books.size())), "mostReviewed");
                         } else {
                             showErrorInSection(mostReviewedSection, "Nessun libro recensito disponibile");
                         }
@@ -150,16 +156,19 @@ public class ExploreIntegration {
                     Platform.runLater(() -> {
                         System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri meglio valutati dal rating service");
                         if (!books.isEmpty()) {
-                            populateBookSection(topRatedSection, books.subList(0, Math.min(10, books.size())));
+                            // ✅ SALVA LA LISTA COMPLETA per la navigazione
+                            this.topRatedBooks = new ArrayList<>(books);
+
+                            populateBookSection(topRatedSection, books.subList(0, Math.min(10, books.size())), "topRated");
                         } else {
-                            showErrorInSection(topRatedSection, "Nessun libro valutato disponibile");
+                            showErrorInSection(topRatedSection, "Nessun libro ben valutato disponibile");
                         }
                     });
                 })
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
-                        System.out.println("❌ DEBUG: Errore rating service meglio valutati: " + throwable.getMessage());
-                        showErrorInSection(topRatedSection, "Errore caricamento libri top rated");
+                        System.out.println("❌ DEBUG: Errore rating service migliori valutazioni: " + throwable.getMessage());
+                        showErrorInSection(topRatedSection, "Errore caricamento libri meglio valutati");
                     });
                     return null;
                 });
@@ -198,7 +207,7 @@ public class ExploreIntegration {
     /**
      * Popola una sezione con libri
      */
-    private void populateBookSection(VBox section, List<Book> books) {
+    private void populateBookSection(VBox section, List<Book> books, String sectionType) {
         // Trova il container dei libri (ultimo figlio della sezione)
         if (section.getChildren().size() >= 2 && section.getChildren().get(1) instanceof HBox) {
             HBox booksContainer = (HBox) section.getChildren().get(1);
@@ -206,7 +215,7 @@ public class ExploreIntegration {
 
             for (int i = 0; i < Math.min(books.size(), 8); i++) {
                 Book book = books.get(i);
-                VBox bookCard = createBookCard(book);
+                VBox bookCard = createBookCard(book, sectionType);
                 booksContainer.getChildren().add(bookCard);
             }
         }
@@ -227,64 +236,61 @@ public class ExploreIntegration {
         }
     }
 
-    /**
-     * ✅ METODO AGGIORNATO: Crea una card per un libro - CON STELLINE!
-     */
-    private VBox createBookCard(Book book) {
+    private VBox createBookCard(Book book, String sectionType) {
         VBox card = new VBox(8);
         card.setAlignment(Pos.TOP_CENTER);
         card.setPrefWidth(120);
         card.setMaxWidth(120);
 
-        // Immagine libro - USA IMAGEUTILS per caricare immagini vere
-        ImageView bookCover = ImageUtils.createSafeImageView(book.getImageUrl(), 80, 120);
+        // Copertina libro
+        ImageView bookCover = ImageUtils.createSafeImageView(book.getSafeImageFileName(), 90, 130);
 
-        // Applica clip e ombra all'immagine
-        Rectangle clip = new Rectangle(80, 120);
-        clip.setArcWidth(8);
-        clip.setArcHeight(8);
+        // Clip arrotondato
+        Rectangle clip = new Rectangle(90, 130);
+        clip.setArcWidth(6);
+        clip.setArcHeight(6);
         bookCover.setClip(clip);
 
         // Effetto ombra
         DropShadow shadow = new DropShadow();
         shadow.setColor(Color.web("#000000", 0.3));
-        shadow.setOffsetX(0);
         shadow.setOffsetY(4);
         shadow.setRadius(8);
         bookCover.setEffect(shadow);
 
-        // Titolo libro
-        Label title = new Label(book.getTitle());
-        title.setFont(Font.font("System", FontWeight.BOLD, 12));
+        // Titolo
+        Label title = new Label(book.getTitle() != null ? book.getTitle() : "Titolo non disponibile");
+        title.setFont(Font.font("System", FontWeight.BOLD, 11));
         title.setTextFill(Color.WHITE);
         title.setWrapText(true);
-        title.setMaxWidth(120);
+        title.setMaxWidth(110);
         title.setAlignment(Pos.CENTER);
+        title.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
         // Autore
-        Label author = new Label(book.getAuthor());
-        author.setFont(Font.font("System", FontWeight.NORMAL, 10));
+        Label author = new Label(book.getAuthor() != null ? book.getAuthor() : "Autore sconosciuto");
+        author.setFont(Font.font("System", FontWeight.NORMAL, 9));
         author.setTextFill(Color.web("#8E8E93"));
         author.setWrapText(true);
-        author.setMaxWidth(120);
+        author.setMaxWidth(110);
         author.setAlignment(Pos.CENTER);
+        author.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
 
-        // container per stelline e valutazione
-        HBox ratingBox = new HBox(4);
+        // Rating box (se disponibili)
+        VBox ratingBox = new VBox(2);
         ratingBox.setAlignment(Pos.CENTER);
 
-        // Se il libro ha già i dati di rating dal server, mostrarli
-        if (book.getAverageRating() > 0.0) {
-            double avgRating = book.getAverageRating();
-            int stars = (int) Math.round(avgRating);
-            String starsDisplay = "★".repeat(stars) + "☆".repeat(5 - stars);
-
-            Label starsLabel = new Label(starsDisplay);
+        // Controllo più robusto per il rating
+        Double rating = book.getAverageRating();
+        if (rating != null && rating > 0.0) {
+            // Stelle
+            Label starsLabel = new Label(createStarString(book.getAverageRating()));
             starsLabel.setFont(Font.font("System", 10));
-            starsLabel.setTextFill(Color.web("#A58D03")); // Stelline gialle
+            starsLabel.setTextFill(Color.web("#FFD700"));
 
-            Label ratingText = new Label(String.format("%.1f", avgRating));
-            ratingText.setFont(Font.font("System", 9));
+            // Rating numerico
+            Label ratingText = new Label(String.format("%.1f", book.getAverageRating()));
+            ratingText.setFont(Font.font("System", 8));
             ratingText.setTextFill(Color.web("#8E8E93"));
 
             ratingBox.getChildren().addAll(starsLabel, ratingText);
@@ -295,22 +301,37 @@ public class ExploreIntegration {
             reviewCount.setTextFill(Color.web("#8E8E93"));
             ratingBox.getChildren().add(reviewCount);
         }
-        // Se non ha rating né recensioni, non mostrare nulla nella ratingBox
 
         // Aggiungi tutti gli elementi alla card
         if (ratingBox.getChildren().isEmpty()) {
-            // Se non ci sono rating, layout senza rating box
             card.getChildren().addAll(bookCover, title, author);
         } else {
-            // Layout con rating box
             card.getChildren().addAll(bookCover, title, author, ratingBox);
         }
 
-        // Click handler
+        // ✅ CLICK HANDLER MODIFICATO - Passa lista completa della sezione
         card.setOnMouseClicked(e -> {
-            if (bookClickHandler != null) {
-                bookClickHandler.accept(book);
+            System.out.println("📖 Click libro sezione " + sectionType + ": " + book.getTitle());
+
+            // Determina quale lista usare in base al tipo di sezione
+            List<Book> sectionBooks;
+            switch (sectionType) {
+                case "mostReviewed":
+                    sectionBooks = mostReviewedBooks;
+                    System.out.println("📚 Usando lista 'Più recensiti' con " + mostReviewedBooks.size() + " libri");
+                    break;
+                case "topRated":
+                    sectionBooks = topRatedBooks;
+                    System.out.println("📚 Usando lista 'Migliori valutazioni' con " + topRatedBooks.size() + " libri");
+                    break;
+                default:
+                    sectionBooks = List.of(book); // Fallback
+                    System.out.println("⚠️ Tipo sezione sconosciuto: " + sectionType);
+                    break;
             }
+
+            // Apri direttamente BookDetailsPopup con la lista completa della sezione
+            AppleBooksClient.openBookDetails(book, sectionBooks, null);
         });
 
         // Effetti hover
@@ -324,10 +345,37 @@ public class ExploreIntegration {
             card.setScaleY(1.0);
         });
 
-        // Stile cursor
         card.setStyle("-fx-cursor: hand;");
 
         return card;
+    }
+
+    /**
+     * Crea stringa di stelle per il rating
+     */
+    private String createStarString(double rating) {
+        int fullStars = (int) rating;
+        boolean halfStar = (rating - fullStars) >= 0.5;
+
+        StringBuilder stars = new StringBuilder();
+
+        // Stelle piene
+        for (int i = 0; i < fullStars; i++) {
+            stars.append("★");
+        }
+
+        // Stella mezza se necessaria
+        if (halfStar && fullStars < 5) {
+            stars.append("☆");
+            fullStars++;
+        }
+
+        // Stelle vuote rimanenti
+        for (int i = fullStars; i < 5; i++) {
+            stars.append("☆");
+        }
+
+        return stars.toString();
     }
 
     /**

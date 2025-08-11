@@ -347,14 +347,7 @@ public class BookDetailsPopup {
             e.consume();
         });
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Button addButton = createTopBarButton("+", 20);
-        Button shareButton = createTopBarButton("⇧", 16);
-        Button moreButton = createTopBarButton("⋯", 16);
-
-        topBar.getChildren().addAll(closeButton, spacer, addButton, shareButton, moreButton);
+        topBar.getChildren().addAll(closeButton);
         return topBar;
     }
 

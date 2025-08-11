@@ -193,32 +193,13 @@ public class AuthPanel extends VBox {
                     });
         });
 
-        // Separatore
-        Separator separator = new Separator();
-        separator.setPadding(new Insets(15, 0, 15, 0));
-
-        // Login con social (placeholder)
-        Label socialLabel = new Label("🌐 Oppure accedi con");
-        socialLabel.setTextFill(Color.web(HINT_COLOR));
-
-        HBox socialBox = new HBox(15);
-        socialBox.setAlignment(Pos.CENTER);
-
-        Button googleBtn = createSocialButton("🔴 Google");
-        Button facebookBtn = createSocialButton("🔵 Facebook");
-
-        socialBox.getChildren().addAll(googleBtn, facebookBtn);
-
         loginPanel.getChildren().addAll(
                 loginTitle,
                 emailField,
                 passwordField,
                 optionsBox,
                 loginBtn,
-                progressIndicator,
-                separator,
-                socialLabel,
-                socialBox
+                progressIndicator
         );
 
         return loginPanel;
@@ -351,22 +332,6 @@ public class AuthPanel extends VBox {
                     });
         });
 
-        // Separatore
-        Separator separator = new Separator();
-        separator.setPadding(new Insets(15, 0, 15, 0));
-
-        // Registrazione con social (placeholder)
-        Label socialLabel = new Label("🌐 Oppure registrati con");
-        socialLabel.setTextFill(Color.web(HINT_COLOR));
-
-        HBox socialBox = new HBox(15);
-        socialBox.setAlignment(Pos.CENTER);
-
-        Button googleBtn = createSocialButton("🔴 Google");
-        Button facebookBtn = createSocialButton("🔵 Facebook");
-
-        socialBox.getChildren().addAll(googleBtn, facebookBtn);
-
         // Aggiungi tutti gli elementi al pannello
         signupPanel.getChildren().addAll(
                 signupTitle,
@@ -379,10 +344,7 @@ public class AuthPanel extends VBox {
                 confirmPasswordField,
                 termsBox,
                 signupBtn,
-                progressIndicator,
-                separator,
-                socialLabel,
-                socialBox
+                progressIndicator
         );
 
         ScrollPane scrollPane = new ScrollPane(signupPanel);

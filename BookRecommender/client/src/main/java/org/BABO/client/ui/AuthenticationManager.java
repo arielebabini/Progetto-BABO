@@ -254,6 +254,19 @@ public class AuthenticationManager {
     }
 
     /**
+     * Aggiorna l'utente corrente (per modifiche al profilo)
+     */
+    public void updateCurrentUser(User updatedUser) {
+        if (this.isAuthenticated && updatedUser != null) {
+            this.currentUser = updatedUser;
+            System.out.println("✅ Profilo utente aggiornato: " + updatedUser.getDisplayName());
+
+            // Notifica il cambiamento
+            notifyAuthStateChanged();
+        }
+    }
+
+    /**
      * Recupera e aggiorna il profilo utente dal server
      */
     public void refreshUserProfile() {

@@ -273,4 +273,117 @@ public class AuthService {
             }
         });
     }
+
+    /**
+     * Cambio password asincrono
+     */
+    public CompletableFuture<AuthResponse> changePasswordAsync(String userId, String oldPassword, String newPassword) {
+        System.out.println("🔐 Tentativo cambio password per utente ID: " + userId);
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // JSON semplice senza userId (che va nell'URL)
+                String requestBody = String.format(
+                        "{\"oldPassword\":\"%s\",\"newPassword\":\"%s\"}",
+                        oldPassword.replace("\"", "\\\""),
+                        newPassword.replace("\"", "\\\"")
+                );
+
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(BASE_URL + "/change-password/" + userId))  // ← AGGIUNTO userId qui
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(requestBody))
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("📡 Risposta cambio password - Status: " + response.statusCode());
+                System.out.println("📡 Body: " + response.body());
+
+                if (response.statusCode() == 200) {
+                    String responseBody = response.body();
+                    boolean success = responseBody.contains("\"success\":true");
+                    String message = extractMessageFromJson(responseBody);
+
+                    return new AuthResponse(success, message != null ? message : "Password cambiata con successo");
+                } else {
+                    String responseBody = response.body();
+                    String errorMessage = extractMessageFromJson(responseBody);
+
+                    return new AuthResponse(false, errorMessage != null ? errorMessage : "Errore del server");
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore cambio password: " + e.getMessage());
+                return new AuthResponse(false, "Errore di connessione: " + e.getMessage());
+            }
+        });
+    }
+
+    // Metodo helper per estrarre il messaggio dal JSON
+    private String extractMessageFromJson(String json) {
+        try {
+            // Cerca il campo "message" nel JSON
+            int messageIndex = json.indexOf("\"message\":");
+            if (messageIndex != -1) {
+                int startQuote = json.indexOf("\"", messageIndex + 10);
+                if (startQuote != -1) {
+                    int endQuote = json.indexOf("\"", startQuote + 1);
+                    if (endQuote != -1) {
+                        return json.substring(startQuote + 1, endQuote);
+                    }
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Aggiorna l'email dell'utente in modo asincrono
+     */
+    public CompletableFuture<AuthResponse> updateEmailAsync(String userId, String newEmail) {
+        System.out.println("📧 Tentativo aggiornamento email per utente ID: " + userId);
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Crea il body della richiesta con la nuova email
+                Map<String, String> requestBody = Map.of("email", newEmail);
+                String jsonBody = objectMapper.writeValueAsString(requestBody);
+
+                HttpRequest httpRequest = HttpRequest.newBuilder()
+                        .uri(URI.create(BASE_URL + "/update-email/" + userId))
+                        .header("Content-Type", "application/json")
+                        .PUT(HttpRequest.BodyPublishers.ofString(jsonBody))
+                        .timeout(Duration.ofSeconds(30))
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(httpRequest,
+                        HttpResponse.BodyHandlers.ofString());
+
+                System.out.println("📡 Risposta aggiornamento email - Status: " + response.statusCode());
+
+                if (response.statusCode() == 200) {
+                    AuthResponse authResponse = objectMapper.readValue(response.body(), AuthResponse.class);
+                    System.out.println("✅ Email aggiornata con successo");
+                    return authResponse;
+                } else {
+                    try {
+                        AuthResponse errorResponse = objectMapper.readValue(response.body(), AuthResponse.class);
+                        System.out.println("❌ Errore aggiornamento email: " + errorResponse.getMessage());
+                        return errorResponse;
+                    } catch (Exception e) {
+                        return new AuthResponse(false, "Errore durante l'aggiornamento dell'email");
+                    }
+                }
+
+            } catch (Exception e) {
+                System.err.println("❌ Errore durante l'aggiornamento email: " + e.getMessage());
+                return new AuthResponse(false, "Errore di connessione al server");
+            }
+        });
+    }
 }

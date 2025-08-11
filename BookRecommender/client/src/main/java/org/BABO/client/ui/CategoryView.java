@@ -3,6 +3,7 @@ package org.BABO.client.ui;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
+import org.BABO.client.ui.AppleBooksClient;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -26,7 +27,7 @@ import java.util.function.Consumer;
 
 /**
  * Vista per mostrare i libri di una categoria specifica
- * VERSIONE SEMPLIFICATA - Usa ricerca generale filtrata per categoria
+ * ✅ SEMPLIFICATA - Mostra tutti i libri e passa la lista al BookDetailsPopup per la navigazione
  */
 public class CategoryView {
 
@@ -38,6 +39,9 @@ public class CategoryView {
 
     private Label backText;
     private Runnable onBackCallback;
+
+    // ✅ Lista di tutti i libri della categoria per la navigazione
+    private List<Book> categoryBooks = new ArrayList<>();
 
     public CategoryView(Category category, BookService bookService, Consumer<Book> bookClickHandler) {
         this.category = category;
@@ -265,7 +269,7 @@ public class CategoryView {
             case "narrativapergiovaniadulti":
                 return "giovani adulti";
             case "scienze sociali":
-            case "cienzesociali":
+            case "scienzesociali":
                 return "sociale";
             case "biografia & autobiografia":
             case "biografia e autobiografia":
@@ -405,7 +409,7 @@ public class CategoryView {
     }
 
     /**
-     * Mostra i libri nella vista
+     * ✅ MOSTRA I LIBRI IN GRIGLIA STANDARD (senza frecce - quelle sono nel BookDetailsPopup)
      */
     private void displayBooks(List<Book> books) {
         // Rimuovi indicatore di caricamento
@@ -419,15 +423,17 @@ public class CategoryView {
             return;
         }
 
+        // ✅ SALVA TUTTI I LIBRI per la navigazione nel BookDetailsPopup
+        this.categoryBooks = new ArrayList<>(books);
+
         // Intestazione risultati
         Label resultsHeader = new Label(books.size() + " libri trovati");
         resultsHeader.setFont(Font.font("System", FontWeight.BOLD, 24));
         resultsHeader.setTextFill(Color.WHITE);
         resultsHeader.setPadding(new Insets(20, 0, 20, 0));
-
         content.getChildren().add(resultsHeader);
 
-        // Griglia libri
+        // ✅ GRIGLIA LIBRI STANDARD (come originale, senza frecce)
         FlowPane booksGrid = new FlowPane();
         booksGrid.setHgap(20);
         booksGrid.setVgap(25);
@@ -440,6 +446,61 @@ public class CategoryView {
         }
 
         content.getChildren().add(booksGrid);
+    }
+
+    /**
+     * ✅ CREA CARD LIBRO con click handler che passa TUTTA LA LISTA al BookDetailsPopup
+     */
+    private VBox createBookCard(Book book) {
+        VBox card = new VBox(10);
+        card.setAlignment(Pos.TOP_CENTER);
+        card.setPrefWidth(150);
+        card.setMaxWidth(150);
+        card.setPadding(new Insets(10));
+        card.setStyle("-fx-cursor: hand;");
+
+        // ✅ CORRETTO: Usa ImageUtils come nelle altre sezioni che già funzionano
+        ImageView bookCover = ImageUtils.createSafeImageView(book.getSafeImageFileName(), 120, 170);
+
+        // Applica clip per bordi arrotondati
+        Rectangle clip = new Rectangle(120, 170);
+        clip.setArcWidth(8);
+        clip.setArcHeight(8);
+        bookCover.setClip(clip);
+
+        // Effetto ombra
+        DropShadow shadow = new DropShadow();
+        shadow.setRadius(8);
+        shadow.setColor(Color.BLACK.deriveColor(0, 1, 1, 0.3));
+        bookCover.setEffect(shadow);
+
+        // Titolo
+        Label titleLabel = new Label(book.getTitle() != null ? book.getTitle() : "Titolo non disponibile");
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setFont(Font.font("System", FontWeight.NORMAL, 13));
+        titleLabel.setWrapText(true);
+        titleLabel.setMaxWidth(135);
+        titleLabel.setAlignment(Pos.CENTER);
+
+        // Autore
+        Label authorLabel = new Label(book.getAuthor() != null ? book.getAuthor() : "Autore sconosciuto");
+        authorLabel.setTextFill(Color.web("#AAAAAA"));
+        authorLabel.setFont(Font.font("System", FontWeight.LIGHT, 12));
+        authorLabel.setWrapText(true);
+        authorLabel.setMaxWidth(135);
+        authorLabel.setAlignment(Pos.CENTER);
+
+        // ✅ CLICK HANDLER che passa TUTTA LA LISTA dei libri della categoria
+        card.setOnMouseClicked(e -> {
+            System.out.println("📖 Click libro categoria: " + book.getTitle());
+            System.out.println("📚 Aprendo con lista di " + categoryBooks.size() + " libri per navigazione");
+
+            // Apri direttamente BookDetailsPopup con la lista completa della categoria
+            AppleBooksClient.openBookDetails(book, categoryBooks, null);
+        });
+
+        card.getChildren().addAll(bookCover, titleLabel, authorLabel);
+        return card;
     }
 
     /**
@@ -485,97 +546,8 @@ public class CategoryView {
         content.getChildren().add(errorBox);
     }
 
-    /**
-     * Crea una card per un libro
-     */
-    private VBox createBookCard(Book book) {
-        VBox card = new VBox(10);
-        card.setAlignment(Pos.TOP_CENTER);
-        card.setPrefWidth(150);
-        card.setMaxWidth(150);
-        card.setPadding(new Insets(10));
-
-        // ✅ CORRETTO: Usa ImageUtils come nelle altre sezioni che già funzionano
-        ImageView bookCover = ImageUtils.createSafeImageView(book.getImageUrl(), 100, 140);
-
-        // Applica clip arrotondato
-        Rectangle clip = new Rectangle(100, 140);
-        clip.setArcWidth(8);
-        clip.setArcHeight(8);
-        bookCover.setClip(clip);
-
-        // Effetto ombra
-        DropShadow shadow = new DropShadow();
-        shadow.setColor(Color.web("#000000", 0.4));
-        shadow.setOffsetX(0);
-        shadow.setOffsetY(6);
-        shadow.setRadius(12);
-        bookCover.setEffect(shadow);
-
-        // Titolo libro
-        Label title = new Label(book.getTitle());
-        title.setFont(Font.font("System", FontWeight.BOLD, 14));
-        title.setTextFill(Color.WHITE);
-        title.setWrapText(true);
-        title.setMaxWidth(150);
-        title.setAlignment(Pos.CENTER);
-
-        // Autore
-        Label author = new Label(book.getAuthor());
-        author.setFont(Font.font("System", FontWeight.NORMAL, 12));
-        author.setTextFill(Color.web("#8E8E93"));
-        author.setWrapText(true);
-        author.setMaxWidth(150);
-        author.setAlignment(Pos.CENTER);
-
-        // Anno pubblicazione (se disponibile)
-        if (book.getPublishYear() != null && !book.getPublishYear().trim().isEmpty()) {
-            Label year = new Label(book.getPublishYear());
-            year.setFont(Font.font("System", FontWeight.NORMAL, 10));
-            year.setTextFill(Color.web("#8E8E93"));
-            card.getChildren().addAll(bookCover, title, author, year);
-        } else {
-            card.getChildren().addAll(bookCover, title, author);
-        }
-
-        // Click handler
-        card.setOnMouseClicked(e -> {
-            if (bookClickHandler != null) {
-                System.out.println("📖 Click libro categoria: " + book.getTitle());
-                bookClickHandler.accept(book);
-            }
-        });
-
-        // Effetti hover
-        card.setOnMouseEntered(e -> {
-            card.setScaleX(1.05);
-            card.setScaleY(1.05);
-            card.setStyle("-fx-cursor: hand; -fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 8;");
-        });
-
-        card.setOnMouseExited(e -> {
-            card.setScaleX(1.0);
-            card.setScaleY(1.0);
-            card.setStyle("-fx-cursor: hand; -fx-background-color: transparent;");
-        });
-
-        // Stile cursor
-        card.setStyle("-fx-cursor: hand;");
-
-        return card;
-    }
-
-    /**
-     * Getter per la categoria
-     */
-    public Category getCategory() {
-        return category;
-    }
-
-    /**
-     * Verifica se è in caricamento
-     */
-    public boolean isLoading() {
-        return isLoading;
+    // ✅ GETTER per permettere l'accesso alla lista di libri (se necessario)
+    public List<Book> getCategoryBooks() {
+        return new ArrayList<>(categoryBooks); // Copia difensiva
     }
 }

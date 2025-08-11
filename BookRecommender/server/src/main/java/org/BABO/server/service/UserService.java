@@ -415,6 +415,34 @@ public class UserService {
     }
 
     /**
+     * Aggiorna l'email dell'utente
+     */
+    public boolean updateUserEmail(String userId, String newEmail) {
+        String query = "UPDATE users SET email = ? WHERE id = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, newEmail.toLowerCase().trim());
+            stmt.setLong(2, Long.parseLong(userId));
+
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("✅ Email aggiornata per utente ID: " + userId + " -> " + newEmail);
+                return true;
+            } else {
+                System.err.println("❌ Nessun utente trovato con ID: " + userId);
+                return false;
+            }
+
+        } catch (SQLException | NumberFormatException e) {
+            System.err.println("❌ Errore aggiornamento email: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Controlla se il database è disponibile
      */
     public boolean isDatabaseAvailable() {

@@ -7,6 +7,7 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import org.BABO.client.service.AuthService;
 import org.BABO.shared.model.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -42,6 +43,7 @@ public class UserProfilePopup {
 
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+    private boolean isEmailDialogOpen = false;
 
     public UserProfilePopup(AuthenticationManager authManager, Runnable onLogoutCallback) {
         this.authManager = authManager;
@@ -448,13 +450,13 @@ public class UserProfilePopup {
         HBox buttonsRow1 = new HBox(10);
         buttonsRow1.setAlignment(Pos.CENTER);
 
-        Button editButton = createActionButton("✏️ Modifica Profilo", "#4a86e8");
-        editButton.setOnAction(e -> {
-            showAlert("🚧 Info", "Funzionalità di modifica profilo sarà implementata presto!");
-        });
+        Button editButton = createActionButton("✏️ Cambia Email", "#4a86e8");
+        editButton.setOnAction(e -> showEditProfileDialog());
 
         Button changePasswordButton = createActionButton("🔐 Cambia Password", "#4a86e8");
-        changePasswordButton.setOnAction(e -> showChangePasswordDialog());
+        changePasswordButton.setOnAction(e -> {
+            showChangePasswordDialog();
+        });
 
         buttonsRow1.getChildren().addAll(editButton, changePasswordButton);
 
@@ -470,99 +472,84 @@ public class UserProfilePopup {
         return actionsSection;
     }
 
-    /**
-     * Mostra il dialog per cambiare la password
-     */
-    private void showChangePasswordDialog() {
-        Stage dialog = new Stage();
-        dialog.initModality(Modality.APPLICATION_MODAL);
-        dialog.setTitle("🔐 Cambia Password");
-        dialog.setResizable(false);
-        dialog.getIcons().add(new Image("/icons/password.png")); // Opzionale
+    private void showEditProfileDialog() {
+        isEmailDialogOpen = true;
+        User currentUser = authManager.getCurrentUser();
+        if (currentUser == null) {
+            showAlert("⚠️ Errore", "Nessun utente loggato");
+            return;
+        }
+
+        Alert dialog = new Alert(Alert.AlertType.NONE);
+        dialog.setTitle("✏️ Modifica Profilo");
+        dialog.setHeaderText(null);
 
         // Container principale
         VBox container = new VBox(20);
-        container.setPadding(new Insets(30));
-        container.setAlignment(Pos.CENTER);
-        container.setStyle(
-                "-fx-background-color: linear-gradient(to bottom, #2c3e50, #34495e);" +
-                        "-fx-border-radius: 15;" +
-                        "-fx-background-radius: 15;"
-        );
+        container.setPadding(new Insets(25));
+        container.setStyle("-fx-background-color: " + BG_COLOR + ";");
 
-        // Titolo
-        Label titleLabel = new Label("🔐 Cambia Password");
-        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 24));
-        titleLabel.setTextFill(Color.WHITE);
-        titleLabel.setAlignment(Pos.CENTER);
+        // Titolo e descrizione
+        Label titleLabel = new Label("✏️ Modifica Email");
+        titleLabel.setFont(Font.font("System", FontWeight.BOLD, 20));
+        titleLabel.setTextFill(Color.web(TEXT_COLOR));
 
-        // Descrizione
-        Label descLabel = new Label("Per sicurezza, inserisci la tua password attuale e quella nuova");
+        Label descLabel = new Label("Inserisci la nuova email di accesso");
         descLabel.setFont(Font.font("System", FontWeight.NORMAL, 14));
-        descLabel.setTextFill(Color.web("#bdc3c7"));
-        descLabel.setWrapText(true);
-        descLabel.setAlignment(Pos.CENTER);
-        descLabel.setMaxWidth(350);
+        descLabel.setTextFill(Color.web(HINT_COLOR));
+        descLabel.setPadding(new Insets(0, 0, 10, 0));
 
         // Container per i campi
         VBox fieldsContainer = new VBox(15);
-        fieldsContainer.setAlignment(Pos.CENTER);
 
-        // Campo password attuale
-        Label currentLabel = new Label("Password Attuale:");
-        currentLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-        currentLabel.setTextFill(Color.WHITE);
+        // Campo email attuale (solo lettura)
+        Label currentEmailLabel = new Label("📧 Email attuale:");
+        currentEmailLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        currentEmailLabel.setTextFill(Color.web(TEXT_COLOR));
 
-        PasswordField currentPasswordField = new PasswordField();
-        currentPasswordField.setPromptText("Inserisci la password attuale");
-        currentPasswordField.setPrefWidth(300);
-        currentPasswordField.setPrefHeight(40);
-        currentPasswordField.setStyle(
-                "-fx-background-color: #34495e;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-prompt-text-fill: #7f8c8d;" +
-                        "-fx-border-color: #4a86e8;" +
-                        "-fx-border-width: 2;" +
+        TextField currentEmailField = new TextField(currentUser.getEmail());
+        currentEmailField.setEditable(false);
+        currentEmailField.setStyle(
+                "-fx-background-color: " + BG_CONTROL + ";" +
+                        "-fx-text-fill: " + HINT_COLOR + ";" +
+                        "-fx-border-color: #555;" +
                         "-fx-border-radius: 8;" +
                         "-fx-background-radius: 8;" +
-                        "-fx-font-size: 14px;"
+                        "-fx-padding: 12px;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-opacity: 0.7;"
         );
 
-        // Campo nuova password
-        Label newLabel = new Label("Nuova Password:");
-        newLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-        newLabel.setTextFill(Color.WHITE);
+        // Campo nuova email
+        Label newEmailLabel = new Label("📧 Nuova email:");
+        newEmailLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        newEmailLabel.setTextFill(Color.web(TEXT_COLOR));
 
-        PasswordField newPasswordField = new PasswordField();
-        newPasswordField.setPromptText("Inserisci la nuova password");
-        newPasswordField.setPrefWidth(300);
-        newPasswordField.setPrefHeight(40);
-        newPasswordField.setStyle(currentPasswordField.getStyle());
+        TextField newEmailField = new TextField();
+        newEmailField.setPromptText("Inserisci la nuova email");
+        styleInput(newEmailField);
 
-        // Campo conferma nuova password
-        Label confirmLabel = new Label("Conferma Nuova Password:");
-        confirmLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-        confirmLabel.setTextFill(Color.WHITE);
+        // Campo conferma email
+        Label confirmEmailLabel = new Label("📧 Conferma nuova email:");
+        confirmEmailLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
+        confirmEmailLabel.setTextFill(Color.web(TEXT_COLOR));
 
-        PasswordField confirmPasswordField = new PasswordField();
-        confirmPasswordField.setPromptText("Ripeti la nuova password");
-        confirmPasswordField.setPrefWidth(300);
-        confirmPasswordField.setPrefHeight(40);
-        confirmPasswordField.setStyle(currentPasswordField.getStyle());
+        TextField confirmEmailField = new TextField();
+        confirmEmailField.setPromptText("Conferma la nuova email");
+        styleInput(confirmEmailField);
 
-        // Label per messaggi di errore/info
+        // Label per messaggi
         Label messageLabel = new Label();
         messageLabel.setFont(Font.font("System", FontWeight.NORMAL, 12));
         messageLabel.setWrapText(true);
         messageLabel.setAlignment(Pos.CENTER);
-        messageLabel.setMaxWidth(300);
+        messageLabel.setMaxWidth(350);
         messageLabel.setVisible(false);
 
-        // Aggiunta campi al container
         fieldsContainer.getChildren().addAll(
-                currentLabel, currentPasswordField,
-                newLabel, newPasswordField,
-                confirmLabel, confirmPasswordField,
+                currentEmailLabel, currentEmailField,
+                newEmailLabel, newEmailField,
+                confirmEmailLabel, confirmEmailField,
                 messageLabel
         );
 
@@ -585,11 +572,11 @@ public class UserProfilePopup {
         );
         cancelButton.setOnAction(event -> dialog.close());
 
-        // Bottone Cambia
-        Button changeButton = new Button("✅ Cambia Password");
-        changeButton.setPrefWidth(150);
-        changeButton.setPrefHeight(40);
-        changeButton.setStyle(
+        // Bottone Salva
+        Button saveButton = new Button("✅ Salva Email");
+        saveButton.setPrefWidth(150);
+        saveButton.setPrefHeight(40);
+        saveButton.setStyle(
                 "-fx-background-color: #27ae60;" +
                         "-fx-text-fill: white;" +
                         "-fx-font-weight: bold;" +
@@ -599,51 +586,44 @@ public class UserProfilePopup {
                         "-fx-cursor: hand;"
         );
 
-        // Azione del bottone Cambia
-        changeButton.setOnAction(event -> {
-            String currentPassword = currentPasswordField.getText();
-            String newPassword = newPasswordField.getText();
-            String confirmPassword = confirmPasswordField.getText();
+        // Azione del bottone Salva
+        saveButton.setOnAction(event -> {
+            String newEmail = newEmailField.getText().trim();
+            String confirmEmail = confirmEmailField.getText().trim();
 
             // Reset messaggio precedente
             messageLabel.setVisible(false);
 
             // Validazioni
-            if (currentPassword.isEmpty()) {
-                showMessage(messageLabel, "❌ Inserisci la password attuale", "#e74c3c");
-                currentPasswordField.requestFocus();
+            if (newEmail.isEmpty()) {
+                showMessage(messageLabel, "❌ Inserisci la nuova email", "#e74c3c");
+                newEmailField.requestFocus();
                 return;
             }
 
-            if (newPassword.isEmpty()) {
-                showMessage(messageLabel, "❌ Inserisci la nuova password", "#e74c3c");
-                newPasswordField.requestFocus();
+            if (!isValidEmail(newEmail)) {
+                showMessage(messageLabel, "❌ Formato email non valido", "#e74c3c");
+                newEmailField.requestFocus();
                 return;
             }
 
-            if (newPassword.length() < 6) {
-                showMessage(messageLabel, "❌ La password deve essere di almeno 6 caratteri", "#e74c3c");
-                newPasswordField.requestFocus();
+            if (!newEmail.equals(confirmEmail)) {
+                showMessage(messageLabel, "❌ Le email non corrispondono", "#e74c3c");
+                confirmEmailField.requestFocus();
                 return;
             }
 
-            if (!newPassword.equals(confirmPassword)) {
-                showMessage(messageLabel, "❌ Le password non corrispondono", "#e74c3c");
-                confirmPasswordField.requestFocus();
+            if (newEmail.equals(currentUser.getEmail())) {
+                showMessage(messageLabel, "❌ La nuova email deve essere diversa da quella attuale", "#e74c3c");
+                newEmailField.requestFocus();
                 return;
             }
 
-            if (currentPassword.equals(newPassword)) {
-                showMessage(messageLabel, "❌ La nuova password deve essere diversa da quella attuale", "#e74c3c");
-                newPasswordField.requestFocus();
-                return;
-            }
-
-            // Cambio password (qui chiamerai il tuo servizio)
-            changePassword(currentPassword, newPassword, dialog, messageLabel);
+            // Cambio email
+            changeEmail(newEmail, dialog, messageLabel, saveButton);
         });
 
-        buttonContainer.getChildren().addAll(cancelButton, changeButton);
+        buttonContainer.getChildren().addAll(cancelButton, saveButton);
 
         // Assemblaggio finale
         container.getChildren().addAll(
@@ -655,22 +635,41 @@ public class UserProfilePopup {
 
         // Effetti hover sui bottoni
         addHoverEffect(cancelButton, "#e74c3c", "#c0392b");
-        addHoverEffect(changeButton, "#27ae60", "#229954");
+        addHoverEffect(saveButton, "#27ae60", "#219a52");
 
-        // Scene e show
-        Scene scene = new Scene(container, 400, 500);
-        dialog.setScene(scene);
-        dialog.show();
+        dialog.getDialogPane().setContent(container);
+        dialog.getDialogPane().getButtonTypes().clear();
 
-        // Focus iniziale
-        Platform.runLater(() -> currentPasswordField.requestFocus());
+        // Styling del dialog
+        dialog.getDialogPane().setStyle("-fx-background-color: " + BG_COLOR + ";");
+        dialog.getDialogPane().setPrefSize(400, 450);
+
+        // Focus iniziale sul campo nuova email
+        Platform.runLater(() -> newEmailField.requestFocus());
+
+        dialog.showAndWait();
+    }
+
+    private void styleInput(TextField field) {
+        field.setStyle(
+                "-fx-background-color: " + BG_CONTROL + ";" +
+                        "-fx-text-fill: " + TEXT_COLOR + ";" +
+                        "-fx-border-color: #555;" +
+                        "-fx-border-radius: 8;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12px;" +
+                        "-fx-font-size: 14px;" +
+                        "-fx-prompt-text-fill: " + HINT_COLOR + ";"
+        );
+        field.setPrefHeight(45);
+        field.setMaxWidth(Double.MAX_VALUE);
     }
 
     /**
      * Mostra un messaggio nel label
      */
-    private void showMessage(Label messageLabel, String text, String color) {
-        messageLabel.setText(text);
+    private void showMessage(Label messageLabel, String message, String color) {
+        messageLabel.setText(message);
         messageLabel.setTextFill(Color.web(color));
         messageLabel.setVisible(true);
     }
@@ -678,12 +677,12 @@ public class UserProfilePopup {
     /**
      * Aggiunge effetto hover ai bottoni
      */
-    private void addHoverEffect(Button button, String normalColor, String hoverColor) {
+    private void addHoverEffect(Button button, String originalColor, String hoverColor) {
         button.setOnMouseEntered(e ->
-                button.setStyle(button.getStyle().replace(normalColor, hoverColor))
+                button.setStyle(button.getStyle().replace(originalColor, hoverColor))
         );
         button.setOnMouseExited(e ->
-                button.setStyle(button.getStyle().replace(hoverColor, normalColor))
+                button.setStyle(button.getStyle().replace(hoverColor, originalColor))
         );
     }
 
@@ -694,41 +693,157 @@ public class UserProfilePopup {
         User currentUser = authManager.getCurrentUser();
         System.out.println("🔐 Tentativo cambio password per utente: " + currentUser.getUsername());
 
-        // Simula validazione password attuale
-        // IMPORTANTE: Qui devi verificare la password attuale tramite il tuo servizio
-
-        // Esempio di implementazione:
-    /*
-    CompletableFuture.supplyAsync(() -> {
-        try {
-            // Chiama il tuo servizio per cambiare la password
-            return userService.changePassword(currentUser.getUsername(), currentPassword, newPassword);
-        } catch (Exception e) {
-            Platform.runLater(() ->
-                showMessage(messageLabel, "❌ Errore: " + e.getMessage(), "#e74c3c")
-            );
-            return false;
-        }
-    }).thenAccept(success -> {
-        Platform.runLater(() -> {
-            if (success) {
-                showAlert("✅ Successo", "Password cambiata con successo!");
-                dialog.close();
-            } else {
-                showMessage(messageLabel, "❌ Password attuale non corretta", "#e74c3c");
-            }
-        });
-    });
-    */
-
-        // TEMPORANEO - Simula successo dopo 1 secondo
         showMessage(messageLabel, "🔄 Cambio password in corso...", "#f39c12");
 
-        Timeline timeline = new Timeline(new KeyFrame(Duration.Seconds(1), e -> {
+        Timeline timeline = new Timeline(new KeyFrame(javafx.util.Duration.millis(1000), e -> {
             showAlert("✅ Successo", "Password cambiata con successo!");
             dialog.close();
         }));
         timeline.play();
+    }
+
+    private void showChangePasswordDialog() {
+        Alert dialog = new Alert(Alert.AlertType.NONE);
+        dialog.setTitle("🔐 Cambia Password");
+        dialog.setHeaderText(null);
+
+        VBox content = new VBox(15);
+        content.setPadding(new Insets(20));
+
+        PasswordField currentPasswordField = new PasswordField();
+        currentPasswordField.setPromptText("Password attuale");
+
+        PasswordField newPasswordField = new PasswordField();
+        newPasswordField.setPromptText("Nuova password");
+
+        PasswordField confirmPasswordField = new PasswordField();
+        confirmPasswordField.setPromptText("Conferma nuova password");
+
+        Label messageLabel = new Label();
+
+        content.getChildren().addAll(
+                new Label("Password attuale:"), currentPasswordField,
+                new Label("Nuova password:"), newPasswordField,
+                new Label("Conferma password:"), confirmPasswordField,
+                messageLabel
+        );
+
+        dialog.getDialogPane().setContent(content);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+
+        Button okButton = (Button) dialog.getDialogPane().lookupButton(ButtonType.OK);
+        okButton.addEventFilter(javafx.event.ActionEvent.ACTION, event -> {
+            event.consume();
+
+            String currentPassword = currentPasswordField.getText();
+            String newPassword = newPasswordField.getText();
+            String confirmPassword = confirmPasswordField.getText();
+
+            if (!newPassword.equals(confirmPassword)) {
+                messageLabel.setText("❌ Le password non coincidono");
+                messageLabel.setTextFill(Color.RED);
+                return;
+            }
+
+            // Simula cambio password
+            messageLabel.setText("🔄 Cambio password in corso...");
+            messageLabel.setTextFill(Color.ORANGE);
+
+            // Ottieni l'utente corrente per l'ID
+            User currentUser = authManager.getCurrentUser();
+            if (currentUser == null) {
+                messageLabel.setText("❌ Errore: utente non trovato");
+                messageLabel.setTextFill(Color.RED);
+                return;
+            }
+
+            // Disabilita il pulsante durante la richiesta
+            okButton.setDisable(true);
+            messageLabel.setText("🔄 Cambio password in corso...");
+            messageLabel.setTextFill(Color.ORANGE);
+
+            // Crea un'istanza di AuthService
+            AuthService authService = new AuthService();
+
+            // Chiama il servizio per cambiare la password
+            authService.changePasswordAsync(
+                    String.valueOf(currentUser.getId()),
+                    currentPassword,
+                    newPassword
+            ).thenAccept(response -> {
+                javafx.application.Platform.runLater(() -> {
+                    if (response.isSuccess()) {
+                        dialog.close();
+                        showAlert("✅ Successo", "Password cambiata con successo!");
+                    } else {
+                        messageLabel.setText("❌ " + response.getMessage());
+                        messageLabel.setTextFill(Color.RED);
+                        okButton.setDisable(false);
+                    }
+                });
+            }).exceptionally(throwable -> {
+                javafx.application.Platform.runLater(() -> {
+                    messageLabel.setText("❌ Errore di connessione");
+                    messageLabel.setTextFill(Color.RED);
+                    okButton.setDisable(false);
+                });
+                return null;
+            });
+        });
+
+        dialog.showAndWait();
+    }
+
+    private boolean isValidEmail(String email) {
+        return email.matches("^[A-Za-z0-9+_.-]+@([A-Za-z0-9.-]+\\.[A-Za-z]{2,})$");
+    }
+
+    private void changeEmail(String newEmail, Alert dialog, Label messageLabel, Button saveButton) {
+        User currentUser = authManager.getCurrentUser();
+        if (currentUser == null) {
+            showMessage(messageLabel, "❌ Errore: utente non trovato", "#e74c3c");
+            return;
+        }
+
+        // Disabilita il pulsante durante la richiesta
+        saveButton.setDisable(true);
+        showMessage(messageLabel, "🔄 Cambio email in corso...", "#f39c12");
+
+        // Crea un'istanza di AuthService
+        AuthService authService = new AuthService();
+
+        // Chiama il servizio per cambiare l'email
+        authService.updateEmailAsync(String.valueOf(currentUser.getId()), newEmail)
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        if (response.isSuccess()) {
+                            User updatedUser = response.getUser();
+                            if (updatedUser != null) {
+                                authManager.updateCurrentUser(updatedUser);
+                            }
+
+                            // ✅ CHIUSURA FORZATA CON FLAG
+                            isEmailDialogOpen = false;
+
+                            Platform.runLater(() -> {
+                                try {
+                                    dialog.getDialogPane().getScene().getWindow().hide();
+                                } catch (Exception e) {
+                                    dialog.close();
+                                }
+
+                                showAlert("✅ Successo", "Email cambiata con successo!");
+                            });
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        showMessage(messageLabel, "❌ Errore di connessione", "#e74c3c");
+                        saveButton.setDisable(false);
+                    });
+                    return null;
+                });
     }
 
     private Button createActionButton(String text, String backgroundColor) {

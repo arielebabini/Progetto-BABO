@@ -60,7 +60,7 @@ public class AppleBooksClient extends Application {
             System.out.println("✅ PopupManager inizializzato con MainWindow");
 
             // 5. Setup scena
-            Scene scene = new Scene(root, 1100, 750);
+            Scene scene = new Scene(root, 1300, 800);
 
             // Carica CSS se disponibile
             try {
@@ -71,8 +71,12 @@ public class AppleBooksClient extends Application {
 
             stage.setScene(scene);
             stage.setTitle("📚 Apple Books Client " + (serverAvailable ? "🌐" : "📴"));
-            stage.setMinWidth(1000);
-            stage.setMinHeight(600);
+
+            stage.setMinWidth(1300);  // Larghezza minima assoluta
+            stage.setMinHeight(800);  // Altezza minima assoluta
+
+            stage.setWidth(1300);     // Larghezza iniziale
+            stage.setHeight(800);     // Altezza iniziale
 
             // 6. GESTIONE CHIUSURA MIGLIORATA
             stage.setOnCloseRequest(e -> {
@@ -83,6 +87,8 @@ public class AppleBooksClient extends Application {
             // 7. Setup eventi post-mostrazione
             stage.setOnShown(e -> {
                 System.out.println("✅ Interfaccia avviata con successo!");
+                System.out.println("📐 Dimensioni finestra: " + stage.getWidth() + "x" + stage.getHeight());
+                System.out.println("📐 Dimensioni minime: 1200x700 (NON riducibili)");
 
                 // Debug iniziale
                 if (isDebugMode()) {
@@ -97,6 +103,7 @@ public class AppleBooksClient extends Application {
             stage.centerOnScreen();
 
             System.out.println("🎉 AppleBooksClient avviato con successo");
+            System.out.println("📐 Finestra configurata: 1300x800 (minimo NON riducibile: 1200x700)");
 
         } catch (Exception e) {
             System.err.println("❌ Errore fatale nell'avvio: " + e.getMessage());
@@ -109,7 +116,7 @@ public class AppleBooksClient extends Application {
     }
 
     /**
-     * NUOVO: Setup dell'icona dell'applicazione
+     * Setup dell'icona dell'applicazione
      */
     private void setupApplicationIcon(Stage stage) {
         System.out.println("🎨 Configurazione icona applicazione cross-platform...");

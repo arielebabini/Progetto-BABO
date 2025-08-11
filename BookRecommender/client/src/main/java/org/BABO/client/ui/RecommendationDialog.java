@@ -85,17 +85,21 @@ public class RecommendationDialog {
     }
 
     private void createUI() {
-        // Container principale con sfondo semi-trasparente
+        // Container principale SENZA sfondo scuro
         StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
+        root.setStyle("-fx-background-color: transparent;"); // ✅ CAMBIATO: da rgba(0,0,0,0.3) a transparent
 
         // Dialog content
         VBox dialogContent = createDialogContent();
         root.getChildren().add(dialogContent);
 
-        // Chiudi dialog cliccando fuori
+        // ✅ FIX: Permetti ai controlli figli di ricevere eventi mouse
+        root.setPickOnBounds(false);
+
+        // Chiudi dialog cliccando fuori - GESTIONE MIGLIORATA
         root.setOnMouseClicked(e -> {
-            if (e.getTarget() == root) {
+            // Chiudi solo se il click è DAVVERO sullo sfondo
+            if (e.getTarget() == root && e.getSource() == root) {
                 closeDialog();
             }
         });
@@ -235,52 +239,107 @@ public class RecommendationDialog {
         selectedTitle.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 16));
         selectedTitle.setTextFill(Color.WHITE);
 
+        // Container per i libri selezionati con ScrollPane
         selectedBooksContainer = new VBox(8);
         selectedBooksContainer.setAlignment(Pos.TOP_CENTER);
-        selectedBooksContainer.setStyle(
-                "-fx-background-color: #383838;" +
+        selectedBooksContainer.setPadding(new Insets(16));
+
+        ScrollPane selectedBooksScrollPane = new ScrollPane(selectedBooksContainer);
+        selectedBooksScrollPane.setFitToWidth(true);
+        selectedBooksScrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        selectedBooksScrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        selectedBooksScrollPane.setPrefHeight(160);
+        selectedBooksScrollPane.setMaxHeight(180);
+        selectedBooksScrollPane.setMinHeight(140);
+        selectedBooksScrollPane.setStyle(
+                "-fx-background: #383838;" +
+                        "-fx-background-color: #383838;" +
                         "-fx-background-radius: 10;" +
-                        "-fx-padding: 15;" +
-                        "-fx-min-height: 100;"
+                        "-fx-border-color: transparent;" +
+                        "-fx-padding: 8;"
         );
 
+        // Label per quando non ci sono libri selezionati
         Label emptyLabel = new Label("Nessun libro selezionato");
-        emptyLabel.setFont(Font.font("SF Pro Text", 12));
         emptyLabel.setTextFill(Color.GRAY);
+        emptyLabel.setFont(Font.font("SF Pro Text", 12));
+        emptyLabel.setStyle("-fx-padding: 30;");
         selectedBooksContainer.getChildren().add(emptyLabel);
 
-        section.getChildren().addAll(selectedTitle, selectedBooksContainer);
+        section.getChildren().addAll(selectedTitle, selectedBooksScrollPane);
         return section;
     }
 
     private HBox createButtonSection() {
-        HBox buttons = new HBox(15);
+        HBox buttons = new HBox(20);
         buttons.setAlignment(Pos.CENTER);
+        buttons.setPadding(new Insets(20, 0, 0, 0));
 
-        cancelButton = new Button("Annulla");
-        cancelButton.setPrefWidth(120);
-        cancelButton.setStyle(
-                "-fx-background-color: #606060;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 20;" +
-                        "-fx-padding: 10 20;" +
-                        "-fx-cursor: hand;"
-        );
-        cancelButton.setOnAction(e -> closeDialog());
-
-        saveButton = new Button("Salva Raccomandazioni");
-        saveButton.setPrefWidth(200);
+        // Pulsante Salva - COLORE SOBRIO
+        saveButton = new Button("💾 Salva 3 Raccomandazioni");
+        saveButton.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 14));
         saveButton.setStyle(
-                "-fx-background-color: #4CAF50;" +
+                "-fx-background-color: #4a7c59;" + // Verde scuro invece di verde acceso
                         "-fx-text-fill: white;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 20;" +
-                        "-fx-padding: 10 20;" +
-                        "-fx-cursor: hand;"
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);"
         );
-        saveButton.setDisable(true);
+
+        // Effetto hover
+        saveButton.setOnMouseEntered(e -> saveButton.setStyle(
+                "-fx-background-color: #5a8c69;" + // Verde leggermente più chiaro al hover
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);"
+        ));
+
+        saveButton.setOnMouseExited(e -> saveButton.setStyle(
+                "-fx-background-color: #4a7c59;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);"
+        ));
+
         saveButton.setOnAction(e -> saveRecommendations());
+        saveButton.setDisable(true); // Inizialmente disabilitato
+
+        // Pulsante Annulla - STILE SOBRIO
+        cancelButton = new Button("❌ Annulla");
+        cancelButton.setFont(Font.font("SF Pro Text", FontWeight.NORMAL, 14));
+        cancelButton.setStyle(
+                "-fx-background-color: #6c757d;" + // Grigio sobrio
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);"
+        );
+
+        cancelButton.setOnMouseEntered(e -> cancelButton.setStyle(
+                "-fx-background-color: #7c868d;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);"
+        ));
+
+        cancelButton.setOnMouseExited(e -> cancelButton.setStyle(
+                "-fx-background-color: #6c757d;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 8;" +
+                        "-fx-padding: 12 24;" +
+                        "-fx-cursor: hand;" +
+                        "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 4, 0, 0, 2);"
+        ));
+
+        cancelButton.setOnAction(e -> closeDialog());
 
         buttons.getChildren().addAll(cancelButton, saveButton);
         return buttons;
@@ -493,16 +552,24 @@ public class RecommendationDialog {
 
         if (selectedBooks.isEmpty()) {
             Label emptyLabel = new Label("Nessun libro selezionato");
-            emptyLabel.setFont(Font.font("SF Pro Text", 12));
             emptyLabel.setTextFill(Color.GRAY);
+            emptyLabel.setFont(Font.font("SF Pro Text", 12));
+            emptyLabel.setStyle("-fx-padding: 20;");
             selectedBooksContainer.getChildren().add(emptyLabel);
         } else {
             for (int i = 0; i < selectedBooks.size(); i++) {
                 Book book = selectedBooks.get(i);
-                HBox selectedCard = createSelectedBookCard(book, i);
-                selectedBooksContainer.getChildren().add(selectedCard);
+                HBox bookRow = createSelectedBookRow(book, i + 1);
+                selectedBooksContainer.getChildren().add(bookRow);
             }
         }
+
+        // Aggiorna pulsante salva
+        saveButton.setDisable(selectedBooks.size() != maxRecommendations);
+
+        // Aggiorna label slot rimanenti
+        int remaining = maxRecommendations - selectedBooks.size();
+        remainingSlotsLabel.setText("Slot rimanenti: " + remaining + "/" + maxRecommendations);
     }
 
     private HBox createSelectedBookCard(Book book, int index) {
@@ -735,5 +802,94 @@ public class RecommendationDialog {
                                                 Consumer<List<BookRecommendation>> onRecommendationsSaved) {
         RecommendationDialog dialog = new RecommendationDialog(targetBook, username, authManager, onRecommendationsSaved);
         dialog.show();
+    }
+
+    private HBox createSelectedBookRow(Book book, int position) {
+        HBox row = new HBox(10);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(8));
+        row.setStyle(
+                "-fx-background-color: #4a7c59;" + // Verde scuro sobrio
+                        "-fx-background-radius: 6;" +
+                        "-fx-min-height: 40;"
+        );
+
+        // Numero posizione
+        Label positionLabel = new Label(String.valueOf(position));
+        positionLabel.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 14));
+        positionLabel.setTextFill(Color.WHITE);
+        positionLabel.setStyle(
+                "-fx-background-color: #2d5233;" + // Verde ancora più scuro
+                        "-fx-background-radius: 15;" +
+                        "-fx-min-width: 25;" +
+                        "-fx-min-height: 25;" +
+                        "-fx-alignment: center;"
+        );
+
+        // Info libro
+        VBox bookInfo = new VBox(2);
+        bookInfo.setAlignment(Pos.CENTER_LEFT);
+
+        Label titleLabel = new Label(book.getTitle());
+        titleLabel.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 12));
+        titleLabel.setTextFill(Color.WHITE);
+        titleLabel.setMaxWidth(400);
+        titleLabel.setStyle("-fx-text-overrun: ellipsis;");
+
+        Label authorLabel = new Label("di " + book.getAuthor());
+        authorLabel.setFont(Font.font("SF Pro Text", 10));
+        authorLabel.setTextFill(Color.web("#E0E0E0"));
+        authorLabel.setMaxWidth(400);
+        authorLabel.setStyle("-fx-text-overrun: ellipsis;");
+
+        bookInfo.getChildren().addAll(titleLabel, authorLabel);
+
+        // Pulsante rimuovi
+        Button removeButton = new Button("❌");
+        removeButton.setFont(Font.font("SF Pro Text", 10));
+        removeButton.setStyle(
+                "-fx-background-color: #dc3545;" + // Rosso sobrio
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-min-width: 30;" +
+                        "-fx-min-height: 30;" +
+                        "-fx-cursor: hand;"
+        );
+
+        removeButton.setOnMouseEntered(e -> removeButton.setStyle(
+                "-fx-background-color: #e85a67;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-min-width: 30;" +
+                        "-fx-min-height: 30;" +
+                        "-fx-cursor: hand;"
+        ));
+
+        removeButton.setOnMouseExited(e -> removeButton.setStyle(
+                "-fx-background-color: #dc3545;" +
+                        "-fx-text-fill: white;" +
+                        "-fx-background-radius: 4;" +
+                        "-fx-min-width: 30;" +
+                        "-fx-min-height: 30;" +
+                        "-fx-cursor: hand;"
+        ));
+
+        removeButton.setOnAction(e -> {
+            selectedBooks.remove(book);
+            updateSelectedBooksDisplay();
+            // Aggiorna anche i pulsanti di selezione nella libreria
+            refreshLibraryDisplay();
+        });
+
+        // Spacer per spingere il pulsante remove a destra
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        row.getChildren().addAll(positionLabel, bookInfo, spacer, removeButton);
+        return row;
+    }
+
+    private void refreshLibraryDisplay() {
+        loadUserLibraries();
     }
 }
