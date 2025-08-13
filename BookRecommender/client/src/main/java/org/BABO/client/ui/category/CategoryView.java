@@ -1,5 +1,6 @@
-package org.BABO.client.ui;
+package org.BABO.client.ui.category;
 
+import org.BABO.client.ui.ImageUtils;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
@@ -11,9 +12,7 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;

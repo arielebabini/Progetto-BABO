@@ -803,7 +803,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Esecuzione ricerca nel BookService SOLO con 3 metodi
+     * Esecuzione ricerca nel BookService SOLO con 3 metodi
      */
     private List<Book> performAdvancedSearch(String searchType, String titleQuery,
                                              String authorQuery, String yearFrom, String yearTo) {
@@ -818,7 +818,6 @@ public class AdvancedSearchPanel extends VBox {
             if (searchType.contains("Titolo") && !titleQuery.isEmpty()) {
                 System.out.println("📖 Ricerca SPECIFICA per titolo: " + titleQuery);
 
-                // ✅ USA L'ENDPOINT SPECIFICO per solo titolo
                 try {
                     results = bookService.searchBooksByTitle(titleQuery);
                     System.out.println("✅ Ricerca titolo specifica completata: " + results.size() + " risultati");
@@ -845,7 +844,6 @@ public class AdvancedSearchPanel extends VBox {
                 return new ArrayList<>();
             }
 
-            // ✅ FILTRO ANNO se specificato (sempre lato client)
             if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
                 System.out.println("📅 Applicazione filtro anno: " + yearFrom + "-" + yearTo);
                 results = filterBooksByYear(results, yearFrom, yearTo);
@@ -900,7 +898,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Filtra i libri per anno di pubblicazione
+     * Filtra i libri per anno di pubblicazione
      */
     private List<Book> filterBooksByYear(List<Book> books, String yearFrom, String yearTo) {
         List<Book> filtered = new ArrayList<>();
@@ -944,7 +942,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Aggiorna stato pulsante ricerca
+     * Aggiorna stato pulsante ricerca
      */
     private void updateSearchButtonState(boolean searching) {
         if (searchButton == null) return;
@@ -959,7 +957,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Mostra errore di validazione
+     * Mostra errore di validazione
      */
     private void showValidationError(String message) {
         Alert alert = new Alert(Alert.AlertType.WARNING);
@@ -970,7 +968,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Mostra errore generico
+     * Mostra errore generico
      */
     private void showErrorAlert(String message) {
         Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -980,7 +978,7 @@ public class AdvancedSearchPanel extends VBox {
         alert.showAndWait();
     }
 
-    // ✅ CORREZIONE: Setter per i callback
+    // Setter per i callback
     public void setOnSearchExecuted(Consumer<SearchResult> callback) {
         this.onSearchExecuted = callback;
     }

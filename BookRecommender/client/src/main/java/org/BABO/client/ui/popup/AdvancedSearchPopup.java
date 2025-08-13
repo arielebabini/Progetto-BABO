@@ -1,15 +1,12 @@
-package org.BABO.client.ui;
+package org.BABO.client.ui.popup;
 
-import org.BABO.shared.model.Book;
 import org.BABO.client.service.BookService;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.effect.DropShadow;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.animation.FadeTransition;
@@ -677,13 +674,6 @@ public class AdvancedSearchPopup {
         alert.setTitle("Validazione Ricerca");
         alert.setHeaderText("Parametri di ricerca non validi");
         alert.setContentText(message);
-
-        // Applica stile dark anche all'alert
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: " + BG_PRIMARY + ";" +
-                        "-fx-text-fill: " + TEXT_PRIMARY + ";"
-        );
 
         alert.showAndWait();
     }

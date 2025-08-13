@@ -128,8 +128,8 @@ public class AuthenticationManager {
         // Styling dell'alert
         DialogPane dialogPane = welcomeAlert.getDialogPane();
         dialogPane.setStyle(
-                "-fx-background-color: #1e1e1e;" +
-                        "-fx-text-fill: white;"
+                "-fx-background-color: #FFFFFF;" +
+                        "-fx-text-fill: gray;"
         );
 
         welcomeAlert.showAndWait();
@@ -377,11 +377,11 @@ public class AuthenticationManager {
         alert.setContentText(message);
 
         // Styling dell'alert per mantenere coerenza con il tema
-        DialogPane dialogPane = alert.getDialogPane();
+        /*DialogPane dialogPane = alert.getDialogPane();
         dialogPane.setStyle(
                 "-fx-background-color: #1e1e1e;" +
                         "-fx-text-fill: white;"
-        );
+        );*/
 
         alert.showAndWait();
     }

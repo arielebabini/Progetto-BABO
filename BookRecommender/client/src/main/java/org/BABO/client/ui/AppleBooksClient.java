@@ -1,6 +1,7 @@
 package org.BABO.client.ui;
 
 import org.BABO.client.service.BookService;
+import org.BABO.client.ui.popup.PopupManager;
 import org.BABO.shared.model.Book;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -64,7 +65,10 @@ public class AppleBooksClient extends Application {
 
             // Carica CSS se disponibile
             try {
-                scene.getStylesheets().add(getClass().getResource("/styles.css").toExternalForm());
+                scene.getStylesheets().add(getClass().getResource("/css/applebooks.css").toExternalForm());
+                scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
+                scene.getStylesheets().add(getClass().getResource("/css/scrollbar.css").toExternalForm());
+                scene.getStylesheets().add(getClass().getResource("/css/auth-tabs.css").toExternalForm());
             } catch (Exception e) {
                 System.out.println("⚠️ CSS non trovato, uso stili default");
             }

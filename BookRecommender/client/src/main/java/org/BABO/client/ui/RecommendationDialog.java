@@ -769,9 +769,6 @@ public class RecommendationDialog {
         alert.setHeaderText(null);
         alert.setContentText(message);
 
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #2b2b2b; -fx-text-fill: white;");
-
         alert.showAndWait();
     }
 

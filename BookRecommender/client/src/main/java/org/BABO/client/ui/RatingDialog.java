@@ -642,10 +642,6 @@ public class RatingDialog {
         alert.setHeaderText(null);
         alert.setContentText(message);
 
-        // Styling per il tema scuro
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #2b2b2b; -fx-text-fill: white;");
-
         alert.showAndWait();
     }
 

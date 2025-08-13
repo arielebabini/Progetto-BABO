@@ -3,10 +3,10 @@ package org.BABO.client.ui;
 import javafx.application.Platform;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Stage;
+import org.BABO.client.ui.popup.PopupManager;
 import org.BABO.shared.model.Book;
 import org.BABO.client.service.BookService;
 import org.BABO.client.service.LibraryService;
-import org.BABO.client.ui.AppleBooksClient;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
 import javafx.scene.control.DialogPane;
@@ -485,16 +485,6 @@ public class MainWindow {
             alert.setTitle(title);
             alert.setHeaderText(null);
             alert.setContentText(message);
-
-            // Styling per tema scuro
-            DialogPane dialogPane = alert.getDialogPane();
-            dialogPane.setStyle("-fx-background-color: #2c2c2e;");
-
-            try {
-                dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
-            } catch (Exception e) {
-                // Ignora errori di styling
-            }
 
             // Imposta icona se disponibile
             alert.setOnShowing(e -> {

@@ -294,7 +294,6 @@ public class AuthController {
         try {
             System.out.println("🔐 Richiesta cambio password per utente ID: " + userId);
 
-            // ✅ CORRETTO - senza getUserId()
             if (request.getOldPassword() == null || request.getNewPassword() == null) {
                 return ResponseEntity.badRequest()
                         .body(new AuthResponse(false, "Password vecchia e nuova sono obbligatorie"));
@@ -306,7 +305,7 @@ public class AuthController {
             }
 
             boolean success = userService.changePassword(
-                    userId,  // ✅ USA QUESTO (dal @PathVariable)
+                    userId,
                     request.getOldPassword(),
                     request.getNewPassword()
             );

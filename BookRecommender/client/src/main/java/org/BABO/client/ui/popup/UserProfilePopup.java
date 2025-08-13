@@ -1,13 +1,13 @@
-package org.BABO.client.ui;
+package org.BABO.client.ui.popup;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.scene.Scene;
-import javafx.scene.image.Image;
-import javafx.stage.Modality;
+import javafx.event.ActionEvent;
+import javafx.scene.Node;
 import javafx.stage.Stage;
 import org.BABO.client.service.AuthService;
+import org.BABO.client.ui.AuthenticationManager;
 import org.BABO.shared.model.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -805,14 +805,11 @@ public class UserProfilePopup {
             return;
         }
 
-        // Disabilita il pulsante durante la richiesta
         saveButton.setDisable(true);
         showMessage(messageLabel, "🔄 Cambio email in corso...", "#f39c12");
 
-        // Crea un'istanza di AuthService
         AuthService authService = new AuthService();
 
-        // Chiama il servizio per cambiare l'email
         authService.updateEmailAsync(String.valueOf(currentUser.getId()), newEmail)
                 .thenAccept(response -> {
                     Platform.runLater(() -> {
@@ -822,18 +819,9 @@ public class UserProfilePopup {
                                 authManager.updateCurrentUser(updatedUser);
                             }
 
-                            // ✅ CHIUSURA FORZATA CON FLAG
                             isEmailDialogOpen = false;
-
-                            Platform.runLater(() -> {
-                                try {
-                                    dialog.getDialogPane().getScene().getWindow().hide();
-                                } catch (Exception e) {
-                                    dialog.close();
-                                }
-
-                                showAlert("✅ Successo", "Email cambiata con successo!");
-                            });
+                            dialog.close();
+                            showAlert("✅ Successo", "Email cambiata con successo!");
                         }
                     });
                 })

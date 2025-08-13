@@ -1,7 +1,7 @@
 package org.BABO.client.ui;
 
-import org.BABO.client.ui.AppleBooksClient;
 import org.BABO.client.service.ClientRatingService;
+import org.BABO.client.ui.category.CategoryView;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
@@ -9,14 +9,12 @@ import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
-import org.BABO.client.ui.ImageUtils;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -309,7 +307,7 @@ public class ExploreIntegration {
             card.getChildren().addAll(bookCover, title, author, ratingBox);
         }
 
-        // ✅ CLICK HANDLER MODIFICATO - Passa lista completa della sezione
+        // Passa lista completa della sezione
         card.setOnMouseClicked(e -> {
             System.out.println("📖 Click libro sezione " + sectionType + ": " + book.getTitle());
 

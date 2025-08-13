@@ -1,6 +1,6 @@
-package org.BABO.client.ui;
+package org.BABO.client.ui.popup;
 
-import org.BABO.client.ui.IconUtils;
+import org.BABO.client.ui.*;
 import javafx.animation.Interpolator;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -18,7 +18,6 @@ import org.BABO.client.service.LibraryService;
 import org.BABO.client.service.ClientRatingService;
 import org.BABO.client.service.ClientRecommendationService;
 import org.BABO.shared.model.BookRecommendation;
-import org.BABO.shared.dto.RecommendationResponse;
 import javafx.application.Platform;
 import javafx.animation.KeyFrame;
 import javafx.animation.KeyValue;
@@ -1024,7 +1023,7 @@ public class BookDetailsPopup {
 
     private static void styleDialog(Dialog<?> dialog) {
         DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white;");
+        //dialogPane.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white;");
 
         // AGGIUNTO: Imposta icona quando il dialog viene mostrato
         dialog.setOnShowing(e -> {

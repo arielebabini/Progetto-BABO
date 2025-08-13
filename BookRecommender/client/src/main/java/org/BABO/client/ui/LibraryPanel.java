@@ -7,6 +7,7 @@ import javafx.scene.control.*;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.text.TextAlignment;
 import org.BABO.client.ui.ImageUtils;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -144,14 +145,17 @@ public class LibraryPanel extends VBox {
         Button closeButton = new Button("x");
         closeButton.setPrefSize(40, 40);
 
+        closeButton.setAlignment(Pos.CENTER); // centra il testo
+        closeButton.setTextAlignment(TextAlignment.CENTER);
+
         closeButton.setStyle(
                 "-fx-background-color: rgba(255,255,255,0.1);" +
                         "-fx-background-radius: 20;" +
                         "-fx-border-color: rgba(255,255,255,0.2);" +
-                        "-fx-border-width: 1;" +
+                        "-fx-border-width: 1.5;" +
                         "-fx-border-radius: 20;" +
                         "-fx-text-fill: #FFFFFF;" +
-                        "-fx-font-size: 20;" +
+                        "-fx-font-size: 18;" +
                         "-fx-font-weight: bold;" +
                         "-fx-cursor: hand;"
         );
@@ -161,10 +165,10 @@ public class LibraryPanel extends VBox {
                     "-fx-background-color: #FF3B30;" +
                             "-fx-background-radius: 20;" +
                             "-fx-border-color: #FF3B30;" +
-                            "-fx-border-width: 1;" +
+                            "-fx-border-width: 1.5;" +
                             "-fx-border-radius: 20;" +
                             "-fx-text-fill: white;" +
-                            "-fx-font-size: 20;" +
+                            "-fx-font-size: 18;" +
                             "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
@@ -177,10 +181,10 @@ public class LibraryPanel extends VBox {
                     "-fx-background-color: rgba(255,255,255,0.1);" +
                             "-fx-background-radius: 20;" +
                             "-fx-border-color: rgba(255,255,255,0.2);" +
-                            "-fx-border-width: 1;" +
+                            "-fx-border-width: 1.5;" +
                             "-fx-border-radius: 20;" +
                             "-fx-text-fill: #FFFFFF;" +
-                            "-fx-font-size: 20;" +
+                            "-fx-font-size: 18;" +
                             "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
@@ -688,7 +692,8 @@ public class LibraryPanel extends VBox {
                             "-fx-border-radius: 20;" +
                             "-fx-border-width: 1.5;" +
                             "-fx-text-fill: #007AFF;" +
-                            "-fx-font-size: 16;" +
+                            "-fx-font-size: 15;" +
+                            "-fx-font-weight: bold;" +
                             "-fx-cursor: hand;"
             );
 
@@ -699,8 +704,9 @@ public class LibraryPanel extends VBox {
                                 "-fx-border-color: #007AFF;" +
                                 "-fx-border-radius: 20;" +
                                 "-fx-border-width: 2;" +
-                                "-fx-text-fill: #007AFF;" +
-                                "-fx-font-size: 16;" +
+                                "-fx-text-fill: white;" +
+                                "-fx-font-size: 15;" +
+                                "-fx-font-weight: bold;" +
                                 "-fx-cursor: hand;"
                 );
                 button.setScaleX(1.1);
@@ -715,7 +721,8 @@ public class LibraryPanel extends VBox {
                                 "-fx-border-radius: 20;" +
                                 "-fx-border-width: 1.5;" +
                                 "-fx-text-fill: #007AFF;" +
-                                "-fx-font-size: 16;" +
+                                "-fx-font-size: 15;" +
+                                "-fx-font-weight: bold;" +
                                 "-fx-cursor: hand;"
                 );
                 button.setScaleX(1.0);
@@ -890,11 +897,6 @@ public class LibraryPanel extends VBox {
         return header;
     }
 
-    private void showEmptyLibraryState(String libraryName) {
-        // Questo metodo non è più usato - la logica è stata spostata in viewLibraryBooks
-        // Mantenuto per compatibilità ma vuoto
-    }
-
     private void createBooksGrid(List<Book> books) {
         // Container per la griglia di libri - stile simile a ExploreIntegration
         VBox booksContainer = new VBox(30);
@@ -1039,11 +1041,11 @@ public class LibraryPanel extends VBox {
         alert.setContentText("Questa azione non può essere annullata. Tutti i libri nella libreria saranno rimossi dalla raccolta.");
 
         // Styling dell'alert
-        DialogPane dialogPane = alert.getDialogPane();
+        /*DialogPane dialogPane = alert.getDialogPane();
         dialogPane.setStyle(
                 "-fx-background-color: #1e1e1e;" +
                         "-fx-text-fill: white;"
-        );
+        );*/
 
         // Personalizza pulsanti
         ButtonType deleteButtonType = new ButtonType("Elimina", ButtonBar.ButtonData.OK_DONE);

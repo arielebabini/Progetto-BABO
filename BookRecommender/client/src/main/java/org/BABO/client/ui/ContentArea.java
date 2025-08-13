@@ -6,8 +6,8 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.image.ImageView;
-import javafx.scene.effect.DropShadow;
+import org.BABO.client.ui.category.CategoryView;
+import org.BABO.client.ui.popup.PopupManager;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
@@ -17,10 +17,9 @@ import javafx.scene.control.ScrollPane;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
-import javafx.scene.shape.Rectangle;
+
 import javafx.geometry.Pos;
 
 /**

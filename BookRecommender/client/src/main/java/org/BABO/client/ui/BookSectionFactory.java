@@ -1,6 +1,7 @@
 package org.BABO.client.ui;
 
 import org.BABO.client.service.BookService;
+import org.BABO.client.ui.category.CategorySectionBuilder;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import javafx.application.Platform;

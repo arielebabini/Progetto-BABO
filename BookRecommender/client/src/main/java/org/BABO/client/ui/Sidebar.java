@@ -1,5 +1,6 @@
 package org.BABO.client.ui;
 
+import org.BABO.client.ui.popup.UserProfilePopup;
 import org.BABO.shared.model.User;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;

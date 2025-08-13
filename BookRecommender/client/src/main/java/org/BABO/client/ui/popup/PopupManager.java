@@ -1,8 +1,8 @@
-package org.BABO.client.ui;
+package org.BABO.client.ui.popup;
 
 import javafx.application.Platform;
 import javafx.scene.layout.StackPane;
-import javafx.stage.Stage;
+import org.BABO.client.ui.AuthenticationManager;
 import org.BABO.shared.model.Book;
 
 import java.util.*;

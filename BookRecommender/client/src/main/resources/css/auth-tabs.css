@@ -86,3 +86,27 @@
     -fx-border-color: #9e9e9e;
     -fx-border-width: 0.5px;
 }
+
+/* ============================= */
+/*  STYLE PER ALERT BIANCO        */
+/* ============================= */
+.dialog-pane {
+    -fx-background-color: #FFFFFF;
+}
+
+.dialog-pane > *.content.label {
+    -fx-text-fill: #000000;
+}
+
+.dialog-pane:header .header-panel {
+    -fx-background-color: #FFFFFF;
+}
+
+.button-bar {
+    -fx-background-color: #FFFFFF;
+}
+
+.button-bar .button {
+    -fx-background-color: #E0E0E0;
+    -fx-text-fill: #000000;
+}

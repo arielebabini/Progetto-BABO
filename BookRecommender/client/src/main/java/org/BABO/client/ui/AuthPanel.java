@@ -2,7 +2,6 @@ package org.BABO.client.ui;
 
 import javafx.event.ActionEvent;
 import org.BABO.client.service.AuthService;
-import org.BABO.shared.dto.AuthResponse;
 import org.BABO.shared.model.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -650,11 +649,11 @@ public class AuthPanel extends VBox {
         alert.setContentText(message);
 
         // Styling dell'alert per mantenere coerenza con il tema
-        DialogPane dialogPane = alert.getDialogPane();
+        /*DialogPane dialogPane = alert.getDialogPane();
         dialogPane.setStyle(
                 "-fx-background-color: " + BG_COLOR + ";" +
                         "-fx-text-fill: " + TEXT_COLOR + ";"
-        );
+        );*/
 
         alert.showAndWait();
     }

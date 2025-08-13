@@ -398,7 +398,7 @@ public class RatingService {
             rating.setData(timestamp.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         }
 
-        rating.setStyle(rs.getInt("style"));
+        rating.setStyle(rs.getInt("css"));
         rating.setContent(rs.getInt("content"));
         rating.setPleasantness(rs.getInt("pleasantness"));
         rating.setOriginality(rs.getInt("originality"));
