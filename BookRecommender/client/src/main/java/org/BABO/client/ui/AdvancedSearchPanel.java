@@ -634,7 +634,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Creazione campo di testo stilizzato
+     * Creazione campo di testo stilizzato
      */
     private TextField createStyledTextField(String placeholder) {
         TextField field = new TextField();
@@ -656,7 +656,7 @@ public class AdvancedSearchPanel extends VBox {
     }
 
     /**
-     * ✅ CORREZIONE: Esecuzione ricerca SENZA Platform.runLater con DEBUG
+     * Esecuzione ricerca
      */
     private void executeSearch() {
         System.out.println("🔍 === INIZIO RICERCA AVANZATA ===");
@@ -679,10 +679,9 @@ public class AdvancedSearchPanel extends VBox {
         System.out.println("   - Anno da: '" + yearFrom + "'");
         System.out.println("   - Anno a: '" + yearTo + "'");
 
-        // Validazione input
-        if (titleQuery.isEmpty() && authorQuery.isEmpty() && yearFrom.isEmpty() && yearTo.isEmpty()) {
-            System.out.println("❌ Nessun criterio di ricerca inserito");
-            showValidationError("Inserisci almeno un criterio di ricerca");
+        // Validazione completa dell'input
+        if (!validateSearchInput(searchType, titleQuery, authorQuery, yearFrom, yearTo)) {
+            System.out.println("❌ Validazione fallita - ricerca interrotta");
             return;
         }
 
@@ -691,14 +690,12 @@ public class AdvancedSearchPanel extends VBox {
             updateSearchButtonState(true);
             System.out.println("🔄 Stato ricerca impostato su TRUE");
 
-            // ✅ IMPORTANTE: Esecuzione ricerca DIRETTA senza Platform.runLater
             List<Book> results = performAdvancedSearch(searchType, titleQuery, authorQuery, yearFrom, yearTo);
             System.out.println("📚 Ricerca completata: " + results.size() + " risultati");
 
             SearchResult searchResult = new SearchResult(results, searchType, titleQuery, authorQuery, yearFrom, yearTo);
             System.out.println("📦 SearchResult creato: " + searchResult.getDescription());
 
-            // ✅ IMPORTANTE: Callback DIRETTO senza Platform.runLater
             if (onSearchExecuted != null) {
                 System.out.println("📤 Esecuzione callback ricerca...");
                 onSearchExecuted.accept(searchResult);
@@ -710,23 +707,22 @@ public class AdvancedSearchPanel extends VBox {
         } catch (Exception e) {
             System.err.println("❌ Errore ricerca avanzata: " + e.getMessage());
             e.printStackTrace();
-            showErrorAlert("Errore durante la ricerca");
+            showErrorAlert("Errore durante la ricerca: " + e.getMessage());
         } finally {
             isSearching = false;
             updateSearchButtonState(false);
             System.out.println("🔄 Stato ricerca ripristinato su FALSE");
-            System.out.println("🔍 === FINE RICERCA AVANZATA ===");
+            System.out.println("🏁 === FINE RICERCA AVANZATA ===");
         }
     }
 
     /**
-     * ✅ FIX DEFINITIVO: Chiusura pannello con callback PRIMA del cleanup
+     * Chiusura pannello con callback PRIMA del cleanup
      */
     private void closePanel() {
         try {
             System.out.println("🔒 Chiusura pannello ricerca avanzata...");
 
-            // ✅ FIX CRITICO: Chiama il callback PRIMA del cleanup!
             if (onClosePanel != null) {
                 System.out.println("🔗 Chiamata callback chiusura Header...");
                 onClosePanel.run(); // DIRETTO - chiamata PRIMA del cleanup
@@ -734,7 +730,6 @@ public class AdvancedSearchPanel extends VBox {
                 System.err.println("❌ ERRORE: onClosePanel callback è NULL!");
             }
 
-            // ✅ Cleanup DOPO aver chiamato il callback
             cleanup();
 
             System.out.println("✅ Pannello chiuso correttamente");
@@ -791,7 +786,6 @@ public class AdvancedSearchPanel extends VBox {
                 searchTypeCombo.setOnAction(null);
             }
 
-            // ✅ IMPORTANTE: Reset dei callback
             onSearchExecuted = null;
             onClosePanel = null;
 
@@ -856,6 +850,210 @@ public class AdvancedSearchPanel extends VBox {
             System.err.println("❌ Errore ricerca avanzata: " + e.getMessage());
             e.printStackTrace();
             return new ArrayList<>();
+        }
+    }
+
+    private boolean validateSearchInput(String searchType, String titleQuery, String authorQuery, String yearFrom, String yearTo) {
+        System.out.println("🔍 Validazione input ricerca avanzata...");
+
+        // Controllo base: almeno un campo deve essere compilato
+        if (titleQuery.isEmpty() && authorQuery.isEmpty() && yearFrom.isEmpty() && yearTo.isEmpty()) {
+            showValidationError("Inserisci almeno un criterio di ricerca");
+            return false;
+        }
+
+        // Validazione specifica per tipo di ricerca
+        if (searchType.contains("Titolo")) {
+            return validateTitleSearch(titleQuery);
+        } else if (searchType.contains("Autore e Anno")) {
+            return validateAuthorYearSearch(authorQuery, yearFrom, yearTo);
+        } else if (searchType.contains("Autore")) {
+            return validateAuthorSearch(authorQuery);
+        }
+
+        return true;
+    }
+
+    /**
+     * Validazione ricerca per titolo
+     */
+    private boolean validateTitleSearch(String titleQuery) {
+        if (titleQuery.isEmpty()) {
+            showValidationError("Il campo titolo non può essere vuoto per questo tipo di ricerca");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo che il titolo non contenga solo numeri
+        if (isOnlyNumbers(titleQuery)) {
+            showValidationError("Il titolo non può contenere solo numeri.\nInserisci delle lettere per identificare il libro.");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo lunghezza minima
+        if (titleQuery.length() < 2) {
+            showValidationError("Il titolo deve contenere almeno 2 caratteri");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo caratteri validi (lettere, spazi, apostrofi, trattini)
+        if (!isValidTextInput(titleQuery)) {
+            showValidationError("Il titolo può contenere solo lettere, spazi, apostrofi e trattini.\nRimuovi numeri e caratteri speciali.");
+            return false;
+        }
+
+        System.out.println("✅ Validazione titolo: OK");
+        return true;
+    }
+
+    /**
+     * Validazione ricerca per autore
+     */
+    private boolean validateAuthorSearch(String authorQuery) {
+        if (authorQuery.isEmpty()) {
+            showValidationError("Il campo autore non può essere vuoto per questo tipo di ricerca");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo che l'autore non contenga solo numeri
+        if (isOnlyNumbers(authorQuery)) {
+            showValidationError("Il nome dell'autore non può contenere solo numeri.\nInserisci il nome o cognome dell'autore.");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo lunghezza minima
+        if (authorQuery.length() < 2) {
+            showValidationError("Il nome dell'autore deve contenere almeno 2 caratteri");
+            return false;
+        }
+
+        // ✅ NUOVO: Controllo caratteri validi per nomi
+        if (!isValidAuthorName(authorQuery)) {
+            showValidationError("Il nome dell'autore può contenere solo lettere, spazi, apostrofi e punti.\nRimuovi numeri e caratteri speciali.");
+            return false;
+        }
+
+        System.out.println("✅ Validazione autore: OK");
+        return true;
+    }
+
+    /**
+     * Validazione ricerca per autore e anno
+     */
+    private boolean validateAuthorYearSearch(String authorQuery, String yearFrom, String yearTo) {
+        // Almeno uno tra autore e anno deve essere specificato
+        if (authorQuery.isEmpty() && yearFrom.isEmpty() && yearTo.isEmpty()) {
+            showValidationError("Per la ricerca Autore e Anno, specifica almeno l'autore o un anno");
+            return false;
+        }
+
+        // Se c'è l'autore, validalo
+        if (!authorQuery.isEmpty() && !validateAuthorSearch(authorQuery)) {
+            return false; // Il messaggio di errore è già mostrato da validateAuthorSearch
+        }
+
+        // Validazione anni
+        if (!yearFrom.isEmpty() || !yearTo.isEmpty()) {
+            return validateYearRange(yearFrom, yearTo);
+        }
+
+        return true;
+    }
+
+    /**
+     * Validazione range di anni
+     */
+    private boolean validateYearRange(String yearFrom, String yearTo) {
+        int currentYear = java.time.Year.now().getValue();
+
+        if (!yearFrom.isEmpty()) {
+            if (!isValidYear(yearFrom)) {
+                showValidationError("Anno di inizio non valido.\nInserisci un anno tra 1000 e " + currentYear);
+                return false;
+            }
+        }
+
+        if (!yearTo.isEmpty()) {
+            if (!isValidYear(yearTo)) {
+                showValidationError("Anno di fine non valido.\nInserisci un anno tra 1000 e " + currentYear);
+                return false;
+            }
+        }
+
+        // Se entrambi sono specificati, controlla che yearFrom <= yearTo
+        if (!yearFrom.isEmpty() && !yearTo.isEmpty()) {
+            try {
+                int from = Integer.parseInt(yearFrom);
+                int to = Integer.parseInt(yearTo);
+
+                if (from > to) {
+                    showValidationError("L'anno di inizio (" + from + ") non può essere maggiore dell'anno di fine (" + to + ")");
+                    return false;
+                }
+
+                // Controllo range ragionevole (massimo 100 anni)
+                if (to - from > 100) {
+                    showValidationError("Il range di anni è troppo ampio (massimo 100 anni).\nSpecifica un periodo più ristretto.");
+                    return false;
+                }
+            } catch (NumberFormatException e) {
+                showValidationError("Formato anno non valido");
+                return false;
+            }
+        }
+
+        System.out.println("✅ Validazione anni: OK");
+        return true;
+    }
+
+    /**
+     * Controlla se una stringa contiene solo numeri
+     */
+    private boolean isOnlyNumbers(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return false;
+        }
+
+        // Rimuovi spazi e controlla se rimangono solo cifre
+        String cleaned = input.replaceAll("\\s+", "");
+        return cleaned.matches("^\\d+$");
+    }
+
+    /**
+     * Controlla se l'input è valido per titoli (lettere, spazi, apostrofi, trattini)
+     */
+    private boolean isValidTextInput(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return false;
+        }
+
+        // Permetti lettere (anche accentate), spazi, apostrofi, trattini, due punti, parentesi
+        return input.matches("^[\\p{L}\\s'\\-:().,!?]+$");
+    }
+
+    /**
+     * Controlla se l'input è valido per nomi di autori
+     */
+    private boolean isValidAuthorName(String input) {
+        if (input == null || input.trim().isEmpty()) {
+            return false;
+        }
+
+        // Permetti lettere, spazi, apostrofi, punti (per abbreviazioni), trattini
+        return input.matches("^[\\p{L}\\s'.\\-]+$");
+    }
+
+    /**
+     * Controlla se un anno è valido
+     */
+    private boolean isValidYear(String yearStr) {
+        try {
+            int year = Integer.parseInt(yearStr.trim());
+            int currentYear = java.time.Year.now().getValue();
+
+            // Anno ragionevole: tra 1000 e anno corrente
+            return year >= 1000 && year <= currentYear;
+        } catch (NumberFormatException e) {
+            return false;
         }
     }
 

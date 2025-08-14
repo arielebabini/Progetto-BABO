@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * Servizio client per comunicare con l'API delle librerie del server
@@ -315,6 +316,37 @@ public class LibraryService {
                 throw new IOException("Risposta vuota dal server");
             }
         }
+    }
+
+    public CompletableFuture<Boolean> doesUserOwnBookAsync(String username, String isbn) {
+        System.out.println("🔍 Verifica possesso libro ISBN: " + isbn + " per utente: " + username);
+
+        return getUserLibrariesAsync(username)
+                .thenCompose(librariesResponse -> {
+                    if (!librariesResponse.isSuccess() || librariesResponse.getLibraries() == null) {
+                        System.out.println("❌ Impossibile recuperare librerie utente");
+                        return CompletableFuture.completedFuture(false);
+                    }
+
+                    List<String> libraries = librariesResponse.getLibraries();
+                    System.out.println("📚 Controllo possesso in " + libraries.size() + " librerie");
+
+                    // Crea una lista di controlli per tutte le librerie
+                    List<CompletableFuture<Boolean>> checks = libraries.stream()
+                            .map(libraryName -> isBookInLibraryAsync(username, libraryName, isbn))
+                            .collect(Collectors.toList());
+
+                    // Combina tutti i controlli - ritorna true se almeno uno è true
+                    return CompletableFuture.allOf(checks.toArray(new CompletableFuture[0]))
+                            .thenApply(v -> {
+                                boolean owns = checks.stream()
+                                        .map(CompletableFuture::join)
+                                        .anyMatch(Boolean::booleanValue);
+
+                                System.out.println(owns ? "✅ Utente possiede il libro" : "❌ Utente NON possiede il libro");
+                                return owns;
+                            });
+                });
     }
 
     /**

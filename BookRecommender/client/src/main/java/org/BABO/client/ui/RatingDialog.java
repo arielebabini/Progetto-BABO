@@ -91,17 +91,20 @@ public class RatingDialog {
     }
 
     private void createUI() {
-        // Container principale con sfondo semi-trasparente
+        // Container principale SENZA sfondo scuro
         StackPane root = new StackPane();
-        root.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
+        root.setStyle("-fx-background-color: transparent;");
 
         // Dialog content
         VBox dialogContent = createDialogContent();
         root.getChildren().add(dialogContent);
 
-        // Chiudi dialog cliccando fuori
+        root.setPickOnBounds(false);
+
+        // Chiudi dialog cliccando fuori - GESTIONE MIGLIORATA
         root.setOnMouseClicked(e -> {
-            if (e.getTarget() == root) {
+            // Chiudi solo se il click è DAVVERO sullo sfondo
+            if (e.getTarget() == root && e.getSource() == root) {
                 closeDialog();
             }
         });

@@ -3,6 +3,8 @@ package org.BABO.shared.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.time.LocalDateTime;
+
 /**
  * Classe che rappresenta un utente del sistema
  * Condivisa tra client e server per la serializzazione JSON
@@ -31,6 +33,8 @@ public class User {
 
     @JsonProperty("password")
     private String password; // Non viene serializzato per sicurezza
+
+    private LocalDateTime createdAt;
 
     // Costruttori
     public User() {}
@@ -128,5 +132,13 @@ public class User {
     @Override
     public int hashCode() {
         return id != null ? id.hashCode() : 0;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

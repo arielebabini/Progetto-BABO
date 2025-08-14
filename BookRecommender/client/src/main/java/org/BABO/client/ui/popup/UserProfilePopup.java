@@ -5,6 +5,9 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.input.KeyCode;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.BABO.client.service.AuthService;
 import org.BABO.client.ui.AuthenticationManager;
@@ -49,7 +52,6 @@ public class UserProfilePopup {
         this.authManager = authManager;
         this.onLogoutCallback = onLogoutCallback;
 
-        // AGGIUNGERE QUESTE RIGHE (stesso pattern di AuthService e ClientRatingService):
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
@@ -477,12 +479,20 @@ public class UserProfilePopup {
         User currentUser = authManager.getCurrentUser();
         if (currentUser == null) {
             showAlert("⚠️ Errore", "Nessun utente loggato");
+            isEmailDialogOpen = false; // ✅ RESET flag
             return;
         }
 
-        Alert dialog = new Alert(Alert.AlertType.NONE);
+        Stage dialog = new Stage();
         dialog.setTitle("✏️ Modifica Profilo");
-        dialog.setHeaderText(null);
+        dialog.initModality(Modality.APPLICATION_MODAL);
+        dialog.setResizable(false);
+
+        dialog.setOnCloseRequest(e -> {
+            System.out.println("🔒 Chiusura popup modifica email");
+            isEmailDialogOpen = false;
+            dialog.close();
+        });
 
         // Container principale
         VBox container = new VBox(20);
@@ -557,7 +567,7 @@ public class UserProfilePopup {
         HBox buttonContainer = new HBox(15);
         buttonContainer.setAlignment(Pos.CENTER);
 
-        // Bottone Annulla
+        // ✅ Bottone Annulla CORRETTO
         Button cancelButton = new Button("❌ Annulla");
         cancelButton.setPrefWidth(120);
         cancelButton.setPrefHeight(40);
@@ -570,7 +580,13 @@ public class UserProfilePopup {
                         "-fx-background-radius: 8;" +
                         "-fx-cursor: hand;"
         );
-        cancelButton.setOnAction(event -> dialog.close());
+
+        // ✅ GESTIONE CORRETTA del bottone annulla
+        cancelButton.setOnAction(event -> {
+            System.out.println("🚫 Annulla modifica email cliccato");
+            isEmailDialogOpen = false;
+            dialog.close();
+        });
 
         // Bottone Salva
         Button saveButton = new Button("✅ Salva Email");
@@ -586,7 +602,7 @@ public class UserProfilePopup {
                         "-fx-cursor: hand;"
         );
 
-        // Azione del bottone Salva
+        // ✅ Azione del bottone Salva CORRETTA
         saveButton.setOnAction(event -> {
             String newEmail = newEmailField.getText().trim();
             String confirmEmail = confirmEmailField.getText().trim();
@@ -619,8 +635,7 @@ public class UserProfilePopup {
                 return;
             }
 
-            // Cambio email
-            changeEmail(newEmail, dialog, messageLabel, saveButton);
+            changeEmailWithDialog(newEmail, dialog, messageLabel, saveButton);
         });
 
         buttonContainer.getChildren().addAll(cancelButton, saveButton);
@@ -633,21 +648,99 @@ public class UserProfilePopup {
                 buttonContainer
         );
 
+        Scene scene = new Scene(container, 450, 500);
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ESCAPE) {
+                System.out.println("⌨️ ESC premuto - chiusura popup");
+                isEmailDialogOpen = false;
+                dialog.close();
+            } else if (e.getCode() == KeyCode.ENTER) {
+                System.out.println("⌨️ ENTER premuto - salva email");
+                saveButton.fire(); // Simula click su salva
+            }
+        });
+
+        dialog.setScene(scene);
+
         // Effetti hover sui bottoni
         addHoverEffect(cancelButton, "#e74c3c", "#c0392b");
         addHoverEffect(saveButton, "#27ae60", "#219a52");
 
-        dialog.getDialogPane().setContent(container);
-        dialog.getDialogPane().getButtonTypes().clear();
-
-        // Styling del dialog
-        dialog.getDialogPane().setStyle("-fx-background-color: " + BG_COLOR + ";");
-        dialog.getDialogPane().setPrefSize(400, 450);
-
-        // Focus iniziale sul campo nuova email
-        Platform.runLater(() -> newEmailField.requestFocus());
+        Platform.runLater(() -> {
+            newEmailField.requestFocus();
+        });
 
         dialog.showAndWait();
+    }
+
+    private void changeEmailWithDialog(String newEmail, Stage dialog, Label messageLabel, Button saveButton) {
+        // Disabilita il pulsante durante l'operazione
+        saveButton.setDisable(true);
+        saveButton.setText("🔄 Salvataggio...");
+
+        User currentUser = authManager.getCurrentUser();
+        if (currentUser == null) {
+            saveButton.setDisable(false);
+            saveButton.setText("✅ Salva Email");
+            showMessage(messageLabel, "❌ Errore: utente non trovato", "#e74c3c");
+            return;
+        }
+
+        AuthService authService = new AuthService();
+
+        authService.updateEmailAsync(String.valueOf(currentUser.getId()), newEmail)
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        saveButton.setDisable(false);
+                        saveButton.setText("✅ Salva Email");
+
+                        if (response.isSuccess()) {
+                            User updatedUser = response.getUser();
+                            if (updatedUser != null) {
+                                authManager.updateCurrentUser(updatedUser);
+                            }
+
+                            updateProfileDisplay();
+
+                            // Chiudi dialog
+                            isEmailDialogOpen = false;
+                            dialog.close();
+
+                            // Mostra messaggio di successo
+                            showAlert("✅ Successo", "Email aggiornata correttamente!");
+
+                        } else {
+                            String errorMsg = response.getMessage() != null ? response.getMessage() : "Errore durante l'aggiornamento";
+                            showMessage(messageLabel, "❌ " + errorMsg, "#e74c3c");
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        saveButton.setDisable(false);
+                        saveButton.setText("✅ Salva Email");
+                        showMessage(messageLabel, "❌ Errore di connessione: " + throwable.getMessage(), "#e74c3c");
+                    });
+                    return null;
+                });
+    }
+
+    /**
+     * Ricarica il popup con i dati aggiornati
+     */
+    private void updateProfileDisplay() {
+        if (root != null) {
+            Platform.runLater(() -> {
+                // Chiudi il popup corrente
+                closePopup();
+
+                // Riapri con i dati aggiornati dopo un breve delay
+                Timeline timeline = new Timeline(new KeyFrame(javafx.util.Duration.millis(200), e -> {
+                    show(root);
+                }));
+                timeline.play();
+            });
+        }
     }
 
     private void styleInput(TextField field) {

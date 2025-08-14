@@ -836,7 +836,6 @@ public class ContentArea {
             title.setTextFill(Color.WHITE);
             title.setPadding(new Insets(0, 0, 15, 0));
 
-            // Usa BookGridBuilder per creare la griglia
             BookGridBuilder gridBuilder = new BookGridBuilder();
             gridBuilder.setBookClickHandler(clickHandler);
 
@@ -844,24 +843,25 @@ public class ContentArea {
             resultsContainer.setPadding(new Insets(15, 20, 20, 20));
             resultsContainer.getChildren().add(title);
 
-            // Crea griglia ottimizzata
             FlowPane bookGrid = gridBuilder.createOptimizedBookGrid();
             gridBuilder.populateBookGrid(results, bookGrid, null);
 
             ScrollPane scroll = new ScrollPane(bookGrid);
-            scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-            scroll.setPannable(true);
-            scroll.setFitToHeight(true);
-            scroll.setPrefHeight(400);
-            scroll.setStyle("-fx-background: #1e1e1e; -fx-background-color: #1e1e1e;");
+            scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+            scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+            scroll.setFitToWidth(true); // ✅ IMPORTANTE: Adatta alla larghezza
+            scroll.setStyle("-fx-background-color: transparent;");
 
             resultsContainer.getChildren().add(scroll);
             content.getChildren().add(resultsContainer);
         }
     }
 
-    // ✅ METODI MANCANTI PER COMPATIBILITÀ
+    public void showCustomContent(VBox customContent) {
+        content.getChildren().clear();
+        content.getChildren().add(customContent);
+        VBox.setVgrow(customContent, Priority.ALWAYS);
+    }
 
     /**
      * Imposta callback per libri cachati (per MainWindow)

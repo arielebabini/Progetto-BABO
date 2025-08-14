@@ -11,6 +11,9 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Gestisce la sidebar dell'applicazione con gestione utente loggato
  * AGGIORNATO: Con sezione "Esplora" al posto di "Book Store"
@@ -67,19 +70,35 @@ public class Sidebar {
         VBox menuBox = new VBox(5);
         menuBox.setPadding(new Insets(10, 0, 0, 15));
 
-        // ✅ MODIFICATO: Rimosse le voci Audiobook Store, Tutto, Letti, PDF
-        String[] menuItems = {"🏠 Home", "📚 Le Mie Librerie", "🔍 Esplora"};
+        // ✅ Menu base sempre visibili
+        List<String> menuItemsList = new ArrayList<>();
+        menuItemsList.add("🏠 Home");
+        menuItemsList.add("📚 Le Mie Librerie");
+        menuItemsList.add("🔍 Esplora");
+
+        // ✅ NUOVO: Controlla se utente è admin per aggiungere menu Gestione
+        boolean isAdmin = authManager.isAuthenticated() &&
+                authManager.getCurrentUser() != null &&
+                isCurrentUserAdmin();
+
+        if (isAdmin) {
+            menuItemsList.add("⚙️ Gestione");
+            System.out.println("👑 Menu admin attivato per: " + authManager.getCurrentUser().getEmail());
+        } else {
+            System.out.println("👤 Menu standard per utente normale");
+        }
+
+        String[] menuItems = menuItemsList.toArray(new String[0]);
 
         for (int i = 0; i < menuItems.length; i++) {
-            HBox itemBox = createMenuItem(menuItems[i], i == 0);
+            HBox itemBox = createMenuItem(menuItems[i], i == activeMenuIndex);
             final int index = i;
 
-            // ✅ AGGIORNATO: Gestori eventi adattati agli indici modificati
+            // ✅ Gestori eventi per tutti i menu
             if (menuItems[i].contains("Home")) {
                 itemBox.setOnMouseClicked(e -> {
                     updateActiveMenuItem(index);
                     if (mainWindow != null) {
-                        System.out.println("🏠 Click Home dalla sidebar");
                         mainWindow.showHomePage();
                         if (mainWindow.getContentArea() != null) {
                             mainWindow.getContentArea().forceHomeView();
@@ -97,8 +116,16 @@ public class Sidebar {
                 itemBox.setOnMouseClicked(e -> {
                     updateActiveMenuItem(index);
                     if (mainWindow != null) {
-                        System.out.println("🔍 Sidebar: Click su Esplora");
                         mainWindow.showExploreSection();
+                    }
+                });
+            } else if (menuItems[i].contains("Gestione")) {
+                // ✅ NUOVO: Menu Gestione per admin
+                itemBox.setOnMouseClicked(e -> {
+                    updateActiveMenuItem(index);
+                    if (mainWindow != null) {
+                        System.out.println("⚙️ Apertura pannello admin da sidebar");
+                        mainWindow.showAdminPanel();
                     }
                 });
             }
@@ -107,6 +134,34 @@ public class Sidebar {
         }
 
         return menuBox;
+    }
+
+    /**
+     * Verifica se l'utente corrente è amministratore
+     */
+    private boolean isCurrentUserAdmin() {
+        if (!authManager.isAuthenticated() || authManager.getCurrentUser() == null) {
+            return false;
+        }
+
+        String email = authManager.getCurrentUser().getEmail();
+        System.out.println("🔍 Controllo privilegi admin per: " + email);
+
+        // ✅ LISTA EMAIL ADMIN (stessa di UserService per coerenza)
+        String[] adminEmails = {
+                "federico@admin.com",
+                "ariele@adim.com"
+        };
+
+        for (String adminEmail : adminEmails) {
+            if (email.equalsIgnoreCase(adminEmail)) {
+                System.out.println("👑 Utente riconosciuto come admin: " + email);
+                return true;
+            }
+        }
+
+        System.out.println("👤 Utente normale: " + email);
+        return false;
     }
 
     private HBox createMenuItem(String text, boolean isActive) {
@@ -371,13 +426,47 @@ public class Sidebar {
     public void refreshAuthSection() {
         System.out.println("🔄 Refreshing sidebar auth section...");
 
-        // Verifica che la sezione auth esista
+        // Aggiorna sezione autenticazione
         if (authSection != null) {
             updateAuthSection();
             System.out.println("✅ Sidebar auth section refreshed");
         } else {
             System.err.println("❌ Auth section is null, cannot refresh");
         }
+
+        // ✅ NUOVO: Refresh menu items per admin
+        refreshMenuItems();
+    }
+
+    /**
+     * Aggiorna dinamicamente i menu items per mostrare/nascondere Gestione admin
+     */
+    private void refreshMenuItems() {
+        System.out.println("🔄 Refreshing menu items...");
+
+        if (menuItemsBox == null) {
+            System.err.println("❌ menuItemsBox is null, cannot refresh");
+            return;
+        }
+
+        // Salva l'indice attivo attuale
+        int currentActiveIndex = activeMenuIndex;
+
+        // Ricostruisci il menu
+        VBox newMenuItems = createMenuItems();
+
+        // Sostituisci il contenuto del menuItemsBox
+        menuItemsBox.getChildren().clear();
+        menuItemsBox.getChildren().addAll(newMenuItems.getChildren());
+
+        // Ripristina lo stato attivo, ma verifica che l'indice sia valido
+        if (currentActiveIndex < menuItemsBox.getChildren().size()) {
+            updateActiveMenuItem(currentActiveIndex);
+        } else {
+            updateActiveMenuItem(0); // Torna a Home se l'indice non è più valido
+        }
+
+        System.out.println("✅ Menu items refreshed");
     }
 
     /**

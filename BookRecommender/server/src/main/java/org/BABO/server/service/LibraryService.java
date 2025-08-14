@@ -350,6 +350,41 @@ public class LibraryService {
     }
 
     /**
+     * Verifica se un utente possiede un libro in una delle sue librerie
+     */
+    public boolean doesUserOwnBook(String username, String isbn) {
+        System.out.println("🔍 Verifica possesso libro ISBN: " + isbn + " per utente: " + username);
+
+        String query = """
+        SELECT COUNT(*) as book_count 
+        FROM library_books 
+        WHERE username = ? AND isbn = ?
+    """;
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, username.toLowerCase().trim());
+            stmt.setString(2, isbn.trim());
+
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                int count = rs.getInt("book_count");
+                boolean owns = count > 0;
+                System.out.println(owns ? "✅ Utente possiede il libro" : "❌ Utente NON possiede il libro");
+                return owns;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore verifica possesso libro: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+    /**
      * Ottieni statistiche delle librerie di un utente
      */
     public String getUserLibraryStats(String username) {

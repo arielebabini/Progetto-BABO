@@ -825,24 +825,83 @@ public class BookDetailsPopup {
                 return;
             }
 
-            if (currentUserRating != null) {
-                RatingDialog.showEditRatingDialog(book, authManager.getCurrentUsername(),
-                        currentUserRating, updatedRating -> {
-                            currentUserRating = updatedRating;
-                            loadBookRatingsForAllUsers(book, authManager);
-                        });
-            } else {
-                RatingDialog.showRatingDialog(book, authManager.getCurrentUsername(),
-                        newRating -> {
-                            if (newRating != null) {
-                                currentUserRating = newRating;
-                                loadBookRatingsForAllUsers(book, authManager);
-                            }
-                        });
+            String username = authManager.getCurrentUsername();
+            if (username == null) {
+                showAlert("Errore", "Devi essere autenticato per valutare");
+                return;
             }
+
+            // Verifica prima se l'utente possiede il libro usando metodi esistenti
+            LibraryService libraryService = new LibraryService();
+            libraryService.doesUserOwnBookAsync(username, book.getIsbn())
+                    .thenAccept(owns -> Platform.runLater(() -> {
+                        if (owns) {
+                            // Utente possiede il libro, può valutare
+                            if (currentUserRating != null) {
+                                // USA IL METODO CORRETTO: showEditRatingDialog
+                                RatingDialog.showEditRatingDialog(book, username, currentUserRating, (rating) -> {
+                                    loadUserRating(book, authManager.getCurrentUsername());
+                                    loadAverageRating(book);
+                                });
+                            } else {
+                                // USA IL METODO CORRETTO: showRatingDialog
+                                RatingDialog.showRatingDialog(book, username, (rating) -> {
+                                    loadUserRating(book, authManager.getCurrentUsername());
+                                    loadAverageRating(book);
+                                });
+                            }
+                        } else {
+                            // Utente NON possiede il libro, mostra popup di errore
+                            showBookNotOwnedDialog(book, libraryService, username);
+                        }
+                    }))
+                    .exceptionally(throwable -> {
+                        Platform.runLater(() -> showAlert("Errore",
+                                "Errore nel controllo possesso libro: " + throwable.getMessage()));
+                        return null;
+                    });
         });
 
         return button;
+    }
+
+    private static void showBookNotOwnedDialog(Book book, LibraryService libraryService, String username) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Libro non posseduto");
+        alert.setHeaderText("Non puoi valutare questo libro");
+        alert.setContentText("Per valutare '" + book.getTitle() + "' devi prima aggiungerlo a una delle tue librerie.");
+
+        // Personalizza i bottoni
+        ButtonType addToLibraryButton = new ButtonType("📚 Aggiungi a Libreria");
+        ButtonType cancelButton = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        alert.getButtonTypes().setAll(addToLibraryButton, cancelButton);
+
+        styleDialog(alert);
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == addToLibraryButton) {
+                // Riusa il metodo esistente per aggiungere a libreria
+                handleAddToLibraryAction(book, username, libraryService);
+            }
+        });
+    }
+
+    private static void handleAddToLibraryAction(Book book, String username, LibraryService libraryService) {
+        // Usa il metodo esistente per recuperare le librerie dell'utente
+        libraryService.getUserLibrariesAsync(username)
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.isSuccess() && response.getLibraries() != null && !response.getLibraries().isEmpty()) {
+                        showChooseLibraryDialog(book, username, response.getLibraries(), libraryService);
+                    } else {
+                        showCreateNewLibraryDialog(book, username, libraryService);
+                    }
+                }))
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> showAlert("Errore",
+                            "Errore nel recupero librerie: " + throwable.getMessage()));
+                    return null;
+                });
     }
 
     private static void updateRatingButton(Button button) {
@@ -1020,6 +1079,7 @@ public class BookDetailsPopup {
                     }
                 }));
     }
+
 
     private static void styleDialog(Dialog<?> dialog) {
         DialogPane dialogPane = dialog.getDialogPane();

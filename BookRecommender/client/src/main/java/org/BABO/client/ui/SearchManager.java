@@ -117,11 +117,10 @@ public class SearchManager {
         // Statistiche di ricerca
         Label statsLabel = createSearchStats(searchResults);
 
-        FlowPane bookGrid = new FlowPane();
-        bookGrid.setHgap(20);
-        bookGrid.setVgap(25);
-        bookGrid.setPadding(new Insets(10));
-        bookGrid.setPrefWrapLength(750);
+        BookGridBuilder gridBuilder = new BookGridBuilder();
+        gridBuilder.setBookClickHandler(onBookClick);
+
+        FlowPane bookGrid = gridBuilder.createOptimizedBookGrid();
 
         gridBuilder.populateBookGrid(searchResults, bookGrid, null);
 

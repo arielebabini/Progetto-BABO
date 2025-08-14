@@ -340,44 +340,69 @@ public class AuthController {
     }
 
     /**
-     * Endpoint per recuperare tutti gli utenti (solo per admin)
-     * GET /api/auth/users
+     * Recupera tutti gli utenti (solo per admin)
+     * GET /api/auth/admin/users
      */
-    @GetMapping("/users")
-    public ResponseEntity<List<User>> getAllUsers() {
+    @GetMapping("/admin/users")
+    public ResponseEntity<?> getAllUsers(@RequestParam("adminEmail") String adminEmail) {
         try {
+            System.out.println("👑 Richiesta lista utenti da: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
             List<User> users = userService.getAllUsers();
-            System.out.println("📊 Restituiti " + users.size() + " utenti");
-            return ResponseEntity.ok(users);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Utenti recuperati con successo",
+                    "users", users,
+                    "total", users.size()
+            ));
 
         } catch (Exception e) {
-            System.err.println("❌ Errore recupero utenti: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            System.err.println("❌ Errore recupero utenti admin: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
         }
     }
 
     /**
-     * Endpoint per eliminare un utente (solo per admin)
-     * DELETE /api/auth/users/{userId}
-     * AGGIORNATO per compatibilità String/Long
+     * Elimina un utente (solo per admin)
+     * DELETE /api/auth/admin/users/{userId}
      */
-    @DeleteMapping("/users/{userId}")
-    public ResponseEntity<AuthResponse> deleteUser(@PathVariable String userId) {
+    @DeleteMapping("/admin/users/{userId}")
+    public ResponseEntity<?> deleteUser(
+            @PathVariable("userId") String userId,
+            @RequestParam("adminEmail") String adminEmail) {
         try {
-            boolean success = userService.deleteUser(userId); // Ora String
+            System.out.println("🗑️ Richiesta eliminazione utente " + userId + " da: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            boolean success = userService.deleteUser(userId);
 
             if (success) {
-                return ResponseEntity.ok(
-                        new AuthResponse(true, "Utente eliminato con successo")
-                );
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Utente eliminato con successo"
+                ));
             } else {
-                return ResponseEntity.notFound().build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Utente non trovato"));
             }
 
         } catch (Exception e) {
             System.err.println("❌ Errore eliminazione utente: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new AuthResponse(false, "Errore interno del server"));
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
         }
     }
 

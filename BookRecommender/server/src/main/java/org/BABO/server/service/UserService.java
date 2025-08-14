@@ -300,64 +300,6 @@ public class UserService {
     }
 
     /**
-     * Recupera tutti gli utenti (solo per admin)
-     * AGGIORNATO per compatibilità con il nuovo modello User
-     */
-    public List<User> getAllUsers() {
-        List<User> users = new ArrayList<>();
-        String query = "SELECT * FROM users ORDER BY name, surname";
-
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                // COSTRUTTORE CORRETTO: Long id, String name, String surname, String cf, String email, String username
-                User user = new User(
-                        rs.getLong("id"),           // Long id
-                        rs.getString("name"),       // String name
-                        rs.getString("surname"),    // String surname
-                        rs.getString("cf"),         // String cf
-                        rs.getString("email"),      // String email
-                        rs.getString("username")    // String username
-                );
-                users.add(user);
-            }
-
-            System.out.println("📊 Recuperati " + users.size() + " utenti");
-
-        } catch (SQLException e) {
-            System.err.println("❌ Errore recupero utenti: " + e.getMessage());
-        }
-
-        return users;
-    }
-
-    /**
-     * Elimina un utente (aggiornato per String userId)
-     */
-    public boolean deleteUser(String userId) {
-        String query = "DELETE FROM users WHERE id = ?";
-
-        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
-             PreparedStatement stmt = conn.prepareStatement(query)) {
-
-            stmt.setLong(1, Long.parseLong(userId)); // Converte String a Long
-            int deleted = stmt.executeUpdate();
-
-            if (deleted > 0) {
-                System.out.println("🗑️ Utente eliminato con ID: " + userId);
-                return true;
-            }
-
-        } catch (SQLException | NumberFormatException e) {
-            System.err.println("❌ Errore eliminazione utente: " + e.getMessage());
-        }
-
-        return false;
-    }
-
-    /**
      * Hash della password usando SHA-256
      */
     private String hashPassword(String password) {
@@ -438,6 +380,142 @@ public class UserService {
 
         } catch (SQLException | NumberFormatException e) {
             System.err.println("❌ Errore aggiornamento email: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Verifica se un utente è amministratore in base alla sua email
+     */
+    public boolean isUserAdmin(String email) {
+        if (email == null) return false;
+
+        // ✅ LISTA EMAIL AMMINISTRATORI (puoi espandere questa lista)
+        String[] adminEmails = {
+                "federico@admin.com",
+                "ariele@admin.com"
+        };
+
+        for (String adminEmail : adminEmails) {
+            if (email.equalsIgnoreCase(adminEmail)) {
+                System.out.println("✅ Utente admin riconosciuto: " + email);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Recupera tutti gli utenti registrati (solo per admin)
+     */
+    public List<User> getAllUsers() {
+        System.out.println("📋 Recupero di tutti gli utenti registrati");
+
+        List<User> users = new ArrayList<>();
+
+        // ✅ FIX: Query con campi espliciti nell'ordine esatto del DB
+        String query = """
+        SELECT id, name, surname, cf, email, username
+        FROM users 
+        ORDER BY id DESC
+    """;
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                // ✅ Leggi i campi nell'ordine corretto (che corrisponde al DB)
+                long id = rs.getLong(1);        // Colonna 1: id
+                String name = rs.getString(2);  // Colonna 2: name
+                String surname = rs.getString(3); // Colonna 3: surname
+                String cf = rs.getString(4);    // Colonna 4: cf
+                String email = rs.getString(5); // Colonna 5: email
+                String username = rs.getString(6); // Colonna 6: username
+
+                System.out.println("🔍 DEBUG dati dal DB (ordine corretto):");
+                System.out.println("   1. ID: " + id);
+                System.out.println("   2. Name: " + name);
+                System.out.println("   3. Surname: " + surname);
+                System.out.println("   4. CF: " + cf);
+                System.out.println("   5. Email: " + email);
+                System.out.println("   6. Username: " + username);
+
+                // ✅ USA il costruttore String che corrisponde all'ordine DB
+                User user = new User(
+                        String.valueOf(id),  // id (convertito a String)
+                        name,                // name
+                        surname,             // surname
+                        cf,                  // cf
+                        email,               // email
+                        username             // username
+                );
+
+                // ✅ VERIFICA che tutto sia corretto
+                System.out.println("👤 Utente creato correttamente:");
+                System.out.println("   ID: " + user.getId());
+                System.out.println("   Name: " + user.getName());
+                System.out.println("   Surname: " + user.getSurname());
+                System.out.println("   CF: " + user.getCf());
+                System.out.println("   Email: " + user.getEmail());
+                System.out.println("   Username: " + user.getUsername());
+                System.out.println("---");
+
+                users.add(user);
+            }
+
+            System.out.println("✅ Recuperati " + users.size() + " utenti");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore recupero utenti: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return users;
+    }
+
+    /**
+     * Elimina un utente (solo per admin)
+     */
+    public boolean deleteUser(String userId) {
+        System.out.println("🗑️ Eliminazione utente ID: " + userId);
+
+        // ✅ VALIDAZIONE: Controlla che userId non sia null o vuoto
+        if (userId == null || userId.trim().isEmpty() || "null".equals(userId)) {
+            System.err.println("❌ ID utente non valido: " + userId);
+            return false;
+        }
+
+        String query = "DELETE FROM users WHERE id = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            // ✅ Validazione aggiuntiva prima del parsing
+            long userIdLong;
+            try {
+                userIdLong = Long.parseLong(userId.trim());
+            } catch (NumberFormatException e) {
+                System.err.println("❌ ID utente non numerico: " + userId);
+                return false;
+            }
+
+            stmt.setLong(1, userIdLong);
+            int deleted = stmt.executeUpdate();
+
+            if (deleted > 0) {
+                System.out.println("✅ Utente eliminato con ID: " + userId);
+                return true;
+            } else {
+                System.out.println("❌ Nessun utente trovato con ID: " + userId);
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore eliminazione utente: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }

@@ -851,4 +851,25 @@ public class MainWindow {
 
         System.out.println("🧪 ===============================");
     }
+
+    public void showAdminPanel() {
+        System.out.println("⚙️ Apertura pannello amministrativo");
+
+        // Verifica privilegi admin
+        if (!authManager.isAuthenticated() || authManager.getCurrentUser() == null) {
+            showAlert("Accesso Negato", "Devi essere autenticato per accedere al pannello admin");
+            return;
+        }
+
+        // Crea pannello admin
+        AdminPanel adminPanel = new AdminPanel(authManager);
+        VBox adminContent = adminPanel.createAdminPanel();
+
+        // Sostituisci contenuto principale
+        if (contentArea != null) {
+            contentArea.showCustomContent(adminContent);
+        } else {
+            System.err.println("❌ ContentArea non disponibile per pannello admin");
+        }
+    }
 }

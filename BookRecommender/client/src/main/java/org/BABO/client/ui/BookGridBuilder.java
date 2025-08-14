@@ -150,11 +150,14 @@ public class BookGridBuilder {
         bookGrid.setPadding(new Insets(20));
         bookGrid.setAlignment(Pos.TOP_LEFT);
 
-        // Imposta una larghezza preferita per le righe che si adatta allo spazio
-        bookGrid.setPrefWrapLength(800);
+        bookGrid.prefWrapLengthProperty().bind(
+                bookGrid.widthProperty().subtract(40)
+        );
 
         return bookGrid;
-    }    /**
+    }
+
+    /**
      * Mostra messaggio quando non ci sono libri
      */
     private void showNoBooksMessage(ScrollPane scroll) {

@@ -408,7 +408,7 @@ public class CategoryView {
     }
 
     /**
-     * ✅ MOSTRA I LIBRI IN GRIGLIA STANDARD (senza frecce - quelle sono nel BookDetailsPopup)
+     * Libri in griglia standard
      */
     private void displayBooks(List<Book> books) {
         // Rimuovi indicatore di caricamento
@@ -422,7 +422,6 @@ public class CategoryView {
             return;
         }
 
-        // ✅ SALVA TUTTI I LIBRI per la navigazione nel BookDetailsPopup
         this.categoryBooks = new ArrayList<>(books);
 
         // Intestazione risultati
@@ -432,12 +431,14 @@ public class CategoryView {
         resultsHeader.setPadding(new Insets(20, 0, 20, 0));
         content.getChildren().add(resultsHeader);
 
-        // ✅ GRIGLIA LIBRI STANDARD (come originale, senza frecce)
         FlowPane booksGrid = new FlowPane();
         booksGrid.setHgap(20);
         booksGrid.setVgap(25);
-        booksGrid.setPrefWrapLength(1000);
         booksGrid.setAlignment(Pos.CENTER_LEFT);
+
+        booksGrid.prefWrapLengthProperty().bind(
+                booksGrid.widthProperty().subtract(40)
+        );
 
         for (Book book : books) {
             VBox bookCard = createBookCard(book);
@@ -448,7 +449,7 @@ public class CategoryView {
     }
 
     /**
-     * ✅ CREA CARD LIBRO con click handler che passa TUTTA LA LISTA al BookDetailsPopup
+     * Card libro con click handler
      */
     private VBox createBookCard(Book book) {
         VBox card = new VBox(10);
@@ -458,7 +459,6 @@ public class CategoryView {
         card.setPadding(new Insets(10));
         card.setStyle("-fx-cursor: hand;");
 
-        // ✅ CORRETTO: Usa ImageUtils come nelle altre sezioni che già funzionano
         ImageView bookCover = ImageUtils.createSafeImageView(book.getSafeImageFileName(), 120, 170);
 
         // Applica clip per bordi arrotondati

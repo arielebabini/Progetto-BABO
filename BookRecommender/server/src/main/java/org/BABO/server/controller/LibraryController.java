@@ -393,6 +393,47 @@ public class LibraryController {
     }
 
     /**
+     * Verifica se un utente possiede un libro
+     * GET /api/library/user/{username}/owns/{isbn}
+     */
+    @GetMapping("/user/{username}/owns/{isbn}")
+    public ResponseEntity<LibraryResponse> checkBookOwnership(
+            @PathVariable("username") String username,
+            @PathVariable("isbn") String isbn) {
+        try {
+            System.out.println("🔍 Controllo possesso libro per utente: " + username + " e ISBN: " + isbn);
+
+            if (username == null || username.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new LibraryResponse(false, "Username è obbligatorio"));
+            }
+
+            if (isbn == null || isbn.trim().isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(new LibraryResponse(false, "ISBN è obbligatorio"));
+            }
+
+            boolean ownsBook = libraryService.doesUserOwnBook(username, isbn);
+
+            if (ownsBook) {
+                return ResponseEntity.ok(
+                        new LibraryResponse(true, "Utente possiede il libro")
+                );
+            } else {
+                return ResponseEntity.ok(
+                        new LibraryResponse(false, "Utente non possiede il libro")
+                );
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore controllo possesso: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new LibraryResponse(false, "Errore interno del server"));
+        }
+    }
+
+    /**
      * Ottieni statistiche dell'utente per le librerie
      * GET /api/library/stats/{username}
      */
