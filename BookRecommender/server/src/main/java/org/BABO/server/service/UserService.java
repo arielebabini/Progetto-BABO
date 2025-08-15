@@ -427,7 +427,6 @@ public class UserService {
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
-                // ✅ Leggi i campi nell'ordine corretto (che corrisponde al DB)
                 long id = rs.getLong(1);        // Colonna 1: id
                 String name = rs.getString(2);  // Colonna 2: name
                 String surname = rs.getString(3); // Colonna 3: surname
@@ -443,17 +442,15 @@ public class UserService {
                 System.out.println("   5. Email: " + email);
                 System.out.println("   6. Username: " + username);
 
-                // ✅ USA il costruttore String che corrisponde all'ordine DB
                 User user = new User(
-                        String.valueOf(id),  // id (convertito a String)
-                        name,                // name
-                        surname,             // surname
-                        cf,                  // cf
-                        email,               // email
-                        username             // username
+                        id,
+                        name,
+                        surname,
+                        cf,
+                        email,
+                        username
                 );
 
-                // ✅ VERIFICA che tutto sia corretto
                 System.out.println("👤 Utente creato correttamente:");
                 System.out.println("   ID: " + user.getId());
                 System.out.println("   Name: " + user.getName());
@@ -482,7 +479,6 @@ public class UserService {
     public boolean deleteUser(String userId) {
         System.out.println("🗑️ Eliminazione utente ID: " + userId);
 
-        // ✅ VALIDAZIONE: Controlla che userId non sia null o vuoto
         if (userId == null || userId.trim().isEmpty() || "null".equals(userId)) {
             System.err.println("❌ ID utente non valido: " + userId);
             return false;

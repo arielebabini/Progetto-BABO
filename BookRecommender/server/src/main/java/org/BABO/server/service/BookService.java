@@ -846,4 +846,201 @@ public class BookService {
 
         return topRated;
     }
+
+    /**
+     * ===============================
+     * METODI ADMIN PER GESTIONE LIBRI
+     * ===============================
+     */
+
+    /**
+     * Aggiunge un nuovo libro al database (solo per admin)
+     */
+    public boolean addBook(String isbn, String title, String author, String description, String year, String category) {
+        System.out.println("📚 Aggiunta nuovo libro: " + title);
+
+        // Validazione base
+        if (isbn == null || isbn.trim().isEmpty() ||
+                title == null || title.trim().isEmpty() ||
+                author == null || author.trim().isEmpty()) {
+            System.err.println("❌ Dati libro incompleti");
+            return false;
+        }
+
+        // Verifica che l'ISBN non esista già
+        if (bookExistsByIsbn(isbn.trim())) {
+            System.err.println("❌ Libro con ISBN " + isbn + " già esistente");
+            return false;
+        }
+
+        String query = "INSERT INTO books (isbn, books_title, book_author, description, publi_year, category) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, isbn.trim());
+            stmt.setString(2, title.trim());
+            stmt.setString(3, author.trim());
+            stmt.setString(4, description != null ? description.trim() : "");
+            stmt.setString(5, year != null ? year.trim() : "");
+            stmt.setString(6, category != null ? category.trim() : "");
+
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("✅ Libro aggiunto con successo: " + title + " (ISBN: " + isbn + ")");
+                return true;
+            } else {
+                System.err.println("❌ Nessuna riga inserita");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore inserimento libro: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Elimina un libro dal database (solo per admin)
+     */
+    public boolean deleteBook(String isbn) {
+        System.out.println("🗑️ Eliminazione libro con ISBN: " + isbn);
+
+        // Validazione
+        if (isbn == null || isbn.trim().isEmpty()) {
+            System.err.println("❌ ISBN non valido");
+            return false;
+        }
+
+        String query = "DELETE FROM books WHERE isbn = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, isbn.trim());
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("✅ Libro eliminato con successo: ISBN " + isbn);
+                return true;
+            } else {
+                System.err.println("❌ Nessun libro trovato con ISBN: " + isbn);
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore eliminazione libro: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Aggiorna un libro esistente nel database (solo per admin)
+     */
+    public boolean updateBook(String isbn, String title, String author, String description, String year, String category) {
+        System.out.println("📝 Aggiornamento libro con ISBN: " + isbn);
+
+        // Validazione
+        if (isbn == null || isbn.trim().isEmpty()) {
+            System.err.println("❌ ISBN non valido");
+            return false;
+        }
+
+        String query = "UPDATE books SET books_title = ?, book_author = ?, description = ?, publi_year = ?, category = ? WHERE isbn = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, title != null ? title.trim() : "");
+            stmt.setString(2, author != null ? author.trim() : "");
+            stmt.setString(3, description != null ? description.trim() : "");
+            stmt.setString(4, year != null ? year.trim() : "");
+            stmt.setString(5, category != null ? category.trim() : "");
+            stmt.setString(6, isbn.trim());
+
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("✅ Libro aggiornato con successo: " + title + " (ISBN: " + isbn + ")");
+                return true;
+            } else {
+                System.err.println("❌ Nessun libro trovato con ISBN: " + isbn);
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore aggiornamento libro: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Verifica se un libro esiste già nel database tramite ISBN
+     */
+    private boolean bookExistsByIsbn(String isbn) {
+        String query = "SELECT COUNT(*) FROM books WHERE isbn = ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+
+            stmt.setString(1, isbn.trim());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt(1) > 0;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore verifica esistenza libro: " + e.getMessage());
+        }
+
+        return false;
+    }
+
+    /**
+     * Recupera tutti i libri con informazioni estese (per admin)
+     */
+    public List<Book> getAllBooksForAdmin() {
+        System.out.println("👑 Recupero tutti i libri per admin");
+
+        List<Book> books = new ArrayList<>();
+        String query = "SELECT isbn, books_title, book_author, description, publi_year, category FROM books ORDER BY books_title";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            while (rs.next()) {
+                String isbn = rs.getString("isbn");
+                String title = rs.getString("books_title");
+                String author = rs.getString("book_author");
+                String description = rs.getString("description");
+                String year = rs.getString("publi_year");
+                String category = rs.getString("category");
+
+                Long id = (long) (books.size() + 1);
+                String fileName = (isbn != null && !isbn.trim().isEmpty())
+                        ? isbn.replaceAll("[^a-zA-Z0-9]", "") + ".jpg"
+                        : "placeholder.jpg";
+
+                Book book = new Book(id, isbn, title, author, description, year, fileName);
+                if (category != null && !category.trim().isEmpty()) {
+                    book.setCategory(category);
+                }
+                books.add(book);
+            }
+
+            System.out.println("✅ Recuperati " + books.size() + " libri per admin");
+
+        } catch (SQLException e) {
+            System.err.println("❌ Errore recupero libri admin: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return books;
+    }
 }

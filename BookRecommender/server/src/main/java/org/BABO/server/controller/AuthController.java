@@ -1,5 +1,7 @@
 package org.BABO.server.controller;
 
+import org.BABO.server.service.BookService;
+import org.BABO.shared.model.Book;
 import org.BABO.shared.model.User;
 import org.BABO.shared.dto.AuthRequest;
 import org.BABO.shared.dto.AuthResponse;
@@ -24,6 +26,9 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private BookService bookService;
 
     /**
      * Endpoint per il login
@@ -489,6 +494,172 @@ public class AuthController {
             System.err.println("❌ Errore aggiornamento email: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new AuthResponse(false, "Errore interno del server"));
+        }
+    }
+
+    /**
+     * ===============================
+     * ENDPOINT ADMIN GESTIONE LIBRI
+     * ===============================
+     */
+
+    /**
+     * Recupera tutti i libri (solo per admin)
+     * GET /api/auth/admin/books
+     */
+    @GetMapping("/admin/books")
+    public ResponseEntity<?> getAllBooksAdmin(@RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("📚 Richiesta lista libri da admin: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            List<Book> books = bookService.getAllBooksForAdmin();
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Libri recuperati con successo",
+                    "books", books,
+                    "total", books.size()
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore recupero libri admin: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Aggiunge un nuovo libro (solo per admin)
+     * POST /api/auth/admin/books
+     */
+    @PostMapping("/admin/books")
+    public ResponseEntity<?> addBook(@RequestBody Map<String, String> bookData,
+                                     @RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("📚 Richiesta aggiunta libro da: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            // Estrai dati libro
+            String isbn = bookData.get("isbn");
+            String title = bookData.get("title");
+            String author = bookData.get("author");
+            String description = bookData.get("description");
+            String year = bookData.get("year");
+            String category = bookData.get("category");
+
+            // Validazione base
+            if (isbn == null || isbn.trim().isEmpty() ||
+                    title == null || title.trim().isEmpty() ||
+                    author == null || author.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "message", "ISBN, titolo e autore sono obbligatori"));
+            }
+
+            boolean success = bookService.addBook(isbn, title, author, description, year, category);
+
+            if (success) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Libro aggiunto con successo"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("success", false, "message", "Impossibile aggiungere il libro (ISBN già esistente o errore database)"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore aggiunta libro: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Elimina un libro (solo per admin)
+     * DELETE /api/auth/admin/books/{isbn}
+     */
+    @DeleteMapping("/admin/books/{isbn}")
+    public ResponseEntity<?> deleteBook(@PathVariable("isbn") String isbn,
+                                        @RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("🗑️ Richiesta eliminazione libro ISBN " + isbn + " da: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            boolean success = bookService.deleteBook(isbn);
+
+            if (success) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Libro eliminato con successo"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Libro non trovato"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore eliminazione libro: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Aggiorna un libro esistente (solo per admin)
+     * PUT /api/auth/admin/books/{isbn}
+     */
+    @PutMapping("/admin/books/{isbn}")
+    public ResponseEntity<?> updateBook(@PathVariable("isbn") String isbn,
+                                        @RequestBody Map<String, String> bookData,
+                                        @RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("📝 Richiesta aggiornamento libro ISBN " + isbn + " da: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            // Estrai dati libro
+            String title = bookData.get("title");
+            String author = bookData.get("author");
+            String description = bookData.get("description");
+            String year = bookData.get("year");
+            String category = bookData.get("category");
+
+            boolean success = bookService.updateBook(isbn, title, author, description, year, category);
+
+            if (success) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Libro aggiornato con successo"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Libro non trovato"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore aggiornamento libro: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
         }
     }
 }
