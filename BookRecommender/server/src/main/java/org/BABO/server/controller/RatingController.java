@@ -12,7 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controller REST per gestire le operazioni sulle valutazioni dei libri
@@ -570,5 +572,193 @@ public class RatingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new RatingResponse(false, "Errore interno del server"));
         }
+    }
+
+    /**
+     * Recupera tutte le recensioni (solo per admin)
+     * GET /api/ratings/admin/all
+     */
+    @GetMapping("/admin/all")
+    public ResponseEntity<Map<String, Object>> getAllReviewsAdmin(@RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("⭐ Richiesta tutte le recensioni da admin: " + adminEmail);
+
+            // Verifica privilegi admin (usa UserService per il controllo)
+            if (!isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            List<BookRating> allRatings = ratingService.getAllRatings();
+
+            // Converti in formato compatibile per il frontend
+            List<Map<String, Object>> ratingsData = new ArrayList<>();
+            for (BookRating rating : allRatings) {
+                Map<String, Object> ratingMap = new HashMap<>();
+                ratingMap.put("username", rating.getUsername());
+                ratingMap.put("isbn", rating.getIsbn());
+                ratingMap.put("data", rating.getData());
+                ratingMap.put("style", rating.getStyle());
+                ratingMap.put("content", rating.getContent());
+                ratingMap.put("pleasantness", rating.getPleasantness());
+                ratingMap.put("originality", rating.getOriginality());
+                ratingMap.put("edition", rating.getEdition());
+                ratingMap.put("average", rating.getAverage());
+                ratingMap.put("review", rating.getReview());
+                ratingsData.add(ratingMap);
+            }
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Recensioni recuperate con successo",
+                    "reviews", ratingsData,
+                    "total", allRatings.size()
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore recupero recensioni admin: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Elimina una recensione specifica (solo per admin)
+     * DELETE /api/ratings/admin/delete
+     */
+    @DeleteMapping("/admin/delete")
+    public ResponseEntity<Map<String, Object>> deleteReviewAdmin(
+            @RequestParam("adminEmail") String adminEmail,
+            @RequestParam("username") String username,
+            @RequestParam("isbn") String isbn) {
+        try {
+            System.out.println("🗑️ Richiesta eliminazione recensione da admin: " + adminEmail);
+            System.out.println("   - Utente: " + username + ", ISBN: " + isbn);
+
+            // Verifica privilegi admin
+            if (!isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            boolean success = ratingService.deleteRating(username, isbn);
+
+            if (success) {
+                return ResponseEntity.ok(Map.of(
+                        "success", true,
+                        "message", "Recensione eliminata con successo"
+                ));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("success", false, "message", "Recensione non trovata"));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore eliminazione recensione admin: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Recupera statistiche sulle recensioni (solo per admin)
+     * GET /api/ratings/admin/stats
+     */
+    @GetMapping("/admin/stats")
+    public ResponseEntity<Map<String, Object>> getReviewsStatsAdmin(@RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("📊 Richiesta statistiche recensioni da admin: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
+            }
+
+            // Calcola statistiche
+            int totalReviews = ratingService.getTotalRatingsCount();
+            List<BookRating> allRatings = ratingService.getAllRatings();
+
+            // Calcola media globale
+            double globalAverage = 0.0;
+            int reviewsWithText = 0;
+            int ratingsWithScores = 0;
+
+            if (!allRatings.isEmpty()) {
+                double sum = 0.0;
+                for (BookRating rating : allRatings) {
+                    if (rating.getAverage() != null && rating.getAverage() > 0) {
+                        sum += rating.getAverage();
+                        ratingsWithScores++;
+                    }
+                    if (rating.getReview() != null && !rating.getReview().trim().isEmpty()) {
+                        reviewsWithText++;
+                    }
+                }
+                if (ratingsWithScores > 0) {
+                    globalAverage = Math.round((sum / ratingsWithScores) * 100.0) / 100.0;
+                }
+            }
+
+            // Distribuzione per voto
+            Map<String, Integer> ratingDistribution = new HashMap<>();
+            ratingDistribution.put("5_stars", 0);
+            ratingDistribution.put("4_stars", 0);
+            ratingDistribution.put("3_stars", 0);
+            ratingDistribution.put("2_stars", 0);
+            ratingDistribution.put("1_star", 0);
+
+            for (BookRating rating : allRatings) {
+                if (rating.getAverage() != null && rating.getAverage() > 0) {
+                    double avg = rating.getAverage();
+                    if (avg >= 4.5) ratingDistribution.put("5_stars", ratingDistribution.get("5_stars") + 1);
+                    else if (avg >= 3.5) ratingDistribution.put("4_stars", ratingDistribution.get("4_stars") + 1);
+                    else if (avg >= 2.5) ratingDistribution.put("3_stars", ratingDistribution.get("3_stars") + 1);
+                    else if (avg >= 1.5) ratingDistribution.put("2_stars", ratingDistribution.get("2_stars") + 1);
+                    else ratingDistribution.put("1_star", ratingDistribution.get("1_star") + 1);
+                }
+            }
+
+            Map<String, Object> stats = new HashMap<>();
+            stats.put("totalReviews", totalReviews);
+            stats.put("reviewsWithText", reviewsWithText);
+            stats.put("ratingsWithScores", ratingsWithScores);
+            stats.put("globalAverage", globalAverage);
+            stats.put("ratingDistribution", ratingDistribution);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Statistiche recuperate con successo",
+                    "stats", stats
+            ));
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore recupero statistiche admin: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Helper per verificare se un utente è admin
+     */
+    private boolean isUserAdmin(String email) {
+        if (email == null) return false;
+
+        // Lista email amministratori (deve corrispondere a quella in UserService)
+        String[] adminEmails = {
+                "federico@admin.com",
+                "ariele@admin.com"
+        };
+
+        for (String adminEmail : adminEmails) {
+            if (email.equalsIgnoreCase(adminEmail)) {
+                System.out.println("✅ Utente admin riconosciuto: " + email);
+                return true;
+            }
+        }
+
+        System.out.println("❌ Accesso negato per: " + email);
+        return false;
     }
 }

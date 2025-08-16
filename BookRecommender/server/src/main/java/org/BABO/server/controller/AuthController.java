@@ -7,6 +7,10 @@ import org.BABO.shared.dto.AuthRequest;
 import org.BABO.shared.dto.AuthResponse;
 import org.BABO.shared.dto.RegisterRequest;
 import org.BABO.server.service.UserService;
+import org.BABO.shared.dto.AdminResponse;
+import org.BABO.shared.dto.ReviewsResponse;
+import org.BABO.shared.model.Review;
+import org.BABO.server.service.RatingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +33,9 @@ public class AuthController {
 
     @Autowired
     private BookService bookService;
+
+    @Autowired
+    private RatingService ratingService;
 
     /**
      * Endpoint per il login
@@ -660,6 +667,142 @@ public class AuthController {
             System.err.println("❌ Errore aggiornamento libro: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("success", false, "message", "Errore interno del server"));
+        }
+    }
+
+    /**
+     * ===============================
+     * ENDPOINT ADMIN GESTIONE RECENSIONI
+     * ===============================
+     */
+
+    /**
+     * Recupera tutte le recensioni (solo per admin)
+     * GET /api/auth/admin/reviews
+     */
+    @GetMapping("/admin/reviews")
+    public ResponseEntity<?> getAllReviewsAdmin(@RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("⭐ Richiesta recensioni da admin: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new ReviewsResponse(false, "Accesso negato: privilegi admin richiesti", null));
+            }
+
+            // Recupera tutte le recensioni con informazioni sui libri
+            List<Review> reviews = ratingService.getAllReviewsWithBookInfo();
+
+            ReviewsResponse response = new ReviewsResponse(true, "Recensioni recuperate con successo", reviews);
+            response.setTotalReviews(reviews.size());
+
+            // Calcola statistiche base
+            if (!reviews.isEmpty()) {
+                double avgRating = reviews.stream()
+                        .mapToInt(Review::getRating)
+                        .average()
+                        .orElse(0.0);
+                response.setAverageRating(Math.round(avgRating * 100.0) / 100.0);
+
+                long uniqueUsers = reviews.stream()
+                        .map(Review::getUsername)
+                        .distinct()
+                        .count();
+                response.setTotalUsers((int) uniqueUsers);
+            }
+
+            System.out.println("✅ Recensioni inviate: " + reviews.size());
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore recupero recensioni admin: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ReviewsResponse(false, "Errore interno del server", null));
+        }
+    }
+
+    /**
+     * Elimina una recensione specifica (solo per admin)
+     * DELETE /api/auth/admin/reviews/{reviewId}
+     */
+    @DeleteMapping("/admin/reviews/{reviewId}")
+    public ResponseEntity<?> deleteReview(@PathVariable("reviewId") Long reviewId,
+                                          @RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("🗑️ Eliminazione recensione ID: " + reviewId + " da admin: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new AdminResponse(false, "Accesso negato: privilegi admin richiesti"));
+            }
+
+            // Elimina la recensione
+            boolean success = ratingService.deleteReview(reviewId);
+
+            if (success) {
+                System.out.println("✅ Recensione eliminata con successo");
+                return ResponseEntity.ok(new AdminResponse(true, "Recensione eliminata con successo"));
+            } else {
+                return ResponseEntity.badRequest()
+                        .body(new AdminResponse(false, "Impossibile eliminare la recensione. Verificare che esista."));
+            }
+
+        } catch (Exception e) {
+            System.err.println("❌ Errore eliminazione recensione: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AdminResponse(false, "Errore interno del server"));
+        }
+    }
+
+    /**
+     * Elimina tutte le recensioni di un utente (solo per admin)
+     * DELETE /api/auth/admin/reviews/user/{username}
+     */
+    @DeleteMapping("/admin/reviews/user/{username}")
+    public ResponseEntity<?> deleteAllUserReviews(@PathVariable("username") String username,
+                                                  @RequestParam("adminEmail") String adminEmail) {
+        try {
+            System.out.println("🚫 Eliminazione recensioni utente: " + username + " da admin: " + adminEmail);
+
+            // Verifica privilegi admin
+            if (!userService.isUserAdmin(adminEmail)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(new AdminResponse(false, "Accesso negato: privilegi admin richiesti"));
+            }
+
+            // Verifica che l'utente esista
+            if (!userService.userExists("", username)) {
+                return ResponseEntity.badRequest()
+                        .body(new AdminResponse(false, "Utente '" + username + "' non trovato nel sistema"));
+            }
+
+            // Elimina tutte le recensioni dell'utente
+            int deletedCount = ratingService.deleteAllUserReviews(username);
+
+            if (deletedCount > 0) {
+                System.out.println("✅ Eliminate " + deletedCount + " recensioni dell'utente " + username);
+                return ResponseEntity.ok(
+                        new AdminResponse(true, "Eliminate " + deletedCount + " recensioni dell'utente " + username)
+                );
+            } else {
+                return ResponseEntity.ok(
+                        new AdminResponse(true, "Nessuna recensione trovata per l'utente " + username)
+                );
+            }
+
+        } catch (IllegalArgumentException e) {
+            System.err.println("❌ Parametro non valido: " + e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(new AdminResponse(false, "Parametro non valido: " + e.getMessage()));
+        } catch (Exception e) {
+            System.err.println("❌ Errore eliminazione recensioni utente: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AdminResponse(false, "Errore interno del server: " + e.getMessage()));
         }
     }
 }
