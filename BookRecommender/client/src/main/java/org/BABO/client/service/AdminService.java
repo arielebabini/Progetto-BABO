@@ -3,17 +3,12 @@ package org.BABO.client.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.BABO.shared.dto.AdminResponse;
-import org.BABO.shared.dto.ReviewStatsResponse;
-import org.BABO.shared.dto.ReviewsResponse;
+import org.BABO.shared.model.BookRating;
 import org.BABO.shared.model.User;
 import okhttp3.*;
 
-import java.io.IOException;
 import org.BABO.shared.model.Book;
-import org.BABO.shared.model.Review;
 
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -139,11 +134,6 @@ public class AdminService {
             }
         });
     }
-
-    /**
-     * Classe per le risposte del servizio admin
-     */
-
 
     /**
      * ===============================
@@ -328,17 +318,12 @@ public class AdminService {
     /**
      * Elimina una recensione specifica (solo per admin)
      */
-    public CompletableFuture<Map<String, Object>> deleteReviewAsync(String username, String isbn) {
+    public CompletableFuture<AdminRatingsResponse> deleteRatingAsync(String adminEmail, String username, String isbn) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String adminEmail = getCurrentAdminEmail();
-                if (adminEmail == null) {
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Accesso admin richiesto");
-                    return error;
-                }
+                System.out.println("🗑️ Eliminazione recensione per " + username + " - ISBN: " + isbn + " da admin: " + adminEmail);
 
+                // Costruisce l'URL per l'endpoint del RatingController
                 HttpUrl url = HttpUrl.parse("http://localhost:8080/api/ratings/admin/delete")
                         .newBuilder()
                         .addQueryParameter("adminEmail", adminEmail)
@@ -346,29 +331,42 @@ public class AdminService {
                         .addQueryParameter("isbn", isbn)
                         .build();
 
+                // Crea la richiesta DELETE
                 Request request = new Request.Builder()
                         .url(url)
                         .delete()
                         .build();
 
+                // Esegue la richiesta
                 try (Response response = httpClient.newCall(request).execute()) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        String responseBody = response.body().string();
-                        return objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
+                    if (response.body() != null) {
+                        String jsonResponse = response.body().string();
+
+                        // Parsing della risposta JSON
+                        Map<String, Object> responseMap = objectMapper.readValue(
+                                jsonResponse, new TypeReference<Map<String, Object>>() {}
+                        );
+
+                        boolean success = (boolean) responseMap.get("success");
+                        String message = (String) responseMap.get("message");
+
+                        if (success) {
+                            System.out.println("✅ Recensione eliminata con successo");
+                        } else {
+                            System.out.println("❌ Eliminazione fallita: " + message);
+                        }
+
+                        return new AdminRatingsResponse(success, message, null);
                     } else {
-                        Map<String, Object> error = new HashMap<>();
-                        error.put("success", false);
-                        error.put("message", "Errore server: " + response.code());
-                        return error;
+                        System.err.println("❌ Risposta vuota dal server");
+                        return new AdminRatingsResponse(false, "Risposta vuota dal server", null);
                     }
                 }
 
             } catch (Exception e) {
-                System.err.println("❌ Errore nell'eliminazione recensione: " + e.getMessage());
-                Map<String, Object> error = new HashMap<>();
-                error.put("success", false);
-                error.put("message", "Errore di connessione: " + e.getMessage());
-                return error;
+                System.err.println("❌ Errore eliminazione recensione: " + e.getMessage());
+                e.printStackTrace();
+                return new AdminRatingsResponse(false, "Errore di connessione: " + e.getMessage(), null);
             }
         });
     }
@@ -407,133 +405,59 @@ public class AdminService {
     }
 
     /**
-     * Modera una recensione (nasconde/approva) (solo per admin)
+     * Recupera tutte le recensioni dal server (per admin)
      */
-    public CompletableFuture<AdminResponse> moderateReviewAsync(String adminEmail, Long reviewId, boolean approve) {
+    public CompletableFuture<AdminRatingsResponse> getAllReviewsAsync(String adminEmail) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String action = approve ? "approve" : "hide";
-                System.out.println("🔍 Moderazione recensione ID: " + reviewId + " - azione: " + action + " da admin: " + adminEmail);
+                System.out.println("⭐ Richiesta lista recensioni per admin: " + adminEmail);
 
-                // Crea JSON per la richiesta
-                String jsonBody = objectMapper.writeValueAsString(Map.of(
-                        "adminEmail", adminEmail,
-                        "action", action
-                ));
+                HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/admin/ratings")
+                        .newBuilder()
+                        .addQueryParameter("adminEmail", adminEmail)
+                        .build();
 
                 Request request = new Request.Builder()
-                        .url(SERVER_BASE_URL + "/admin/reviews/" + reviewId + "/moderate")
-                        .put(RequestBody.create(jsonBody, MediaType.get("application/json")))
+                        .url(url)
+                        .get()
                         .build();
 
                 try (Response response = httpClient.newCall(request).execute()) {
                     if (response.body() != null) {
                         String jsonResponse = response.body().string();
-                        System.out.println("📨 Risposta moderazione recensione: " + jsonResponse);
 
-                        AdminResponse adminResponse = objectMapper.readValue(jsonResponse, AdminResponse.class);
-                        return adminResponse;
-                    } else {
-                        return new AdminResponse(false, "Risposta vuota dal server");
+                        if (response.isSuccessful()) {
+                            Map<String, Object> responseMap = objectMapper.readValue(
+                                    jsonResponse, new TypeReference<Map<String, Object>>() {}
+                            );
+
+                            @SuppressWarnings("unchecked")
+                            List<Map<String, Object>> ratingsData = (List<Map<String, Object>>) responseMap.get("ratings");
+
+                            List<BookRating> ratings = objectMapper.convertValue(
+                                    ratingsData, new TypeReference<List<BookRating>>() {}
+                            );
+
+                            System.out.println("✅ Recuperate " + ratings.size() + " recensioni");
+                            return new AdminRatingsResponse(true, "Recensioni recuperate con successo", ratings);
+
+                        } else {
+                            Map<String, Object> errorMap = objectMapper.readValue(
+                                    jsonResponse, new TypeReference<Map<String, Object>>() {}
+                            );
+                            String message = (String) errorMap.get("message");
+
+                            System.out.println("❌ Errore server: " + message);
+                            return new AdminRatingsResponse(false, message, null);
+                        }
                     }
                 }
 
-            } catch (Exception e) {
-                System.err.println("❌ Errore moderazione recensione: " + e.getMessage());
-                e.printStackTrace();
-                return new AdminResponse(false, "Errore di connessione: " + e.getMessage());
-            }
-        });
-    }
-
-    /**
-     * Recupera tutte le recensioni dal server (per admin)
-     */
-    public CompletableFuture<Map<String, Object>> getAllReviewsAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String adminEmail = getCurrentAdminEmail();
-                if (adminEmail == null) {
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Accesso admin richiesto");
-                    return error;
-                }
-
-                HttpUrl url = HttpUrl.parse("http://localhost:8080/api/ratings/admin/all")
-                        .newBuilder()
-                        .addQueryParameter("adminEmail", adminEmail)
-                        .build();
-
-                Request request = new Request.Builder()
-                        .url(url)
-                        .get()
-                        .build();
-
-                try (Response response = httpClient.newCall(request).execute()) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        String responseBody = response.body().string();
-                        return objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
-                    } else {
-                        Map<String, Object> error = new HashMap<>();
-                        error.put("success", false);
-                        error.put("message", "Errore server: " + response.code());
-                        return error;
-                    }
-                }
+                return new AdminRatingsResponse(false, "Risposta vuota dal server", null);
 
             } catch (Exception e) {
-                System.err.println("❌ Errore nel recupero recensioni: " + e.getMessage());
-                Map<String, Object> error = new HashMap<>();
-                error.put("success", false);
-                error.put("message", "Errore di connessione: " + e.getMessage());
-                return error;
-            }
-        });
-    }
-
-    /**
-     * Recupera statistiche sulle recensioni (per admin)
-     */
-    public CompletableFuture<Map<String, Object>> getReviewsStatsAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String adminEmail = getCurrentAdminEmail();
-                if (adminEmail == null) {
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("success", false);
-                    error.put("message", "Accesso admin richiesto");
-                    return error;
-                }
-
-                HttpUrl url = HttpUrl.parse("http://localhost:8080/api/ratings/admin/stats")
-                        .newBuilder()
-                        .addQueryParameter("adminEmail", adminEmail)
-                        .build();
-
-                Request request = new Request.Builder()
-                        .url(url)
-                        .get()
-                        .build();
-
-                try (Response response = httpClient.newCall(request).execute()) {
-                    if (response.isSuccessful() && response.body() != null) {
-                        String responseBody = response.body().string();
-                        return objectMapper.readValue(responseBody, new TypeReference<Map<String, Object>>() {});
-                    } else {
-                        Map<String, Object> error = new HashMap<>();
-                        error.put("success", false);
-                        error.put("message", "Errore server: " + response.code());
-                        return error;
-                    }
-                }
-
-            } catch (Exception e) {
-                System.err.println("❌ Errore nel recupero statistiche: " + e.getMessage());
-                Map<String, Object> error = new HashMap<>();
-                error.put("success", false);
-                error.put("message", "Errore di connessione: " + e.getMessage());
-                return error;
+                System.err.println("❌ Errore recupero recensioni: " + e.getMessage());
+                return new AdminRatingsResponse(false, "Errore di connessione: " + e.getMessage(), null);
             }
         });
     }
@@ -542,27 +466,12 @@ public class AdminService {
      * Helper per ottenere l'email dell'admin corrente
      */
     private String getCurrentAdminEmail() {
-        // Questo metodo dovrebbe ottenere l'email dell'utente corrente autenticato
-        // Assumiamo che sia disponibile tramite AuthenticationManager
-        // Modifica secondo la tua implementazione
 
         try {
-            // Esempio: return AuthenticationManager.getInstance().getCurrentUser().getEmail();
-            return "federico@admin.com"; // PLACEHOLDER - sostituisci con implementazione reale
+             return getCurrentAdminEmail();
         } catch (Exception e) {
             System.err.println("❌ Errore nel recupero email admin: " + e.getMessage());
             return null;
-        }
-    }
-
-    /**
-     * Helper per encoding URL
-     */
-    private String encodeUrl(String value) {
-        try {
-            return java.net.URLEncoder.encode(value, "UTF-8");
-        } catch (Exception e) {
-            return value;
         }
     }
 
@@ -583,5 +492,41 @@ public class AdminService {
         public boolean isSuccess() { return success; }
         public String getMessage() { return message; }
         public List<Book> getBooks() { return books; }
+    }
+
+    /**
+     * Classe per le risposte delle operazioni sulle recensioni
+     */
+    public static class AdminRatingsResponse {
+        private final boolean success;
+        private final String message;
+        private final List<BookRating> ratings;
+
+        public AdminRatingsResponse(boolean success, String message, List<BookRating> ratings) {
+            this.success = success;
+            this.message = message;
+            this.ratings = ratings;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public List<BookRating> getRatings() {
+            return ratings;
+        }
+
+        @Override
+        public String toString() {
+            return "AdminRatingsResponse{" +
+                    "success=" + success +
+                    ", message='" + message + '\'' +
+                    ", ratings=" + (ratings != null ? ratings.size() + " items" : "null") +
+                    '}';
+        }
     }
 }

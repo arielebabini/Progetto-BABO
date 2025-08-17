@@ -1,6 +1,6 @@
-package org.BABO.client.ui.category;
+package org.BABO.client.ui.Category;
 
-import org.BABO.client.ui.ImageUtils;
+import org.BABO.client.ui.Home.ImageUtils;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;

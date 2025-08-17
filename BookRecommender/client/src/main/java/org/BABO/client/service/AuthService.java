@@ -1,9 +1,8 @@
 package org.BABO.client.service;
 
-import org.BABO.shared.dto.AuthRequest;
-import org.BABO.shared.dto.AuthResponse;
-import org.BABO.shared.dto.RegisterRequest;
-import org.BABO.shared.model.User;
+import org.BABO.shared.dto.Authentication.AuthRequest;
+import org.BABO.shared.dto.Authentication.AuthResponse;
+import org.BABO.shared.dto.Authentication.RegisterRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;

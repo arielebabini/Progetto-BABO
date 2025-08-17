@@ -1,4 +1,4 @@
-package org.BABO.client.ui.category;
+package org.BABO.client.ui.Category;
 
 import javafx.scene.text.TextAlignment;
 import org.BABO.shared.model.Category;

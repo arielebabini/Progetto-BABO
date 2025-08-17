@@ -2,13 +2,11 @@ package org.BABO.server.service;
 
 import org.BABO.shared.model.BookRecommendation;
 import org.BABO.shared.model.Book;
-import org.BABO.shared.dto.RecommendationRequest;
+import org.BABO.shared.dto.Recommendation.RecommendationRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 

@@ -1,16 +1,14 @@
-package org.BABO.client.ui.popup;
+package org.BABO.client.ui.Popup;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.event.ActionEvent;
-import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.BABO.client.service.AuthService;
-import org.BABO.client.ui.AuthenticationManager;
+import org.BABO.client.ui.Authentication.AuthenticationManager;
 import org.BABO.shared.model.User;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -955,13 +953,6 @@ public class UserProfilePopup {
         confirmAlert.setHeaderText("Sei sicuro di voler uscire?");
         confirmAlert.setContentText("Dovrai effettuare nuovamente il login per accedere al tuo account.");
 
-        // Styling dell'alert
-        DialogPane dialogPane = confirmAlert.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: " + BG_COLOR + ";" +
-                        "-fx-text-fill: " + TEXT_COLOR + ";"
-        );
-
         confirmAlert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
                 System.out.println("🚪 Logout confermato dall'utente");
@@ -997,13 +988,6 @@ public class UserProfilePopup {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
-
-        // Styling dell'alert
-        DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: " + BG_COLOR + ";" +
-                        "-fx-text-fill: " + TEXT_COLOR + ";"
-        );
 
         alert.showAndWait();
     }

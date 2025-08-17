@@ -2,8 +2,8 @@ package org.BABO.server.controller;
 
 import org.BABO.shared.model.BookRecommendation;
 import org.BABO.shared.model.Book;
-import org.BABO.shared.dto.RecommendationRequest;
-import org.BABO.shared.dto.RecommendationResponse;
+import org.BABO.shared.dto.Recommendation.RecommendationRequest;
+import org.BABO.shared.dto.Recommendation.RecommendationResponse;
 import org.BABO.server.service.RecommendationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;

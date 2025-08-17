@@ -1,16 +1,21 @@
-package org.BABO.client.ui.popup;
+package org.BABO.client.ui.Popup;
 
-import org.BABO.client.ui.*;
 import javafx.animation.Interpolator;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import org.BABO.shared.dto.*;
+import org.BABO.client.ui.Authentication.AuthenticationManager;
+import org.BABO.client.ui.Home.ApplicationProtection;
+import org.BABO.client.ui.Home.IconUtils;
+import org.BABO.client.ui.Home.ImageUtils;
+import org.BABO.client.ui.Rating.RatingDialog;
+import org.BABO.client.ui.Recommendation.RecommendationDialog;
+import org.BABO.shared.dto.Library.LibraryResponse;
 import org.BABO.shared.model.Book;
-import org.BABO.shared.dto.RecommendationRequest;
-import org.BABO.shared.dto.RecommendationResponse;
+import org.BABO.shared.dto.Recommendation.RecommendationRequest;
+import org.BABO.shared.dto.Recommendation.RecommendationResponse;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.BABO.shared.model.BookRating;

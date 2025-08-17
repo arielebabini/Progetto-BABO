@@ -1,7 +1,12 @@
 package org.BABO.client.ui;
 
 import org.BABO.client.service.BookService;
-import org.BABO.client.ui.popup.PopupManager;
+import org.BABO.client.ui.Authentication.AuthenticationManager;
+import org.BABO.client.ui.Home.ApplicationProtection;
+import org.BABO.client.ui.Home.IconUtils;
+import org.BABO.client.ui.Home.ImageUtils;
+import org.BABO.client.ui.Home.MainWindow;
+import org.BABO.client.ui.Popup.PopupManager;
 import org.BABO.shared.model.Book;
 import javafx.application.Application;
 import javafx.application.Platform;

@@ -1,4 +1,4 @@
-package org.BABO.client.ui.popup;
+package org.BABO.client.ui.Popup;
 
 import org.BABO.client.service.BookService;
 import javafx.application.Platform;

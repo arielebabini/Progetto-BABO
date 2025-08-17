@@ -117,9 +117,11 @@ public class BookService {
         }
     }
 
-    // ===================================================================
-    // METODI DI RICERCA GENERICA E AVANZATA
-    // ===================================================================
+    /**
+    *   ===================================================================
+    *   METODI DI RICERCA GENERICA E AVANZATA
+    *   ===================================================================
+    */
 
     /**
      * Ricerca libri per titolo o autore (ricerca generica)
@@ -162,21 +164,9 @@ public class BookService {
     }
 
     /**
-     * Ricerca libri SOLO per titolo con debug
+     * Ricerca libri SOLO per titolo
      */
-    public CompletableFuture<List<Book>> searchBooksByTitleAsync(String title) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return searchBooksByTitle(title);
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante la ricerca per titolo: " + e.getMessage());
-                return new ArrayList<>();
-            }
-        });
-    }
-
     public List<Book> searchBooksByTitle(String title) throws IOException {
-        System.out.println("🔍 [DEBUG] searchBooksByTitle chiamato con: '" + title + "'");
 
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Title cannot be null or empty");
@@ -187,25 +177,21 @@ public class BookService {
                 .addQueryParameter("q", title.trim())
                 .build();
 
-        System.out.println("🌐 [DEBUG] URL costruita: " + url.toString());
-        System.out.println("🔗 [DEBUG] Query parameter 'q': " + url.queryParameter("q"));
-
         Request request = new Request.Builder()
                 .url(url)
                 .get()
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            System.out.println("📨 [DEBUG] Response code: " + response.code());
 
             if (response.isSuccessful() && response.body() != null) {
                 String jsonResponse = response.body().string();
                 List<Book> results = objectMapper.readValue(jsonResponse, new TypeReference<List<Book>>() {});
-                System.out.println("✅ [DEBUG] Trovati " + results.size() + " risultati per titolo: " + title);
+                System.out.println("✅ Trovati " + results.size() + " risultati per titolo: " + title);
                 return results;
             } else {
                 String errorBody = response.body() != null ? response.body().string() : "No body";
-                System.err.println("❌ [DEBUG] Errore " + response.code() + ": " + errorBody);
+                System.err.println("❌ Errore " + response.code() + ": " + errorBody);
                 throw new IOException("Errore nella risposta del server: " + response.code());
             }
         }
@@ -214,17 +200,6 @@ public class BookService {
     /**
      * Ricerca libri SOLO per autore
      */
-    public CompletableFuture<List<Book>> searchBooksByAuthorAsync(String author) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return searchBooksByAuthor(author);
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante la ricerca per autore: " + e.getMessage());
-                return new ArrayList<>();
-            }
-        });
-    }
-
     public List<Book> searchBooksByAuthor(String author) throws IOException {
         HttpUrl url = HttpUrl.parse(SERVER_BASE_URL + "/books/search/author")
                 .newBuilder()
@@ -470,10 +445,6 @@ public class BookService {
                 "Un capolavoro del realismo magico latinoamericano.","placeholder.jpg"));
         return books;
     }
-
-    // ===================================================================
-    // METODI MANCANTI PER COMPATIBILITÀ
-    // ===================================================================
 
     /**
      * Test connessione server (per Header.java)

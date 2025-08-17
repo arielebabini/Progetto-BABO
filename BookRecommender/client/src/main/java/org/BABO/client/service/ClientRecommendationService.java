@@ -1,9 +1,8 @@
 package org.BABO.client.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.BABO.shared.dto.RecommendationRequest;
-import org.BABO.shared.dto.RecommendationResponse;
-import org.BABO.shared.model.BookRecommendation;
+import org.BABO.shared.dto.Recommendation.RecommendationRequest;
+import org.BABO.shared.dto.Recommendation.RecommendationResponse;
 
 import java.net.URI;
 import java.net.http.HttpClient;

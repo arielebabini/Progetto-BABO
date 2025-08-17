@@ -1,9 +1,9 @@
 package org.BABO.server.service;
 import java.time.format.DateTimeFormatter;
 
-import org.BABO.shared.dto.ReviewStats;
+import org.BABO.shared.dto.Reviews.ReviewStats;
 import org.BABO.shared.model.BookRating;
-import org.BABO.shared.dto.RatingResponse;
+import org.BABO.shared.dto.Rating.RatingResponse;
 import org.BABO.shared.model.Review;
 import org.springframework.stereotype.Service;
 
@@ -965,10 +965,10 @@ public class RatingService {
         List<BookRating> allRatings = new ArrayList<>();
 
         String query = """
-        SELECT username, isbn, data, style, content, pleasantness, originality, edition, average, review
-        FROM assessment 
-        ORDER BY data DESC
-        """;
+    SELECT username, isbn, data, style, content, pleasantness, originality, edition, average, review
+    FROM assessment 
+    ORDER BY data DESC
+    """;
 
         try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
              PreparedStatement stmt = conn.prepareStatement(query)) {

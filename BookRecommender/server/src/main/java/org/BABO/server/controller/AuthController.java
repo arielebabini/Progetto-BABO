@@ -3,19 +3,23 @@ package org.BABO.server.controller;
 import org.BABO.server.service.BookService;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.User;
-import org.BABO.shared.dto.AuthRequest;
-import org.BABO.shared.dto.AuthResponse;
-import org.BABO.shared.dto.RegisterRequest;
+import org.BABO.shared.dto.Authentication.AuthRequest;
+import org.BABO.shared.dto.Authentication.AuthResponse;
+import org.BABO.shared.dto.Authentication.RegisterRequest;
 import org.BABO.server.service.UserService;
 import org.BABO.shared.dto.AdminResponse;
-import org.BABO.shared.dto.ReviewsResponse;
-import org.BABO.shared.model.Review;
 import org.BABO.server.service.RatingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -677,49 +681,65 @@ public class AuthController {
      */
 
     /**
-     * Recupera tutte le recensioni (solo per admin)
-     * GET /api/auth/admin/reviews
+     * Recupera tutte le recensioni/valutazioni (solo per admin)
+     * GET /api/auth/admin/ratings
      */
-    @GetMapping("/admin/reviews")
-    public ResponseEntity<?> getAllReviewsAdmin(@RequestParam("adminEmail") String adminEmail) {
+    @GetMapping("/admin/ratings")
+    public ResponseEntity<?> getAllRatingsAdmin(@RequestParam("adminEmail") String adminEmail) {
         try {
-            System.out.println("⭐ Richiesta recensioni da admin: " + adminEmail);
+            System.out.println("⭐ Richiesta tutte le valutazioni da admin: " + adminEmail);
 
             // Verifica privilegi admin
             if (!userService.isUserAdmin(adminEmail)) {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body(new ReviewsResponse(false, "Accesso negato: privilegi admin richiesti", null));
+                        .body(Map.of("success", false, "message", "Accesso negato: privilegi admin richiesti"));
             }
 
-            // Recupera tutte le recensioni con informazioni sui libri
-            List<Review> reviews = ratingService.getAllReviewsWithBookInfo();
+            // Usa query diretta invece del metodo getAllRatings() per evitare problemi di mapping
+            List<Map<String, Object>> ratingsData = new ArrayList<>();
 
-            ReviewsResponse response = new ReviewsResponse(true, "Recensioni recuperate con successo", reviews);
-            response.setTotalReviews(reviews.size());
+            String query = """
+        SELECT username, isbn, data, style, content, pleasantness, originality, edition, average, review
+        FROM assessment 
+        ORDER BY data DESC
+        """;
 
-            // Calcola statistiche base
-            if (!reviews.isEmpty()) {
-                double avgRating = reviews.stream()
-                        .mapToInt(Review::getRating)
-                        .average()
-                        .orElse(0.0);
-                response.setAverageRating(Math.round(avgRating * 100.0) / 100.0);
+            try (Connection conn = DriverManager.getConnection(
+                    "jdbc:postgresql://localhost:5432/DataProva",
+                    "postgres",
+                    "postgress");
+                 PreparedStatement stmt = conn.prepareStatement(query)) {
 
-                long uniqueUsers = reviews.stream()
-                        .map(Review::getUsername)
-                        .distinct()
-                        .count();
-                response.setTotalUsers((int) uniqueUsers);
+                ResultSet rs = stmt.executeQuery();
+
+                while (rs.next()) {
+                    Map<String, Object> ratingMap = new HashMap<>();
+                    ratingMap.put("username", rs.getString("username"));
+                    ratingMap.put("isbn", rs.getString("isbn"));
+                    ratingMap.put("data", rs.getString("data"));
+                    ratingMap.put("style", rs.getObject("style"));
+                    ratingMap.put("content", rs.getObject("content"));
+                    ratingMap.put("pleasantness", rs.getObject("pleasantness"));
+                    ratingMap.put("originality", rs.getObject("originality"));
+                    ratingMap.put("edition", rs.getObject("edition"));
+                    ratingMap.put("average", rs.getObject("average"));
+                    ratingMap.put("review", rs.getString("review"));
+                    ratingsData.add(ratingMap);
+                }
             }
 
-            System.out.println("✅ Recensioni inviate: " + reviews.size());
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Valutazioni recuperate con successo",
+                    "ratings", ratingsData,
+                    "total", ratingsData.size()
+            ));
 
         } catch (Exception e) {
-            System.err.println("❌ Errore recupero recensioni admin: " + e.getMessage());
+            System.err.println("❌ Errore recupero valutazioni admin: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ReviewsResponse(false, "Errore interno del server", null));
+                    .body(Map.of("success", false, "message", "Errore interno del server"));
         }
     }
 

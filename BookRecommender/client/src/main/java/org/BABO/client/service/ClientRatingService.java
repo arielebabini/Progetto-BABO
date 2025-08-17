@@ -1,11 +1,9 @@
 package org.BABO.client.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.BABO.shared.dto.RatingRequest;
-import org.BABO.shared.dto.RatingResponse;
+import org.BABO.shared.dto.Rating.RatingRequest;
+import org.BABO.shared.dto.Rating.RatingResponse;
 import org.BABO.shared.model.Book;
-import org.BABO.shared.model.BookRating;
 
 import java.net.URI;
 import java.net.http.HttpClient;

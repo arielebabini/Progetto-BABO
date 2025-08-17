@@ -1,13 +1,13 @@
 package org.BABO.client.service;
 
-import org.BABO.shared.model.Book;
-import org.BABO.shared.dto.*;
-import com.fasterxml.jackson.core.type.TypeReference;
+import org.BABO.shared.dto.Library.AddBookToLibraryRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
+import org.BABO.shared.dto.Library.CreateLibraryRequest;
+import org.BABO.shared.dto.Library.LibraryResponse;
+import org.BABO.shared.dto.Library.RemoveBookFromLibraryRequest;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
