@@ -71,6 +71,8 @@ public class MainWindow {
 
         exploreIntegration.setContainer(mainRoot);
 
+        exploreIntegration.setAuthManager(authManager);
+
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via Esplora: " + selectedBook.getTitle());
             AppleBooksClient.openBookDetails(
@@ -365,9 +367,10 @@ public class MainWindow {
             // Configura callback per click sui libri
             libraryPanel.setOnBookClick(selectedBook -> {
                 System.out.println("📖 Click libro da libreria: " + selectedBook.getTitle());
+                List<Book> libraryBooks = libraryPanel.getCurrentLibraryBooks();
                 AppleBooksClient.openBookDetails(
                         selectedBook,
-                        cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
+                        libraryBooks.isEmpty() ? List.of(selectedBook) : libraryBooks,
                         authManager
                 );
             });

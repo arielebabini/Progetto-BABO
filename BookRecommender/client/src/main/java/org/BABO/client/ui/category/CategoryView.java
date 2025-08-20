@@ -1,5 +1,6 @@
 package org.BABO.client.ui.Category;
 
+import org.BABO.client.ui.Authentication.AuthenticationManager;
 import org.BABO.client.ui.Home.ImageUtils;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
@@ -26,7 +27,6 @@ import java.util.function.Consumer;
 
 /**
  * Vista per mostrare i libri di una categoria specifica
- * ✅ SEMPLIFICATA - Mostra tutti i libri e passa la lista al BookDetailsPopup per la navigazione
  */
 public class CategoryView {
 
@@ -39,8 +39,13 @@ public class CategoryView {
     private Label backText;
     private Runnable onBackCallback;
 
-    // ✅ Lista di tutti i libri della categoria per la navigazione
     private List<Book> categoryBooks = new ArrayList<>();
+
+    private AuthenticationManager authManager;
+
+    public void setAuthManager(AuthenticationManager authManager) {
+        this.authManager = authManager;
+    }
 
     public CategoryView(Category category, BookService bookService, Consumer<Book> bookClickHandler) {
         this.category = category;
@@ -489,13 +494,11 @@ public class CategoryView {
         authorLabel.setMaxWidth(135);
         authorLabel.setAlignment(Pos.CENTER);
 
-        // ✅ CLICK HANDLER che passa TUTTA LA LISTA dei libri della categoria
         card.setOnMouseClicked(e -> {
             System.out.println("📖 Click libro categoria: " + book.getTitle());
             System.out.println("📚 Aprendo con lista di " + categoryBooks.size() + " libri per navigazione");
 
-            // Apri direttamente BookDetailsPopup con la lista completa della categoria
-            AppleBooksClient.openBookDetails(book, categoryBooks, null);
+            AppleBooksClient.openBookDetails(book, categoryBooks, authManager);
         });
 
         card.getChildren().addAll(bookCover, titleLabel, authorLabel);

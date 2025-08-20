@@ -405,13 +405,6 @@ public class AuthPanel extends VBox {
         ButtonType cancelButtonType = new ButtonType("❌ Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
         resetDialog.getButtonTypes().addAll(resetButtonType, cancelButtonType);
 
-        // Styling
-        DialogPane dialogPane = resetDialog.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: #404040;" +
-                        "-fx-text-fill: #FFFFFF;"
-        );
-
         // Gestione click pulsante reset
         Button resetButton = (Button) resetDialog.getDialogPane().lookupButton(resetButtonType);
         resetButton.addEventFilter(ActionEvent.ACTION, event -> {

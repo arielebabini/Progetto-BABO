@@ -70,7 +70,7 @@ public class AppleBooksClient extends Application {
 
             // Carica CSS se disponibile
             try {
-                scene.getStylesheets().add(getClass().getResource("/css/applebooks.css").toExternalForm());
+                //scene.getStylesheets().add(getClass().getResource("/css/applebooks.css").toExternalForm());
                 scene.getStylesheets().add(getClass().getResource("/css/style.css").toExternalForm());
                 scene.getStylesheets().add(getClass().getResource("/css/scrollbar.css").toExternalForm());
                 scene.getStylesheets().add(getClass().getResource("/css/auth-tabs.css").toExternalForm());

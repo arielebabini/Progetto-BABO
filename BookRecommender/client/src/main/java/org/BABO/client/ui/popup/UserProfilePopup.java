@@ -565,7 +565,6 @@ public class UserProfilePopup {
         HBox buttonContainer = new HBox(15);
         buttonContainer.setAlignment(Pos.CENTER);
 
-        // ✅ Bottone Annulla CORRETTO
         Button cancelButton = new Button("❌ Annulla");
         cancelButton.setPrefWidth(120);
         cancelButton.setPrefHeight(40);
@@ -579,7 +578,6 @@ public class UserProfilePopup {
                         "-fx-cursor: hand;"
         );
 
-        // ✅ GESTIONE CORRETTA del bottone annulla
         cancelButton.setOnAction(event -> {
             System.out.println("🚫 Annulla modifica email cliccato");
             isEmailDialogOpen = false;

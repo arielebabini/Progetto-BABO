@@ -49,8 +49,6 @@ public class ClientRecommendationService {
                 HttpResponse<String> response = httpClient.send(httpRequest,
                         HttpResponse.BodyHandlers.ofString());
 
-                System.out.println("📡 Risposta server raccomandazione: " + response.statusCode());
-
                 if (response.statusCode() == 201 || response.statusCode() == 200) {
                     RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
                     System.out.println("✅ Raccomandazione salvata: " + recResponse.getMessage());
@@ -87,8 +85,6 @@ public class ClientRecommendationService {
                 HttpResponse<String> response = httpClient.send(request,
                         HttpResponse.BodyHandlers.ofString());
 
-                System.out.println("📡 Risposta recupero raccomandazioni: " + response.statusCode());
-
                 if (response.statusCode() == 200) {
                     RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
                     System.out.println("✅ Raccomandazioni recuperate: " + recResponse.getRecommendationsCount());
@@ -124,8 +120,6 @@ public class ClientRecommendationService {
                 HttpResponse<String> response = httpClient.send(request,
                         HttpResponse.BodyHandlers.ofString());
 
-                System.out.println("📡 Risposta verifica permessi: " + response.statusCode());
-
                 if (response.statusCode() == 200) {
                     RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
                     System.out.println("✅ Verifica completata: " + recResponse.getCanRecommend());
@@ -160,8 +154,6 @@ public class ClientRecommendationService {
 
                 HttpResponse<String> response = httpClient.send(request,
                         HttpResponse.BodyHandlers.ofString());
-
-                System.out.println("📡 Risposta raccomandazioni utente: " + response.statusCode());
 
                 if (response.statusCode() == 200) {
                     RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
@@ -201,8 +193,6 @@ public class ClientRecommendationService {
                 HttpResponse<String> response = httpClient.send(httpRequest,
                         HttpResponse.BodyHandlers.ofString());
 
-                System.out.println("📡 Risposta rimozione raccomandazione: " + response.statusCode());
-
                 if (response.statusCode() == 200) {
                     RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
                     System.out.println("✅ Raccomandazione rimossa");
@@ -224,114 +214,6 @@ public class ClientRecommendationService {
         });
     }
 
-    /**
-     * Test di connessione al servizio raccomandazioni
-     */
-    public CompletableFuture<RecommendationResponse> healthCheckAsync() {
-        System.out.println("🏥 Test connessione servizio raccomandazioni");
-
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(BASE_URL + "/health"))
-                        .GET()
-                        .build();
-
-                HttpResponse<String> response = httpClient.send(request,
-                        HttpResponse.BodyHandlers.ofString());
-
-                System.out.println("📡 Risposta health check: " + response.statusCode());
-
-                if (response.statusCode() == 200) {
-                    RecommendationResponse recResponse = objectMapper.readValue(response.body(), RecommendationResponse.class);
-                    System.out.println("✅ Servizio raccomandazioni disponibile");
-                    return recResponse;
-                } else {
-                    System.out.println("❌ Servizio raccomandazioni non disponibile");
-                    return new RecommendationResponse(false, "Servizio non disponibile: " + response.statusCode());
-                }
-
-            } catch (Exception e) {
-                System.err.println("❌ Errore nel health check: " + e.getMessage());
-                return new RecommendationResponse(false, "Errore di connessione: " + e.getMessage());
-            }
-        });
-    }
-
-    // =============== METODI SINCRONI (per compatibilità) ===============
-
-    /**
-     * Aggiunge una raccomandazione (sincrono)
-     */
-    public RecommendationResponse addRecommendation(RecommendationRequest request) {
-        try {
-            return addRecommendationAsync(request).get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'operazione sincrona: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Recupera raccomandazioni per un libro (sincrono)
-     */
-    public RecommendationResponse getBookRecommendations(String isbn) {
-        try {
-            return getBookRecommendationsAsync(isbn).get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'operazione sincrona: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Verifica permessi (sincrono)
-     */
-    public RecommendationResponse canUserRecommend(String username, String isbn) {
-        try {
-            return canUserRecommendAsync(username, isbn).get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'operazione sincrona: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Recupera raccomandazioni utente (sincrono)
-     */
-    public RecommendationResponse getUserRecommendationsForBook(String username, String isbn) {
-        try {
-            return getUserRecommendationsForBookAsync(username, isbn).get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'operazione sincrona: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Rimuove raccomandazione (sincrono)
-     */
-    public RecommendationResponse removeRecommendation(RecommendationRequest request) {
-        try {
-            return removeRecommendationAsync(request).get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'operazione sincrona: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Test di connessione (sincrono)
-     */
-    public RecommendationResponse healthCheck() {
-        try {
-            return healthCheckAsync().get();
-        } catch (Exception e) {
-            System.err.println("❌ Errore nell'health check sincrono: " + e.getMessage());
-            return new RecommendationResponse(false, "Errore: " + e.getMessage());
-        }
-    }
-
     // =============== METODI DI UTILITÀ ===============
 
     /**
@@ -343,72 +225,6 @@ public class ClientRecommendationService {
         } catch (Exception e) {
             return value;
         }
-    }
-
-    /**
-     * Verifica se l'utente può aggiungere più raccomandazioni per un libro
-     */
-    public CompletableFuture<Boolean> canAddMoreRecommendationsAsync(String username, String isbn) {
-        return canUserRecommendAsync(username, isbn)
-                .thenApply(response -> {
-                    if (response.isSuccess() && response.getCanRecommend() != null) {
-                        return response.canAddMoreRecommendations();
-                    }
-                    return false;
-                });
-    }
-
-    /**
-     * Ottiene il numero di slot rimanenti per le raccomandazioni
-     */
-    public CompletableFuture<Integer> getRemainingRecommendationSlotsAsync(String username, String isbn) {
-        return canUserRecommendAsync(username, isbn)
-                .thenApply(response -> {
-                    if (response.isSuccess()) {
-                        return response.getRemainingRecommendationsSlots();
-                    }
-                    return 0;
-                });
-    }
-
-    /**
-     * Verifica se una specifica raccomandazione esiste già
-     */
-    public CompletableFuture<Boolean> recommendationExistsAsync(String username, String targetIsbn, String recommendedIsbn) {
-        return getUserRecommendationsForBookAsync(username, targetIsbn)
-                .thenApply(response -> {
-                    if (response.isSuccess() && response.getRecommendations() != null) {
-                        return response.getRecommendations().stream()
-                                .anyMatch(rec -> recommendedIsbn.equals(rec.getRecommendedBookIsbn()));
-                    }
-                    return false;
-                });
-    }
-
-    /**
-     * Ottiene statistiche delle raccomandazioni
-     */
-    public CompletableFuture<RecommendationResponse> getStatsAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                HttpRequest request = HttpRequest.newBuilder()
-                        .uri(URI.create(BASE_URL + "/stats"))
-                        .GET()
-                        .build();
-
-                HttpResponse<String> response = httpClient.send(request,
-                        HttpResponse.BodyHandlers.ofString());
-
-                if (response.statusCode() == 200) {
-                    return objectMapper.readValue(response.body(), RecommendationResponse.class);
-                } else {
-                    return new RecommendationResponse(false, "Errore nel recupero statistiche");
-                }
-
-            } catch (Exception e) {
-                return new RecommendationResponse(false, "Errore di connessione: " + e.getMessage());
-            }
-        });
     }
 
     /**

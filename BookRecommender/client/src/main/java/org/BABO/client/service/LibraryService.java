@@ -31,25 +31,6 @@ public class LibraryService {
     }
 
     /**
-     * Verifica se il servizio librerie è raggiungibile
-     */
-    public boolean isServerAvailable() {
-        try {
-            Request request = new Request.Builder()
-                    .url(SERVER_BASE_URL + "/health")
-                    .get()
-                    .build();
-
-            try (Response response = httpClient.newCall(request).execute()) {
-                return response.isSuccessful();
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Servizio librerie non raggiungibile: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
      * Crea una nuova libreria per un utente
      */
     public CompletableFuture<LibraryResponse> createLibraryAsync(String username, String namelib) {
@@ -318,6 +299,10 @@ public class LibraryService {
         }
     }
 
+
+    /**
+     * Verifica se l'utente ha il libro in una libreria
+     */
     public CompletableFuture<Boolean> doesUserOwnBookAsync(String username, String isbn) {
         System.out.println("🔍 Verifica possesso libro ISBN: " + isbn + " per utente: " + username);
 
@@ -426,49 +411,6 @@ public class LibraryService {
                     System.out.println("✅ Statistiche recuperate per: " + username);
                 } else {
                     System.out.println("❌ Recupero statistiche fallito: " + libraryResponse.getMessage());
-                }
-
-                return libraryResponse;
-            } else {
-                throw new IOException("Risposta vuota dal server");
-            }
-        }
-    }
-
-    /**
-     * Test di connessione al servizio librerie
-     */
-    public CompletableFuture<LibraryResponse> healthCheckAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return healthCheck();
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante il health check: " + e.getMessage());
-                return new LibraryResponse(false, "Servizio non raggiungibile: " + e.getMessage());
-            }
-        });
-    }
-
-    /**
-     * Test di connessione al servizio librerie
-     */
-    public LibraryResponse healthCheck() throws IOException {
-        System.out.println("🩺 Test connessione servizio librerie...");
-
-        Request request = new Request.Builder()
-                .url(SERVER_BASE_URL + "/health")
-                .get()
-                .build();
-
-        try (Response response = httpClient.newCall(request).execute()) {
-            if (response.body() != null) {
-                String jsonResponse = response.body().string();
-                LibraryResponse libraryResponse = objectMapper.readValue(jsonResponse, LibraryResponse.class);
-
-                if (response.isSuccessful()) {
-                    System.out.println("✅ Servizio librerie: " + libraryResponse.getMessage());
-                } else {
-                    System.out.println("⚠️ Servizio librerie non disponibile");
                 }
 
                 return libraryResponse;

@@ -55,7 +55,10 @@ public class Book {
     @JsonProperty("pages")
     private Integer pages;
 
+    @JsonProperty("reviewCount")
     private int reviewCount = 0;
+
+    @JsonProperty("averageRating")
     private double averageRating = 0.0;
 
     public int getReviewCount() {

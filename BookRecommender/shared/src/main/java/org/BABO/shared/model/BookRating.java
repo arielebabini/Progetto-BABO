@@ -235,7 +235,7 @@ public class BookRating {
             return "Non valutato";
         }
 
-        String stars = "★".repeat(getStarRating()) + "☆".repeat(5 - getStarRating());
+        String stars = "★".repeat(getStarRating()) + "★".repeat(5 - getStarRating());
         return String.format("%s (%.1f/5)", stars, average);
     }
 

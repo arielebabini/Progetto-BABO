@@ -455,18 +455,6 @@ public class BookDetailsPopup {
         return infoBox;
     }
 
-    /*private static Label createCategoryBadge() {
-        Label categoryBadge = new Label("#1, BESTSELLER ❯");
-        categoryBadge.setStyle(
-                "-fx-background-color: #444;" +
-                        "-fx-background-radius: 15;" +
-                        "-fx-padding: 5 10;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-size: 12;"
-        );
-        return categoryBadge;
-    }*/
-
     private static Label createTitleLabel(String title) {
         Label titleLabel = new Label(title);
         titleLabel.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 26));
@@ -746,13 +734,13 @@ public class BookDetailsPopup {
 
         Label averageValue = new Label("⭐ Caricamento...");
         averageValue.setFont(Font.font("SF Pro Text", 14));
-        averageValue.setTextFill(Color.GRAY);
+        averageValue.getStyleClass().add("stars-white");
 
         if (averageBookRating != null && averageBookRating > 0) {
             int stars = (int) Math.round(averageBookRating);
             String starsDisplay = "★".repeat(stars) + "☆".repeat(5 - stars);
             averageValue.setText(String.format("%s %.1f/5", starsDisplay, averageBookRating));
-            averageValue.setTextFill(Color.GOLD);
+            averageValue.getStyleClass().add("stars-white");
         }
 
         Label publicNote = new Label("Basata su tutte le recensioni degli utenti registrati");
@@ -1088,9 +1076,7 @@ public class BookDetailsPopup {
 
     private static void styleDialog(Dialog<?> dialog) {
         DialogPane dialogPane = dialog.getDialogPane();
-        //dialogPane.setStyle("-fx-background-color: #1e1e1e; -fx-text-fill: white;");
 
-        // AGGIUNTO: Imposta icona quando il dialog viene mostrato
         dialog.setOnShowing(e -> {
             Stage dialogStage = (Stage) dialogPane.getScene().getWindow();
             IconUtils.setStageIcon(dialogStage);
@@ -1103,7 +1089,6 @@ public class BookDetailsPopup {
         alert.setHeaderText(null);
         alert.setContentText(message);
 
-        // AGGIUNTO: Imposta icona per gli alert
         Stage alertStage = (Stage) alert.getDialogPane().getScene().getWindow();
         alert.setOnShowing(e -> IconUtils.setStageIcon(alertStage));
 
@@ -1228,7 +1213,7 @@ public class BookDetailsPopup {
         String stars = "★".repeat(rating.getStarRating()) + "☆".repeat(5 - rating.getStarRating());
         Label starsLabel = new Label(stars);
         starsLabel.setFont(Font.font("SF Pro Text", 14));
-        starsLabel.setTextFill(Color.GOLD);
+        starsLabel.getStyleClass().add("stars-white");
 
         String displayName = rating.getUsername().length() > 3 ?
                 rating.getUsername().substring(0, 3) + "***" : "***";
@@ -1394,7 +1379,7 @@ public class BookDetailsPopup {
         String mainStars = "★".repeat(rating.getStarRating()) + "☆".repeat(5 - rating.getStarRating());
         Label mainStarsLabel = new Label(mainStars + " " + String.format("%.1f/5", rating.getAverage()));
         mainStarsLabel.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 16));
-        mainStarsLabel.setTextFill(Color.GOLD);
+        mainStarsLabel.getStyleClass().add("stars-white");
 
         String displayName = rating.getUsername().length() > 4 ?
                 rating.getUsername().substring(0, 4) + "***" : "Utente***";
@@ -2902,7 +2887,6 @@ public class BookDetailsPopup {
             slideAnimation.stop();
         }
 
-        // Apple-style smooth transition
         slideAnimation = new Timeline(
                 new KeyFrame(Duration.millis(0),
                         new KeyValue(currentContent.opacityProperty(), 1.0),

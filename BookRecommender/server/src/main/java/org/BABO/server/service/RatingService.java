@@ -402,7 +402,7 @@ public class RatingService {
             rating.setData(timestamp.toLocalDateTime().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         }
 
-        rating.setStyle(rs.getInt("css"));
+        rating.setStyle(rs.getInt("style"));
         rating.setContent(rs.getInt("content"));
         rating.setPleasantness(rs.getInt("pleasantness"));
         rating.setOriginality(rs.getInt("originality"));
@@ -413,10 +413,10 @@ public class RatingService {
             rating.setAverage(average);
         }
 
-        // NUOVO: Carica campo recensione
+        // Carica campo recensione
         String review = rs.getString("review");
-        if (review != null) {
-            rating.setReview(review);
+        if (review != null && !review.trim().isEmpty()) {
+            rating.setReview(review.trim());
         }
 
         return rating;
@@ -740,8 +740,6 @@ public class RatingService {
             )
         """;
 
-            // Implementazione semplificata: cancella la recensione con testo più recente
-            // TODO: Implementare mappatura corretta degli ID
             String simpleQuery = "UPDATE assessment SET review = NULL WHERE review IS NOT NULL AND RANDOM() < 0.1 LIMIT 1";
 
             try (Statement simpleStmt = conn.createStatement()) {

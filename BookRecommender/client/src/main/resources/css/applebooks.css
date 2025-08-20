@@ -104,8 +104,7 @@
     -fx-padding: 8 12;
 }
 
-/* Effetto di transizione fluido per tutti gli elementi interattivi */
-.menu-item-box, .see-all-button, Button, .search-field, ImageView {
+.menu-item-box, .see-all-button, Button, .search-field {
     -fx-transition: all 0.15s ease-in-out;
 }
 
@@ -125,10 +124,25 @@
     -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 5, 0, 0, 0);
 }
 
-/* Effetto lucentezza sui libri quando si passa il mouse */
-.book-cover:hover {
-    -fx-effect: dropshadow(gaussian, rgba(10, 132, 255, 0.4), 15, 0, 0, 0);
-    -fx-opacity: 0.9;
-    -fx-scale-x: 1.03;
-    -fx-scale-y: 1.03;
+.book-cover, ImageView {
+    -fx-transition: none !important;
+}
+
+.book-cover:hover, ImageView:hover {
+    -fx-effect: none !important;
+    -fx-opacity: 1.0 !important;
+    -fx-scale-x: 1.0 !important;
+    -fx-scale-y: 1.0 !important;
+    -fx-transform: none !important;
+}
+
+Label, Text {
+    -fx-transition: none !important;
+}
+
+Label:hover, Text:hover {
+    -fx-text-fill: inherit !important;
+    -fx-font-weight: inherit !important;
+    -fx-font-size: inherit !important;
+    -fx-effect: none !important;
 }

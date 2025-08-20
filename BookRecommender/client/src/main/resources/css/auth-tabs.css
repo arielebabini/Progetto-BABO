@@ -98,7 +98,7 @@
     -fx-text-fill: #000000;
 }
 
-.dialog-pane:header .header-panel {
+.dialog-pane .header-panel {
     -fx-background-color: #FFFFFF;
 }
 

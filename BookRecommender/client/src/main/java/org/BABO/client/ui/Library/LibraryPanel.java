@@ -21,6 +21,7 @@ import org.BABO.client.service.AuthService;
 import org.BABO.client.service.LibraryService;
 import org.BABO.shared.model.Book;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -936,13 +937,11 @@ public class LibraryPanel extends VBox {
     }
 
     private VBox createModernBookCard(Book book) {
-        // Stile identico a ExploreIntegration.createBookCard()
         VBox card = new VBox(12);
         card.setMaxWidth(140);
         card.setAlignment(Pos.TOP_CENTER);
         card.setStyle("-fx-cursor: hand;");
 
-        // CORRETTO: Usa ImageUtils invece del metodo personalizzato
         ImageView cover = ImageUtils.createSafeImageView(book.getImageUrl(), 120, 170);
 
         Rectangle clip = new Rectangle(120, 170);
@@ -980,7 +979,17 @@ public class LibraryPanel extends VBox {
         // Click handler
         card.setOnMouseClicked(e -> {
             if (onBookClick != null) {
+                // Chiama il callback con il libro, ma prima impostiamo la lista corretta
                 onBookClick.accept(book);
+            } else {
+                // Fallback diretto se onBookClick è null
+                System.out.println("📖 Click libro libreria: " + book.getTitle());
+                System.out.println("📚 Aprendo con lista di " + (currentLibraryBooks != null ? currentLibraryBooks.size() : 0) + " libri della libreria");
+
+                // Usa la lista dei libri della libreria corrente invece di cachedBooks
+                List<Book> libraryBooksList = currentLibraryBooks != null ? currentLibraryBooks : List.of(book);
+
+                org.BABO.client.ui.AppleBooksClient.openBookDetails(book, libraryBooksList, null);
             }
         });
 
@@ -997,6 +1006,14 @@ public class LibraryPanel extends VBox {
         });
 
         return card;
+    }
+
+
+    /**
+     * Prende i libri che si trovanon nella libreria
+     */
+    public List<Book> getCurrentLibraryBooks() {
+        return currentLibraryBooks != null ? new ArrayList<>(currentLibraryBooks) : new ArrayList<>();
     }
 
     // Metodo helper per creare ImageView sicuro (simile a ImageUtils)
@@ -1039,13 +1056,6 @@ public class LibraryPanel extends VBox {
         alert.setTitle("Elimina Libreria");
         alert.setHeaderText("Sei sicuro di voler eliminare la libreria '" + libraryName + "'?");
         alert.setContentText("Questa azione non può essere annullata. Tutti i libri nella libreria saranno rimossi dalla raccolta.");
-
-        // Styling dell'alert
-        /*DialogPane dialogPane = alert.getDialogPane();
-        dialogPane.setStyle(
-                "-fx-background-color: #1e1e1e;" +
-                        "-fx-text-fill: white;"
-        );*/
 
         // Personalizza pulsanti
         ButtonType deleteButtonType = new ButtonType("Elimina", ButtonBar.ButtonData.OK_DONE);
@@ -1127,7 +1137,7 @@ public class LibraryPanel extends VBox {
         loadUserLibraries();
     }
 
-    // NUOVI: Metodi per gestire la visibilità della sezione creazione libreria
+    // Metodi per gestire la visibilità della sezione creazione libreria
     private void hideCreateLibrarySection() {
         // Nascondi la sezione creazione e il separatore quando visualizzi i libri
         if (this.getChildren().size() >= 3) {

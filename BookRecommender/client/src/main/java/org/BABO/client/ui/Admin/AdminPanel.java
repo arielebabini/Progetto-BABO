@@ -62,10 +62,6 @@ public class AdminPanel {
     private ObservableList<Review> allReviewsData;
     private TextField reviewsSearchField;
 
-    private TableView<Review> reviewTable;
-    private ObservableList<Review> reviewData = FXCollections.observableArrayList();
-
-
     public AdminPanel(AuthenticationManager authManager) {
         this.authManager = authManager;
         this.adminService = new AdminService();
@@ -82,17 +78,17 @@ public class AdminPanel {
     }
 
 
+    /**
+     * Crea il pannello per admin
+     */
     public VBox createAdminPanel() {
         mainAdminPanel = new VBox(20);
         mainAdminPanel.setPadding(new Insets(30));
         mainAdminPanel.setStyle("-fx-background-color: #1e1e1e;");
 
-        // Header
         VBox header = createHeader();
 
-        // Menu di selezione
         VBox menuContainer = createAdminMenu();
-
 
         mainAdminPanel.getChildren().addAll(header, menuContainer);
 
@@ -118,7 +114,6 @@ public class AdminPanel {
         subtitle.setTextFill(Color.LIGHTGRAY);
         subtitle.setAlignment(Pos.CENTER);
 
-        // Contenitore per i pulsanti - MODIFICATO per 3 pulsanti in orizzontale
         HBox buttonsContainer = new HBox(30);
         buttonsContainer.setAlignment(Pos.CENTER);
 
@@ -129,7 +124,6 @@ public class AdminPanel {
                 "Visualizza, elimina e gestisci\ngli utenti registrati",
                 "#6c5ce7",
                 e -> {
-                    System.out.println("🖱️ Click rilevato su Gestione Utenti");
                     showUsersManagement();
                 }
         );
@@ -141,19 +135,17 @@ public class AdminPanel {
                 "Aggiungi, modifica ed elimina\ni libri dal catalogo",
                 "#00b894",
                 e -> {
-                    System.out.println("🖱️ Click rilevato su Gestione Libri");
                     showBooksManagement();
                 }
         );
 
-        // NUOVO: Pulsante gestione recensioni
+        // Pulsante gestione recensioni
         VBox reviewsCard = createMenuCard(
                 "⭐",
                 "Gestione Recensioni",
                 "Visualizza e gestisci\nle recensioni dei libri",
                 "#fd79a8",
                 e -> {
-                    System.out.println("🖱️ Click rilevato su Gestione Recensioni");
                     showReviewsManagement();
                 }
         );
@@ -168,783 +160,6 @@ public class AdminPanel {
         container.getChildren().addAll(menuTitle, subtitle, buttonsContainer, adminInfo);
         return container;
     }
-
-    /**
-     * Mostra la gestione recensioni
-     */
-    private void showReviewsManagement() {
-        System.out.println("📄 Passaggio a gestione recensioni...");
-
-        if (mainAdminPanel != null) {
-            mainAdminPanel.getChildren().clear();
-
-            // Header
-            VBox header = createHeader();
-
-            // Toolbar per recensioni
-            HBox toolbar = createReviewsToolbar();
-
-            // Contenuto recensioni
-            currentContent = new VBox(20);
-            VBox container = new VBox(10);
-
-            Label tableTitle = new Label("⭐ Gestione Recensioni");
-            tableTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
-            tableTitle.setTextFill(Color.WHITE);
-
-            // Barra di ricerca per recensioni
-            HBox searchContainer = createReviewsSearchBar();
-
-            // Tabella recensioni
-            createReviewsTable();
-
-            container.getChildren().addAll(tableTitle, searchContainer, reviewsTable);
-            currentContent.getChildren().add(container);
-
-            // Status bar
-            HBox statusBar = createStatusBar();
-
-            mainAdminPanel.getChildren().addAll(header, toolbar, currentContent, statusBar);
-
-            // Carica dati recensioni
-            loadReviewsData();
-        } else {
-            System.err.println("❌ mainAdminPanel è null!");
-        }
-    }
-
-
-    private HBox createReviewsSearchBar() {
-        HBox searchContainer = new HBox(10);
-        searchContainer.setAlignment(Pos.CENTER_LEFT);
-        searchContainer.setPadding(new Insets(10, 0, 10, 0));
-
-        Label searchLabel = new Label("🔍");
-        searchLabel.setTextFill(Color.LIGHTGRAY);
-        searchLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-
-        reviewsSearchField = new TextField();
-        reviewsSearchField.setPromptText("Cerca per utente, ISBN o contenuto recensione...");
-        reviewsSearchField.setPrefWidth(300);
-        reviewsSearchField.setStyle(
-                "-fx-background-color: #2a2a2a; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-prompt-text-fill: #888888; " +
-                        "-fx-border-color: #444444; " +
-                        "-fx-border-radius: 5; " +
-                        "-fx-background-radius: 5;"
-        );
-
-        // Aggiungi listener per ricerca in tempo reale
-        reviewsSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            filterReviews(newValue);
-        });
-
-        Button clearButton = new Button("✕");
-        styleButton(clearButton, "#e74c3c");
-        clearButton.setPrefWidth(30);
-        clearButton.setOnAction(e -> {
-            reviewsSearchField.clear();
-            filterReviews("");
-        });
-
-        searchContainer.getChildren().addAll(searchLabel, reviewsSearchField, clearButton);
-        return searchContainer;
-    }
-
-
-    // Metodo per filtrare le recensioni
-    private void filterReviews(String searchText) {
-        if (searchText == null || searchText.trim().isEmpty()) {
-            reviewsTable.setItems(reviewsData);
-        } else {
-            ObservableList<BookRating> filteredData = FXCollections.observableArrayList();
-            String lowerCaseFilter = searchText.toLowerCase();
-
-            for (BookRating rating : reviewsData) {
-                if ((rating.getUsername() != null && rating.getUsername().toLowerCase().contains(lowerCaseFilter)) ||
-                        (rating.getIsbn() != null && rating.getIsbn().toLowerCase().contains(lowerCaseFilter)) ||
-                        (rating.getReview() != null && rating.getReview().toLowerCase().contains(lowerCaseFilter))) {
-                    filteredData.add(rating);
-                }
-            }
-            reviewsTable.setItems(filteredData);
-        }
-    }
-
-    /**
-     * Crea toolbar per gestione recensioni
-     */
-    private HBox createReviewsToolbar() {
-        HBox toolbar = new HBox(15);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
-        toolbar.setPadding(new Insets(10, 0, 10, 0));
-
-        Button backButton = new Button("⬅️ Torna al Menu");
-        styleButton(backButton, "#95a5a6");
-        backButton.setOnAction(e -> backToMainMenu());
-
-        Button refreshButton = new Button("🔄 Aggiorna");
-        styleButton(refreshButton, "#4a86e8");
-        refreshButton.setOnAction(e -> loadReviewsData());
-
-        Button deleteButton = new Button("🗑️ Elimina Selezionata");
-        styleButton(deleteButton, "#e74c3c");
-        deleteButton.setOnAction(e -> deleteSelectedReview());
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label sectionLabel = new Label("⭐ Gestione Recensioni");
-        sectionLabel.setTextFill(Color.WHITE);
-        sectionLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-
-        toolbar.getChildren().addAll(backButton, refreshButton, deleteButton, spacer, sectionLabel);
-        return toolbar;
-    }
-
-    /**
-     * Esporta le recensioni (placeholder)
-     */
-    private void exportReviews() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("📊 Esportazione");
-        alert.setHeaderText("Funzionalità in sviluppo");
-        alert.setContentText("L'esportazione delle recensioni sarà implementata prossimamente.");
-        alert.showAndWait();
-    }
-
-    /**
-     * Crea la barra di ricerca per le recensioni
-     */
-    /*
-    private HBox createReviewsSearchBar() {
-        HBox searchContainer = new HBox(10);
-        searchContainer.setAlignment(Pos.CENTER_LEFT);
-        searchContainer.setPadding(new Insets(5, 0, 5, 0));
-
-        // Icona ricerca
-        Label searchIcon = new Label("🔍");
-        searchIcon.setFont(Font.font("System", 14));
-        searchIcon.setTextFill(Color.LIGHTGRAY);
-
-        // Campo di ricerca
-        reviewsSearchField = new TextField();
-        reviewsSearchField.setPromptText("Cerca per utente, libro, rating o testo recensione...");
-        reviewsSearchField.setPrefWidth(450);
-        reviewsSearchField.setStyle(
-                "-fx-background-color: #3b3b3b; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-prompt-text-fill: #888; " +
-                        "-fx-border-color: #9b59b6; " + // Bordo viola per tema recensioni
-                        "-fx-border-radius: 5; " +
-                        "-fx-background-radius: 5; " +
-                        "-fx-padding: 8;"
-        );
-
-        // Listener per ricerca in tempo reale
-        reviewsSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
-            filterReviews(newValue);
-        });
-
-        // Pulsante clear
-        Button clearButton = new Button("❌");
-        clearButton.setStyle(
-                "-fx-background-color: #e74c3c; " +
-                        "-fx-text-fill: white; " +
-                        "-fx-border-radius: 3; " +
-                        "-fx-background-radius: 3; " +
-                        "-fx-padding: 5 8 5 8;"
-        );
-        clearButton.setOnAction(e -> {
-            reviewsSearchField.clear();
-            filterReviews(""); // Mostra tutte le recensioni
-        });
-
-        // Info risultati
-        Label resultsInfo = new Label();
-        resultsInfo.setTextFill(Color.LIGHTGRAY);
-        resultsInfo.setFont(Font.font("System", 11));
-
-        searchContainer.getChildren().addAll(searchIcon, reviewsSearchField, clearButton, resultsInfo);
-
-        return searchContainer;
-    }
-*/
-
-    /**
-     * Crea la tabella delle recensioni
-     */
-    private void createReviewsTable() {
-        reviewsTable = new TableView<>();
-        reviewsTable.setItems(reviewsData);
-        reviewsTable.setPrefHeight(500);
-        reviewsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        reviewsTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-
-        // Stile CSS per rendere la selezione più chiara e leggibile
-        reviewsTable.setStyle(
-                "-fx-selection-bar: #E0E0E0; " +  // Grigio molto chiaro per la selezione
-                        "-fx-selection-bar-non-focused: #F0F0F0; " +  // Ancora più chiaro quando non ha focus
-                        "-fx-text-fill: black;"  // Testo nero
-        );
-
-        // Colonna Username
-        TableColumn<BookRating, String> usernameCol = new TableColumn<>("👤 Utente");
-        usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
-        usernameCol.setPrefWidth(120);
-
-        // Colonna ISBN
-        TableColumn<BookRating, String> isbnCol = new TableColumn<>("📚 ISBN");
-        isbnCol.setCellValueFactory(new PropertyValueFactory<>("isbn"));
-        isbnCol.setPrefWidth(120);
-
-        // Colonna Voti dettagliati
-        TableColumn<BookRating, String> votesCol = new TableColumn<>("📊 Voti");
-        votesCol.setPrefWidth(100);
-        votesCol.setCellFactory(col -> new TableCell<BookRating, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty) {
-                    setText("");
-                } else {
-                    BookRating rating = getTableView().getItems().get(getIndex());
-                    String votesText = String.format("S:%d C:%d P:%d O:%d E:%d",
-                            rating.getStyle() != null ? rating.getStyle() : 0,
-                            rating.getContent() != null ? rating.getContent() : 0,
-                            rating.getPleasantness() != null ? rating.getPleasantness() : 0,
-                            rating.getOriginality() != null ? rating.getOriginality() : 0,
-                            rating.getEdition() != null ? rating.getEdition() : 0);
-                    setText(votesText);
-
-                    // Colore condizionale solo se NON selezionato
-                    if (!isSelected()) {
-                        setTextFill(Color.STEELBLUE);
-                    } else {
-                        setTextFill(Color.BLACK); // Nero quando selezionato
-                    }
-                }
-            }
-        });
-
-        // Colonna Media voti
-        TableColumn<BookRating, Double> averageCol = new TableColumn<>("⭐ Media");
-        averageCol.setCellValueFactory(new PropertyValueFactory<>("average"));
-        averageCol.setPrefWidth(80);
-        averageCol.setCellFactory(col -> new TableCell<BookRating, Double>() {
-            @Override
-            protected void updateItem(Double average, boolean empty) {
-                super.updateItem(average, empty);
-                if (empty || average == null) {
-                    setText("");
-                } else {
-                    setText(String.format("%.1f/5", average));
-
-                    // Colore condizionale solo se NON selezionato
-                    if (!isSelected()) {
-                        if (average >= 4.0) {
-                            setTextFill(Color.FORESTGREEN);
-                        } else if (average >= 3.0) {
-                            setTextFill(Color.GOLDENROD);
-                        } else {
-                            setTextFill(Color.CRIMSON);
-                        }
-                    } else {
-                        setTextFill(Color.BLACK); // Nero quando selezionato
-                    }
-                }
-            }
-        });
-
-        // Colonna Recensione (testo troncato con click per espandere)
-        TableColumn<BookRating, String> reviewCol = new TableColumn<>("💬 Recensione");
-        reviewCol.setCellValueFactory(new PropertyValueFactory<>("review"));
-        reviewCol.setPrefWidth(250);
-        reviewCol.setCellFactory(col -> new TableCell<BookRating, String>() {
-            @Override
-            protected void updateItem(String reviewText, boolean empty) {
-                super.updateItem(reviewText, empty);
-                if (empty || reviewText == null || reviewText.trim().isEmpty()) {
-                    setText("");
-                    setOnMouseClicked(null);
-                } else {
-                    // Tronca il testo se è troppo lungo
-                    String displayText = reviewText.length() > 40 ?
-                            reviewText.substring(0, 37) + "..." : reviewText;
-                    setText(displayText);
-                    setTextFill(Color.BLACK);
-
-                    setTooltip(new Tooltip(reviewText));
-
-                    // Aggiungi click handler per aprire il testo completo
-                    setOnMouseClicked(e -> {
-                        if (e.getClickCount() == 1) { // Click singolo
-                            showFullReviewDialog(reviewText, getTableView().getItems().get(getIndex()));
-                        }
-                    });
-
-                    // Cambia cursore per indicare che è cliccabile
-                    setStyle("-fx-cursor: hand;");
-                }
-            }
-        });
-
-        // Colonna Data
-        TableColumn<BookRating, String> dateCol = new TableColumn<>("📅 Data");
-        dateCol.setCellValueFactory(new PropertyValueFactory<>("data"));
-        dateCol.setPrefWidth(120);
-        dateCol.setCellFactory(col -> new TableCell<BookRating, String>() {
-            @Override
-            protected void updateItem(String date, boolean empty) {
-                super.updateItem(date, empty);
-                if (empty || date == null) {
-                    setText("");
-                } else {
-                    // La data è già una stringa nel formato appropriato
-                    setText(date.substring(0, Math.min(10, date.length()))); // Mostra solo la data
-                    setTextFill(Color.BLACK);
-                }
-            }
-        });
-
-        reviewsTable.getColumns().addAll(usernameCol, isbnCol, votesCol, averageCol, reviewCol, dateCol);
-    }
-
-    // Aggiungi questo nuovo metodo per mostrare il dialog con il testo completo
-    private void showFullReviewDialog(String reviewText, BookRating rating) {
-        Alert dialog = new Alert(Alert.AlertType.INFORMATION);
-        dialog.setTitle("📖 Recensione Completa");
-        dialog.setHeaderText("Recensione di " + rating.getUsername() + " per ISBN: " + rating.getIsbn());
-
-        // Crea un TextArea per testo lungo
-        TextArea textArea = new TextArea(reviewText);
-        textArea.setEditable(false);
-        textArea.setWrapText(true);
-        textArea.setPrefRowCount(10);
-        textArea.setPrefColumnCount(50);
-
-        // Aggiungi info aggiuntive
-        String additionalInfo = String.format(
-                "\n\n📊 Dettaglio Voti:\n" +
-                        "• Stile: %d/5\n" +
-                        "• Contenuto: %d/5\n" +
-                        "• Piacevolezza: %d/5\n" +
-                        "• Originalità: %d/5\n" +
-                        "• Edizione: %d/5\n" +
-                        "• Media: %.1f/5\n" +
-                        "• Data: %s",
-                rating.getStyle() != null ? rating.getStyle() : 0,
-                rating.getContent() != null ? rating.getContent() : 0,
-                rating.getPleasantness() != null ? rating.getPleasantness() : 0,
-                rating.getOriginality() != null ? rating.getOriginality() : 0,
-                rating.getEdition() != null ? rating.getEdition() : 0,
-                rating.getAverage() != null ? rating.getAverage() : 0.0,
-                rating.getData() != null ? rating.getData() : "N/A"
-        );
-
-        textArea.setText(reviewText + additionalInfo);
-
-        dialog.getDialogPane().setContent(textArea);
-        dialog.getDialogPane().setPrefSize(600, 400);
-
-        dialog.showAndWait();
-    }
-
-    /**
-     * Verifica se una recensione corrisponde al criterio di ricerca
-     */
-    private boolean matchesReviewSearch(Review review, String searchText) {
-        if (review == null || searchText == null || searchText.isEmpty()) {
-            return true;
-        }
-
-        // Cerca nell'username
-        if (review.getUsername() != null &&
-                review.getUsername().toLowerCase().contains(searchText)) {
-            return true;
-        }
-
-        // Cerca nel titolo del libro
-        if (review.getBookTitle() != null &&
-                review.getBookTitle().toLowerCase().contains(searchText)) {
-            return true;
-        }
-
-        // Cerca nel testo della recensione
-        if (review.getReviewText() != null &&
-                review.getReviewText().toLowerCase().contains(searchText)) {
-            return true;
-        }
-
-        // Cerca nel rating (convertito a stringa)
-        if (String.valueOf(review.getRating()).contains(searchText)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Carica le recensioni (placeholder - da implementare con AdminService)
-     */
-    private void loadReviewsData() {
-        System.out.println("🔄 Caricamento recensioni dal database...");
-
-        if (statusLabel != null) {
-            statusLabel.setText("🔄 Caricamento recensioni...");
-            statusLabel.setTextFill(Color.YELLOW);
-        }
-
-        reviewsData.clear();
-
-        // Verifica che l'utente sia autenticato come admin
-        String adminEmail = authManager.getCurrentUser() != null ?
-                authManager.getCurrentUser().getEmail() : null;
-
-        if (adminEmail == null) {
-            if (statusLabel != null) {
-                statusLabel.setText("❌ Errore: utente non autenticato");
-                statusLabel.setTextFill(Color.RED);
-            }
-            loadFallbackReviewsData();
-            return;
-        }
-
-        // Usa il metodo esistente nel AdminService che richiede adminEmail
-        adminService.getAllReviewsAsync(adminEmail)
-                .thenAccept(response -> {
-                    Platform.runLater(() -> {
-                        if (response != null && response.isSuccess() && response.getRatings() != null) {
-                            List<BookRating> ratings = response.getRatings();
-
-                            reviewsData.clear();
-                            reviewsData.addAll(ratings);
-
-                            if (statusLabel != null) {
-                                statusLabel.setText("✅ Caricate " + reviewsData.size() + " recensioni");
-                                statusLabel.setTextFill(Color.LIGHTGREEN);
-                            }
-
-                            System.out.println("✅ Caricate " + reviewsData.size() + " recensioni");
-                        } else {
-                            String error = response != null ? response.getMessage() : "Risposta nulla dal server";
-
-                            if (statusLabel != null) {
-                                statusLabel.setText("❌ Errore: " + error);
-                                statusLabel.setTextFill(Color.RED);
-                            }
-                            System.err.println("❌ Errore nel caricamento recensioni: " + error);
-                            loadFallbackReviewsData();
-                        }
-                    });
-                })
-                .exceptionally(throwable -> {
-                    Platform.runLater(() -> {
-                        if (statusLabel != null) {
-                            statusLabel.setText("❌ Errore di connessione");
-                            statusLabel.setTextFill(Color.RED);
-                        }
-                        System.err.println("❌ Errore di connessione nel caricamento recensioni: " + throwable.getMessage());
-                        throwable.printStackTrace();
-                        loadFallbackReviewsData();
-                    });
-                    return null;
-                });
-    }
-
-
-    private void loadFallbackReviewsData() {
-        System.out.println("🔄 Caricamento dati di esempio...");
-
-        BookRating rating1 = new BookRating();
-        rating1.setUsername("mario.rossi");
-        rating1.setIsbn("978-0123456789");
-        rating1.setStyle(5);
-        rating1.setContent(4);
-        rating1.setPleasantness(5);
-        rating1.setOriginality(4);
-        rating1.setEdition(4);
-        rating1.setReview("Un capolavoro assoluto della letteratura italiana.");
-        rating1.setData("2025-08-15");
-
-        BookRating rating2 = new BookRating();
-        rating2.setUsername("anna.verdi");
-        rating2.setIsbn("978-0987654321");
-        rating2.setStyle(4);
-        rating2.setContent(4);
-        rating2.setPleasantness(3);
-        rating2.setOriginality(5);
-        rating2.setEdition(3);
-        rating2.setReview("Inquietante e profetico, un libro che fa riflettere.");
-        rating2.setData("2025-08-12");
-
-        BookRating rating3 = new BookRating();
-        rating3.setUsername("luca.bianchi");
-        rating3.setIsbn("978-1234567890");
-        rating3.setStyle(3);
-        rating3.setContent(5);
-        rating3.setPleasantness(4);
-        rating3.setOriginality(3);
-        rating3.setEdition(4);
-        rating3.setReview("Interessante ma un po' lento all'inizio.");
-        rating3.setData("2025-08-10");
-
-        reviewsData.addAll(rating1, rating2, rating3);
-
-        if (statusLabel != null) {
-            statusLabel.setText("⚠️ Dati di esempio caricati (" + reviewsData.size() + " recensioni)");
-            statusLabel.setTextFill(Color.ORANGE);
-        }
-    }
-
-    private BookRating mapToBookRating(Map<String, Object> reviewMap) {
-        try {
-            BookRating rating = new BookRating();
-
-            rating.setUsername((String) reviewMap.get("username"));
-            rating.setIsbn((String) reviewMap.get("isbn"));
-            rating.setData((String) reviewMap.get("data"));
-
-            // Gestisce i voti che potrebbero essere null
-            Object style = reviewMap.get("style");
-            if (style != null) rating.setStyle(((Number) style).intValue());
-
-            Object content = reviewMap.get("content");
-            if (content != null) rating.setContent(((Number) content).intValue());
-
-            Object pleasantness = reviewMap.get("pleasantness");
-            if (pleasantness != null) rating.setPleasantness(((Number) pleasantness).intValue());
-
-            Object originality = reviewMap.get("originality");
-            if (originality != null) rating.setOriginality(((Number) originality).intValue());
-
-            Object edition = reviewMap.get("edition");
-            if (edition != null) rating.setEdition(((Number) edition).intValue());
-
-            Object average = reviewMap.get("average");
-            if (average != null) rating.setAverage(((Number) average).doubleValue());
-
-            rating.setReview((String) reviewMap.get("review"));
-
-            return rating;
-        } catch (Exception e) {
-            System.err.println("❌ Errore nella conversione Map->BookRating: " + e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Elimina recensione selezionata
-     */
-    private void deleteSelectedReview() {
-        ObservableList<BookRating> selectedRatings = reviewsTable.getSelectionModel().getSelectedItems();
-
-        if (selectedRatings.isEmpty()) {
-            if (statusLabel != null) {
-                statusLabel.setText("⚠️ Seleziona almeno una recensione da eliminare");
-                statusLabel.setTextFill(Color.ORANGE);
-            }
-            return;
-        }
-
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("🗑️ Conferma Eliminazione");
-        confirmAlert.setHeaderText("Eliminare le recensioni selezionate?");
-        confirmAlert.setContentText("Vuoi eliminare " + selectedRatings.size() + " recensione/i?");
-
-        Optional<ButtonType> result = confirmAlert.showAndWait();
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-
-            // Copia la lista per evitare ConcurrentModificationException
-            List<BookRating> toDelete = List.copyOf(selectedRatings);
-
-            if (statusLabel != null) {
-                statusLabel.setText("🔄 Eliminazione in corso...");
-                statusLabel.setTextFill(Color.YELLOW);
-            }
-
-            int completed = 0;
-            final int total = toDelete.size();
-
-            String adminEmail = authManager.getCurrentUser() != null ?
-                    authManager.getCurrentUser().getEmail() : null;
-
-            if (adminEmail == null) {
-                if (statusLabel != null) {
-                    statusLabel.setText("❌ Errore: utente non autenticato");
-                    statusLabel.setTextFill(Color.RED);
-                }
-                return;
-            }
-
-            // Elimina ogni recensione selezionata usando il metodo esistente
-            for (BookRating rating : toDelete) {
-                adminService.deleteRatingAsync(adminEmail, rating.getUsername(), rating.getIsbn())
-                        .thenAccept(deleteResponse -> {
-                            Platform.runLater(() -> {
-                                if (deleteResponse.isSuccess()) {
-                                    reviewsData.remove(rating);
-                                    System.out.println("✅ Eliminata recensione: " + rating.getUsername() + " - " + rating.getIsbn());
-                                } else {
-                                    String error = deleteResponse.getMessage();
-                                    System.err.println("❌ Errore eliminazione: " + error);
-                                }
-                            });
-                        })
-                        .exceptionally(throwable -> {
-                            Platform.runLater(() -> {
-                                System.err.println("❌ Errore eliminazione recensione: " + throwable.getMessage());
-                                if (statusLabel != null) {
-                                    statusLabel.setText("❌ Errore durante l'eliminazione");
-                                    statusLabel.setTextFill(Color.RED);
-                                }
-                            });
-                            return null;
-                        });
-            }
-
-            if (statusLabel != null) {
-                statusLabel.setText("🗑️ Eliminazione completata");
-                statusLabel.setTextFill(Color.LIGHTGREEN);
-            }
-        }
-    }
-
-    /**
-     * Elimina tutte le recensioni di un utente
-     */
-    /*private void deleteAllUserReviews() {
-        Review selectedReview = reviewsTable.getSelectionModel().getSelectedItem();
-
-        if (selectedReview == null) {
-            showAlert("Attenzione", "Seleziona una recensione per identificare l'utente");
-            return;
-        }
-
-        String targetUsername = selectedReview.getUsername();
-
-        // Conta quante recensioni ha l'utente
-        long userReviewsCount = allReviewsData.stream()
-                .filter(review -> targetUsername.equals(review.getUsername()))
-                .count();
-
-        if (userReviewsCount == 0) {
-            showAlert("Informazione", "L'utente " + targetUsername + " non ha recensioni da eliminare");
-            return;
-        }
-
-        // Conferma eliminazione massiva
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Conferma Eliminazione Massiva");
-        confirmAlert.setHeaderText("Eliminazione Tutte le Recensioni Utente");
-        confirmAlert.setContentText("Sei sicuro di voler eliminare TUTTE le " + userReviewsCount +
-                " recensioni dell'utente \"" + targetUsername + "\"?\n\n" +
-                "Questa azione non può essere annullata e rimuoverà permanentemente " +
-                "tutte le recensioni testuali dell'utente.");
-
-        // Aggiungi pulsante personalizzato
-        ButtonType eliminaTutteButton = new ButtonType("Elimina Tutte", ButtonBar.ButtonData.OK_DONE);
-        ButtonType annullaButton = new ButtonType("Annulla", ButtonBar.ButtonData.CANCEL_CLOSE);
-        confirmAlert.getButtonTypes().setAll(eliminaTutteButton, annullaButton);
-
-        Optional<ButtonType> result = confirmAlert.showAndWait();
-        if (result.isPresent() && result.get() == eliminaTutteButton) {
-            // Procedi con l'eliminazione massiva
-            statusLabel.setText("🚫 Eliminazione recensioni utente in corso...");
-            statusLabel.setTextFill(Color.ORANGE);
-
-            String adminEmail = authManager.getCurrentUser().getEmail();
-
-            adminService.deleteAllUserReviewsAsync(adminEmail, targetUsername)
-                    .thenAccept(response -> Platform.runLater(() -> {
-                        if (response.isSuccess()) {
-                            statusLabel.setText("✅ " + response.getMessage());
-                            statusLabel.setTextFill(Color.LIGHTGREEN);
-
-                            // Ricarica la lista
-                            loadReviews();
-
-                        } else {
-                            statusLabel.setText("❌ Errore: " + response.getMessage());
-                            statusLabel.setTextFill(Color.RED);
-                            showAlert("Errore", "Impossibile eliminare le recensioni: " + response.getMessage());
-                        }
-                    }))
-                    .exceptionally(throwable -> {
-                        Platform.runLater(() -> {
-                            statusLabel.setText("❌ Errore di connessione");
-                            statusLabel.setTextFill(Color.RED);
-                            showAlert("Errore", "Errore di connessione: " + throwable.getMessage());
-                        });
-                        return null;
-                    });
-        }
-    }
-*/
-    /**
-     * Aggiorna info risultati per recensioni
-     */
-    /*
-    private void updateReviewsResultsInfo(Label resultsLabel, int shown, int total) {
-        if (shown == total) {
-            resultsLabel.setText(total + " recensioni totali");
-        } else {
-            resultsLabel.setText(shown + " di " + total + " recensioni");
-        }
-    }
-
-    private void showReviewDetails() {
-        Review selectedReview = reviewsTable.getSelectionModel().getSelectedItem();
-
-        if (selectedReview == null) {
-            showAlert("Attenzione", "Seleziona una recensione per vedere i dettagli");
-            return;
-        }
-
-        Dialog<Void> dialog = new Dialog<>();
-        dialog.setTitle("Dettagli Recensione");
-        dialog.setHeaderText("Recensione di " + selectedReview.getUsername());
-
-        // Contenuto del dialog
-        VBox content = new VBox(15);
-        content.setPadding(new Insets(20));
-        content.setPrefWidth(500);
-
-        // Informazioni libro
-        Label bookInfo = new Label("📚 Libro: " + selectedReview.getBookTitle() +
-                " di " + selectedReview.getBookAuthor());
-        bookInfo.setFont(Font.font("System", FontWeight.BOLD, 14));
-
-        // Rating
-        Label ratingInfo = new Label("⭐ Rating: " + selectedReview.getRatingStars() +
-                " (" + selectedReview.getRating() + "/5)");
-        ratingInfo.setFont(Font.font("System", FontWeight.BOLD, 12));
-
-        // Data
-        Label dateInfo = new Label("📅 Data: " +
-                (selectedReview.getCreatedAt() != null ?
-                        selectedReview.getCreatedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) :
-                        "N/A"));
-        dateInfo.setFont(Font.font("System", FontWeight.NORMAL, 11));
-
-        // Testo recensione
-        Label reviewLabel = new Label("📝 Recensione:");
-        reviewLabel.setFont(Font.font("System", FontWeight.BOLD, 12));
-
-        TextArea reviewText = new TextArea(selectedReview.getReviewText());
-        reviewText.setEditable(false);
-        reviewText.setPrefRowCount(8);
-        reviewText.setWrapText(true);
-
-        content.getChildren().addAll(bookInfo, ratingInfo, dateInfo, reviewLabel, reviewText);
-
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-
-        dialog.showAndWait();
-    }
-*/
 
     /**
      * Crea una card per il menu amministrativo
@@ -1016,9 +231,7 @@ public class AdminPanel {
             );
         });
 
-        // Click handler con debug
         card.setOnMouseClicked(e -> {
-            System.out.println("🖱️ Click su card: " + title); // ✅ DEBUG
             if (action != null) {
                 action.handle(e);
             } else {
@@ -1029,6 +242,9 @@ public class AdminPanel {
         return card;
     }
 
+    /**
+     * Crea header del pannello admin
+     */
     private VBox createHeader() {
         VBox header = new VBox(10);
         header.setAlignment(Pos.CENTER_LEFT);
@@ -1045,6 +261,15 @@ public class AdminPanel {
         return header;
     }
 
+    /**
+     * ===================================
+     * GESTIONE UTENTI
+     * ===================================
+     */
+
+    /**
+     * Crea tabella di gestione utenti
+     */
     private VBox createUsersTable() {
         VBox container = new VBox(10);
 
@@ -1064,12 +289,10 @@ public class AdminPanel {
                         "-fx-border-width: 1;"
         );
 
-        // ✅ FIX: Colonna ID con gestione esplicita del valore
         TableColumn<User, String> idCol = new TableColumn<>("ID");
         idCol.setCellValueFactory(cellData -> {
             User user = cellData.getValue();
             String id = user.getId();
-            System.out.println("🔍 Debug ID utente: " + (id != null ? id : "NULL"));
             return new javafx.beans.property.SimpleStringProperty(id != null ? id : "N/A");
         });
         idCol.setPrefWidth(80);
@@ -1121,6 +344,185 @@ public class AdminPanel {
     }
 
     /**
+     * Mostra la gestione utenti
+     */
+    private void showUsersManagement() {
+        System.out.println("🔄 Passaggio a gestione utenti...");
+
+        if (mainAdminPanel != null) {
+            mainAdminPanel.getChildren().clear();
+
+            // Header
+            VBox header = createHeader();
+
+            // Toolbar per utenti
+            HBox toolbar = createUsersToolbar();
+
+            // Contenuto utenti
+            currentContent = new VBox(20);
+            VBox tableContainer = createUsersTable();
+            currentContent.getChildren().add(tableContainer);
+
+            // Status bar
+            HBox statusBar = createStatusBar();
+
+            mainAdminPanel.getChildren().addAll(header, toolbar, currentContent, statusBar);
+
+            // Carica dati utenti
+            loadUsers();
+        } else {
+            System.err.println("❌ mainAdminPanel è null!");
+        }
+    }
+
+    /**
+     * Crea toolbar specifico per gestione utenti
+     */
+    private HBox createUsersToolbar() {
+        HBox toolbar = new HBox(15);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setPadding(new Insets(10, 0, 10, 0));
+
+        Button backButton = new Button("⬅️ Torna al Menu");
+        styleButton(backButton, "#95a5a6");
+        backButton.setOnAction(e -> backToMainMenu());
+
+        Button refreshButton = new Button("🔄 Aggiorna");
+        styleButton(refreshButton, "#4a86e8");
+        refreshButton.setOnAction(e -> loadUsers());
+
+        Button deleteButton = new Button("🗑️ Elimina Selezionato");
+        styleButton(deleteButton, "#e74c3c");
+        deleteButton.setOnAction(e -> deleteSelectedUser());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label sectionLabel = new Label("👥 Gestione Utenti");
+        sectionLabel.setTextFill(Color.WHITE);
+        sectionLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+
+        toolbar.getChildren().addAll(backButton, refreshButton, deleteButton, spacer, sectionLabel);
+        return toolbar;
+    }
+
+    /**
+     * Carica gli utenti
+     */
+    private void loadUsers() {
+        statusLabel.setText("🔄 Caricamento utenti...");
+        statusLabel.setTextFill(Color.ORANGE);
+
+        String adminEmail = authManager.getCurrentUser().getEmail();
+
+        adminService.getAllUsersAsync(adminEmail)
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.isSuccess() && response.getUsers() != null) {
+                        usersData.clear();
+                        usersData.addAll(response.getUsers());
+
+                        statusLabel.setText("✅ Caricati " + response.getUsers().size() + " utenti");
+                        statusLabel.setTextFill(Color.LIGHTGREEN);
+
+                    } else {
+                        statusLabel.setText("❌ Errore: " + response.getMessage());
+                        statusLabel.setTextFill(Color.RED);
+
+                        showAlert("Errore", "Impossibile caricare gli utenti: " + response.getMessage());
+                    }
+                }))
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        statusLabel.setText("❌ Errore di connessione");
+                        statusLabel.setTextFill(Color.RED);
+                        showAlert("Errore", "Errore di connessione: " + throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    /**
+     * Elimina l'utente selezionato
+     */
+    private void deleteSelectedUser() {
+        User selectedUser = usersTable.getSelectionModel().getSelectedItem();
+
+        if (selectedUser == null) {
+            showAlert("Attenzione", "Seleziona un utente da eliminare");
+            return;
+        }
+
+        System.out.println("   ELIMINAZIONE--> Utente selezionato:");
+        System.out.println("   ID: " + selectedUser.getId());
+        System.out.println("   Username: " + selectedUser.getUsername());
+        System.out.println("   Email: " + selectedUser.getEmail());
+        System.out.println("   Nome: " + selectedUser.getName());
+        System.out.println("   Cognome: " + selectedUser.getSurname());
+
+        // Verifica che l'ID non sia null o vuoto
+        if (selectedUser.getId() == null || selectedUser.getId().trim().isEmpty()) {
+            showAlert("Errore", "ID utente non valido. Aggiorna la lista e riprova.");
+            return;
+        }
+
+        // Conferma eliminazione
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Conferma Eliminazione");
+        confirmAlert.setHeaderText("Eliminare l'utente selezionato?");
+        confirmAlert.setContentText(
+                "Stai per eliminare:\n" +
+                        "ID: " + selectedUser.getId() + "\n" +
+                        "Username: " + selectedUser.getUsername() + "\n" +
+                        "Email: " + selectedUser.getEmail() + "\n\n" +
+                        "Questa operazione non può essere annullata."
+        );
+
+        Optional<ButtonType> result = confirmAlert.showAndWait();
+
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            performDeleteUser(selectedUser);
+        }
+    }
+
+    /**
+     * Verifica di conferma eliminazione utente
+     */
+    private void performDeleteUser(User user) {
+        statusLabel.setText("🗑️ Eliminazione in corso...");
+        statusLabel.setTextFill(Color.ORANGE);
+
+        String adminEmail = authManager.getCurrentUser().getEmail();
+
+        adminService.deleteUserAsync(String.valueOf(user.getId()), adminEmail)
+                .thenAccept(response -> Platform.runLater(() -> {
+                    if (response.isSuccess()) {
+                        usersData.remove(user);
+                        statusLabel.setText("✅ Utente eliminato con successo");
+                        statusLabel.setTextFill(Color.LIGHTGREEN);
+
+                    } else {
+                        statusLabel.setText("❌ Eliminazione fallita");
+                        statusLabel.setTextFill(Color.RED);
+                        showAlert("Errore", "Impossibile eliminare l'utente: " + response.getMessage());
+                    }
+                }))
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        statusLabel.setText("❌ Errore di connessione");
+                        statusLabel.setTextFill(Color.RED);
+                        showAlert("Errore", "Errore di connessione: " + throwable.getMessage());
+                    });
+                    return null;
+                });
+    }
+
+    /**
+     * ===================================
+     * GESTIONE LIBRI
+     * ===================================
+     */
+
+    /**
      * Crea la tabella per la gestione libri
      */
     private void createBooksTable() {
@@ -1136,7 +538,6 @@ public class AdminPanel {
                         "-fx-border-width: 1;"
         );
 
-        // ✅ NUOVA COLONNA: Copertina
         TableColumn<Book, String> coverCol = new TableColumn<>("Copertina");
         coverCol.setCellValueFactory(cellData -> {
             return new javafx.beans.property.SimpleStringProperty("preview");
@@ -1186,7 +587,7 @@ public class AdminPanel {
             String title = book.getTitle();
             return new javafx.beans.property.SimpleStringProperty(title != null ? title : "N/A");
         });
-        titleCol.setPrefWidth(180); // Ridotto per fare spazio alla copertina
+        titleCol.setPrefWidth(180);
 
         // Colonna Autore
         TableColumn<Book, String> authorCol = new TableColumn<>("Autore");
@@ -1195,7 +596,7 @@ public class AdminPanel {
             String author = book.getAuthor();
             return new javafx.beans.property.SimpleStringProperty(author != null ? author : "N/A");
         });
-        authorCol.setPrefWidth(130); // Ridotto
+        authorCol.setPrefWidth(130);
 
         // Colonna Anno
         TableColumn<Book, String> yearCol = new TableColumn<>("Anno");
@@ -1204,7 +605,7 @@ public class AdminPanel {
             String year = book.getPublishYear();
             return new javafx.beans.property.SimpleStringProperty(year != null ? year : "N/A");
         });
-        yearCol.setPrefWidth(70); // Ridotto
+        yearCol.setPrefWidth(70);
 
         // Colonna Categoria
         TableColumn<Book, String> categoryCol = new TableColumn<>("Categoria");
@@ -1213,7 +614,7 @@ public class AdminPanel {
             String category = book.getCategory();
             return new javafx.beans.property.SimpleStringProperty(category != null ? category : "N/A");
         });
-        categoryCol.setPrefWidth(100); // Ridotto
+        categoryCol.setPrefWidth(100);
 
         booksTable.getColumns().addAll(coverCol, isbnCol, titleCol, authorCol, yearCol, categoryCol);
     }
@@ -1230,17 +631,14 @@ public class AdminPanel {
         adminService.getAllBooksAsync(adminEmail)
                 .thenAccept(response -> Platform.runLater(() -> {
                     if (response.isSuccess()) {
-                        // ✅ Salva tutti i libri in allBooksData
                         allBooksData.clear();
                         if (response.getBooks() != null) {
                             allBooksData.addAll(response.getBooks());
                         }
 
-                        // ✅ Inizialmente mostra tutti i libri
                         booksData.clear();
                         booksData.addAll(allBooksData);
 
-                        // ✅ Aggiorna info risultati
                         updateResultsInfo();
 
                         statusLabel.setText("✅ " + allBooksData.size() + " libri caricati");
@@ -1273,13 +671,11 @@ public class AdminPanel {
             return;
         }
 
-        // Verifica che l'ISBN non sia null o vuoto
         if (selectedBook.getIsbn() == null || selectedBook.getIsbn().trim().isEmpty()) {
             showAlert("Errore", "ISBN libro non valido. Aggiorna la lista e riprova.");
             return;
         }
 
-        // Conferma eliminazione
         Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
         confirmAlert.setTitle("Conferma Eliminazione");
         confirmAlert.setHeaderText("Eliminare il libro selezionato?");
@@ -1338,7 +734,6 @@ public class AdminPanel {
         dialog.setTitle("Aggiungi Nuovo Libro");
         dialog.setHeaderText("Inserisci i dettagli del nuovo libro");
 
-        // Crea i campi del form
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -1358,7 +753,6 @@ public class AdminPanel {
         TextField categoryField = new TextField();
         categoryField.setPromptText("Categoria");
 
-        // ✅ NUOVO: Campo per caricamento copertina
         HBox coverBox = new HBox(10);
         coverBox.setAlignment(Pos.CENTER_LEFT);
 
@@ -1375,7 +769,6 @@ public class AdminPanel {
         coverStatus.setTextFill(Color.GRAY);
         coverStatus.setFont(Font.font("System", 10));
 
-        // ✅ Wrapper class per memorizzare il file selezionato (per evitare problema final)
         class CoverFileHolder {
             File selectedFile = null;
         }
@@ -1401,12 +794,12 @@ public class AdminPanel {
                         return;
                     }
 
-                    // Verifica le proporzioni (range 100x200)
+                    // Verifica le proporzioni
                     double width = image.getWidth();
                     double height = image.getHeight();
                     double ratio = height / width;
 
-                    // Controllo proporzioni: altezza deve essere tra 1x e 2x la larghezza
+                    // Controllo proporzioni
                     if (ratio < 1.0 || ratio > 2.0) {
                         showAlert("Proporzioni non valide",
                                 String.format("L'immagine deve avere proporzioni nel range 1:1 e 1:2 (larghezza:altezza).\n" +
@@ -1417,7 +810,7 @@ public class AdminPanel {
 
                     // Aggiorna preview
                     coverPreview.setImage(image);
-                    coverHolder.selectedFile = file;  // ✅ USO WRAPPER CLASS
+                    coverHolder.selectedFile = file;
                     coverStatus.setText("✅ " + file.getName());
                     coverStatus.setTextFill(Color.GREEN);
 
@@ -1464,7 +857,6 @@ public class AdminPanel {
                 result.put("year", yearField.getText());
                 result.put("category", categoryField.getText());
 
-                // ✅ GESTIONE COPERTINA con wrapper class
                 if (coverHolder.selectedFile != null) {
                     try {
                         String targetFileName = saveCoverImageWithDebug(coverHolder.selectedFile, isbnField.getText());
@@ -1480,11 +872,9 @@ public class AdminPanel {
             return null;
         });
 
-        // Mostra dialog e gestisci risultato
         Optional<Map<String, String>> result = dialog.showAndWait();
 
         result.ifPresent(bookData -> {
-            // Validazione base
             if (bookData.get("isbn").trim().isEmpty() ||
                     bookData.get("title").trim().isEmpty() ||
                     bookData.get("author").trim().isEmpty()) {
@@ -1492,7 +882,6 @@ public class AdminPanel {
                 return;
             }
 
-            // Aggiungi libro
             addNewBook(bookData);
         });
     }
@@ -1501,7 +890,6 @@ public class AdminPanel {
      * Salva l'immagine di copertina nella cartella books_covers
      */
     private String saveCoverImageWithDebug(File sourceFile, String isbn) throws IOException {
-        // Validazione ISBN
         if (isbn == null || isbn.trim().isEmpty()) {
             throw new IOException("ISBN non può essere vuoto");
         }
@@ -1516,14 +904,12 @@ public class AdminPanel {
         String targetFileName = cleanIsbn + ".jpg";
         System.out.println("  Nome file target: '" + targetFileName + "'");
 
-        // Percorso di destinazione
         String resourcesPath = System.getProperty("user.dir") + "/client/src/main/resources/books_covers/";
         Path targetDir = Paths.get(resourcesPath);
         Path targetPath = targetDir.resolve(targetFileName);
 
         System.out.println("  Percorso completo: " + targetPath);
 
-        // Crea la directory se non esiste
         if (!Files.exists(targetDir)) {
             Files.createDirectories(targetDir);
             System.out.println("  ✅ Creata directory: " + targetDir);
@@ -1532,13 +918,11 @@ public class AdminPanel {
         }
 
         try {
-            // Verifica che il file sorgente esista
             if (!sourceFile.exists()) {
                 throw new IOException("File sorgente non trovato: " + sourceFile.getAbsolutePath());
             }
             System.out.println("  ✅ File sorgente verificato");
 
-            // Verifica dimensioni del file (max 5MB)
             long fileSize = Files.size(sourceFile.toPath());
             System.out.println("  📏 Dimensione file: " + (fileSize / 1024) + " KB");
 
@@ -1546,11 +930,9 @@ public class AdminPanel {
                 throw new IOException("File troppo grande (max 5MB). Dimensione: " + (fileSize / 1024 / 1024) + "MB");
             }
 
-            // Copia il file
             Files.copy(sourceFile.toPath(), targetPath, StandardCopyOption.REPLACE_EXISTING);
             System.out.println("  ✅ File copiato con successo");
 
-            // Verifica che il file sia stato copiato correttamente
             if (!Files.exists(targetPath)) {
                 throw new IOException("Errore durante la copia: file non creato");
             }
@@ -1582,7 +964,6 @@ public class AdminPanel {
                 System.out.println("📁 Directory books_covers esistente: " + targetDir);
             }
 
-            // Verifica che ci sia almeno placeholder.jpg
             Path placeholderPath = targetDir.resolve("placeholder.jpg");
             if (!Files.exists(placeholderPath)) {
                 System.out.println("⚠️ Warning: placeholder.jpg non trovato in " + targetDir);
@@ -1598,7 +979,6 @@ public class AdminPanel {
      */
     private void loadCoverPreview(Book book, ImageView imageView) {
         try {
-            // Genera nome file copertina basato su ISBN
             String coverFileName = null;
             if (book.getIsbn() != null && !book.getIsbn().trim().isEmpty()) {
                 String cleanIsbn = book.getIsbn().toUpperCase().replaceAll("[^A-Z0-9]", "");
@@ -1606,12 +986,10 @@ public class AdminPanel {
             }
 
             if (coverFileName != null) {
-                // Percorso copertina
                 String resourcesPath = System.getProperty("user.dir") + "/client/src/main/resources/books_covers/";
                 Path coverPath = Paths.get(resourcesPath, coverFileName);
 
                 if (Files.exists(coverPath)) {
-                    // Carica la copertina personalizzata
                     try (InputStream inputStream = Files.newInputStream(coverPath)) {
                         Image coverImage = new Image(inputStream, 30, 45, true, true);
                         if (!coverImage.isError()) {
@@ -1622,7 +1000,6 @@ public class AdminPanel {
                 }
             }
 
-            // Fallback: carica placeholder
             loadPlaceholderImage(imageView);
 
         } catch (Exception e) {
@@ -1636,7 +1013,6 @@ public class AdminPanel {
      */
     private void loadPlaceholderImage(ImageView imageView) {
         try {
-            // Prova placeholder locale
             String resourcesPath = System.getProperty("user.dir") + "/client/src/main/resources/books_covers/";
             Path placeholderPath = Paths.get(resourcesPath, "placeholder.jpg");
 
@@ -1650,7 +1026,6 @@ public class AdminPanel {
                 }
             }
 
-            // Fallback: crea immagine semplice
             createSimplePlaceholder(imageView);
 
         } catch (Exception e) {
@@ -1667,7 +1042,6 @@ public class AdminPanel {
 
         String adminEmail = authManager.getCurrentUser().getEmail();
 
-        // ✅ RENDI coverInfo FINAL
         final String coverInfo;
         if (bookData.containsKey("coverFileName")) {
             coverInfo = " (con copertina: " + bookData.get("coverFileName") + ")";
@@ -1687,10 +1061,9 @@ public class AdminPanel {
                         bookData.get("category")
                 ).thenAccept(response -> Platform.runLater(() -> {
                     if (response.isSuccess()) {
-                        statusLabel.setText("✅ Libro aggiunto con successo" + coverInfo); // ✅ ORA È FINAL
+                        statusLabel.setText("✅ Libro aggiunto con successo" + coverInfo);
                         statusLabel.setTextFill(Color.LIGHTGREEN);
 
-                        // Ricarica la lista libri
                         loadBooks();
 
                     } else {
@@ -1723,38 +1096,6 @@ public class AdminPanel {
     }
 
     /**
-     * Mostra la gestione utenti
-     */
-    private void showUsersManagement() {
-        System.out.println("🔄 Passaggio a gestione utenti..."); // Debug
-
-        if (mainAdminPanel != null) {
-            mainAdminPanel.getChildren().clear();
-
-            // Header
-            VBox header = createHeader();
-
-            // Toolbar per utenti
-            HBox toolbar = createUsersToolbar();
-
-            // Contenuto utenti
-            currentContent = new VBox(20);
-            VBox tableContainer = createUsersTable();
-            currentContent.getChildren().add(tableContainer);
-
-            // Status bar
-            HBox statusBar = createStatusBar();
-
-            mainAdminPanel.getChildren().addAll(header, toolbar, currentContent, statusBar);
-
-            // Carica dati utenti
-            loadUsers();
-        } else {
-            System.err.println("❌ mainAdminPanel è null!");
-        }
-    }
-
-    /**
      * Mostra la gestione libri
      */
     private void showBooksManagement() {
@@ -1763,13 +1104,10 @@ public class AdminPanel {
         if (mainAdminPanel != null) {
             mainAdminPanel.getChildren().clear();
 
-            // Header
             VBox header = createHeader();
 
-            // Toolbar per libri
             HBox toolbar = createBooksToolbar();
 
-            // Contenuto libri
             currentContent = new VBox(20);
             VBox container = new VBox(10);
 
@@ -1777,26 +1115,21 @@ public class AdminPanel {
             tableTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
             tableTitle.setTextFill(Color.WHITE);
 
-            // Pulsante aggiungi libro
             Button addBookButton = new Button("➕ Aggiungi Nuovo Libro");
             styleButton(addBookButton, "#27ae60");
             addBookButton.setOnAction(e -> showAddBookDialog());
 
-            // ✅ NUOVA BARRA DI RICERCA
             HBox searchContainer = createSearchBar();
 
-            // Tabella libri
             createBooksTable();
 
             container.getChildren().addAll(tableTitle, addBookButton, searchContainer, booksTable);
             currentContent.getChildren().add(container);
 
-            // Status bar
             HBox statusBar = createStatusBar();
 
             mainAdminPanel.getChildren().addAll(header, toolbar, currentContent, statusBar);
 
-            // Carica dati libri
             loadBooks();
         } else {
             System.err.println("❌ mainAdminPanel è null!");
@@ -1811,12 +1144,10 @@ public class AdminPanel {
         searchContainer.setAlignment(Pos.CENTER_LEFT);
         searchContainer.setPadding(new Insets(5, 0, 5, 0));
 
-        // Icona ricerca
         Label searchIcon = new Label("🔍");
         searchIcon.setFont(Font.font("System", 14));
         searchIcon.setTextFill(Color.LIGHTGRAY);
 
-        // Campo di ricerca
         searchField = new TextField();
         searchField.setPromptText("Cerca per ISBN, titolo, autore o categoria...");
         searchField.setPrefWidth(400);
@@ -1830,12 +1161,10 @@ public class AdminPanel {
                         "-fx-padding: 8;"
         );
 
-        // Listener per ricerca in tempo reale
         searchField.textProperty().addListener((observable, oldValue, newValue) -> {
             filterBooks(newValue);
         });
 
-        // Pulsante clear
         Button clearButton = new Button("❌");
         clearButton.setStyle(
                 "-fx-background-color: #e74c3c; " +
@@ -1846,14 +1175,13 @@ public class AdminPanel {
         );
         clearButton.setOnAction(e -> {
             searchField.clear();
-            filterBooks(""); // Mostra tutti i libri
+            filterBooks("");
         });
 
-        // Info risultati
         Label resultsInfo = new Label();
         resultsInfo.setTextFill(Color.LIGHTGRAY);
         resultsInfo.setFont(Font.font("System", 11));
-        updateResultsInfo(resultsInfo, 0, 0); // Inizialmente vuoto
+        updateResultsInfo(resultsInfo, 0, 0);
 
         searchContainer.getChildren().addAll(searchIcon, searchField, clearButton, resultsInfo);
 
@@ -1865,12 +1193,10 @@ public class AdminPanel {
      */
     private void filterBooks(String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
-            // Mostra tutti i libri
             booksData.setAll(allBooksData);
         } else {
             String lowerSearchText = searchText.toLowerCase().trim();
 
-            // Filtra i libri che contengono il testo di ricerca
             booksData.setAll(
                     allBooksData.stream()
                             .filter(book -> matchesSearch(book, lowerSearchText))
@@ -1878,7 +1204,6 @@ public class AdminPanel {
             );
         }
 
-        // Aggiorna info risultati
         updateResultsInfo();
     }
 
@@ -1927,13 +1252,11 @@ public class AdminPanel {
      * Aggiorna le informazioni sui risultati di ricerca
      */
     private void updateResultsInfo() {
-        // Trova il label dei risultati nel searchContainer
         if (currentContent != null && currentContent.getChildren().size() > 0) {
             VBox container = (VBox) currentContent.getChildren().get(0);
             for (javafx.scene.Node node : container.getChildren()) {
                 if (node instanceof HBox) {
                     HBox hbox = (HBox) node;
-                    // Cerca il label dei risultati (ultimo elemento)
                     if (hbox.getChildren().size() > 3) {
                         javafx.scene.Node lastNode = hbox.getChildren().get(hbox.getChildren().size() - 1);
                         if (lastNode instanceof Label) {
@@ -1963,37 +1286,6 @@ public class AdminPanel {
      */
     private void createSimplePlaceholder(ImageView imageView) {
         imageView.setImage(null);
-    }
-
-    /**
-     * Crea toolbar specifico per gestione utenti
-     */
-    private HBox createUsersToolbar() {
-        HBox toolbar = new HBox(15);
-        toolbar.setAlignment(Pos.CENTER_LEFT);
-        toolbar.setPadding(new Insets(10, 0, 10, 0));
-
-        Button backButton = new Button("⬅️ Torna al Menu");
-        styleButton(backButton, "#95a5a6");
-        backButton.setOnAction(e -> backToMainMenu());
-
-        Button refreshButton = new Button("🔄 Aggiorna");
-        styleButton(refreshButton, "#4a86e8");
-        refreshButton.setOnAction(e -> loadUsers());
-
-        Button deleteButton = new Button("🗑️ Elimina Selezionato");
-        styleButton(deleteButton, "#e74c3c");
-        deleteButton.setOnAction(e -> deleteSelectedUser());
-
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        Label sectionLabel = new Label("👥 Gestione Utenti");
-        sectionLabel.setTextFill(Color.WHITE);
-        sectionLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
-
-        toolbar.getChildren().addAll(backButton, refreshButton, deleteButton, spacer, sectionLabel);
-        return toolbar;
     }
 
     /**
@@ -2028,6 +1320,503 @@ public class AdminPanel {
     }
 
     /**
+     * ==========================
+     * GESTIONE RECENSIONI
+     * ==========================
+     */
+
+    /**
+     * Mostra la gestione recensioni
+     */
+    private void showReviewsManagement() {
+        System.out.println("📄 Passaggio a gestione recensioni...");
+
+        if (mainAdminPanel != null) {
+            mainAdminPanel.getChildren().clear();
+
+            VBox header = createHeader();
+
+            HBox toolbar = createReviewsToolbar();
+
+            currentContent = new VBox(20);
+            VBox container = new VBox(10);
+
+            Label tableTitle = new Label("⭐ Gestione Recensioni");
+            tableTitle.setFont(Font.font("System", FontWeight.BOLD, 16));
+            tableTitle.setTextFill(Color.WHITE);
+
+            HBox searchContainer = createReviewsSearchBar();
+
+            createReviewsTable();
+
+            container.getChildren().addAll(tableTitle, searchContainer, reviewsTable);
+            currentContent.getChildren().add(container);
+
+            HBox statusBar = createStatusBar();
+
+            mainAdminPanel.getChildren().addAll(header, toolbar, currentContent, statusBar);
+
+            loadReviewsData();
+        } else {
+            System.err.println("❌ mainAdminPanel è null!");
+        }
+    }
+
+    /**
+     * Barra di ricerca per gestione recensioni
+     */
+    private HBox createReviewsSearchBar() {
+        HBox searchContainer = new HBox(10);
+        searchContainer.setAlignment(Pos.CENTER_LEFT);
+        searchContainer.setPadding(new Insets(10, 0, 10, 0));
+
+        Label searchLabel = new Label("🔍");
+        searchLabel.setTextFill(Color.LIGHTGRAY);
+        searchLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+
+        reviewsSearchField = new TextField();
+        reviewsSearchField.setPromptText("Cerca per utente, ISBN o contenuto recensione...");
+        reviewsSearchField.setPrefWidth(300);
+        reviewsSearchField.setStyle(
+                "-fx-background-color: #2a2a2a; " +
+                        "-fx-text-fill: white; " +
+                        "-fx-prompt-text-fill: #888888; " +
+                        "-fx-border-color: #444444; " +
+                        "-fx-border-radius: 5; " +
+                        "-fx-background-radius: 5;"
+        );
+
+        reviewsSearchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            filterReviews(newValue);
+        });
+
+        Button clearButton = new Button("✕");
+        styleButton(clearButton, "#e74c3c");
+        clearButton.setPrefWidth(30);
+        clearButton.setOnAction(e -> {
+            reviewsSearchField.clear();
+            filterReviews("");
+        });
+
+        searchContainer.getChildren().addAll(searchLabel, reviewsSearchField, clearButton);
+        return searchContainer;
+    }
+
+
+    /**
+     * Filtra le recensioni
+     */
+    private void filterReviews(String searchText) {
+        if (searchText == null || searchText.trim().isEmpty()) {
+            reviewsTable.setItems(reviewsData);
+        } else {
+            ObservableList<BookRating> filteredData = FXCollections.observableArrayList();
+            String lowerCaseFilter = searchText.toLowerCase();
+
+            for (BookRating rating : reviewsData) {
+                if ((rating.getUsername() != null && rating.getUsername().toLowerCase().contains(lowerCaseFilter)) ||
+                        (rating.getIsbn() != null && rating.getIsbn().toLowerCase().contains(lowerCaseFilter)) ||
+                        (rating.getReview() != null && rating.getReview().toLowerCase().contains(lowerCaseFilter))) {
+                    filteredData.add(rating);
+                }
+            }
+            reviewsTable.setItems(filteredData);
+        }
+    }
+
+    /**
+     * Crea toolbar per gestione recensioni
+     */
+    private HBox createReviewsToolbar() {
+        HBox toolbar = new HBox(15);
+        toolbar.setAlignment(Pos.CENTER_LEFT);
+        toolbar.setPadding(new Insets(10, 0, 10, 0));
+
+        Button backButton = new Button("⬅️ Torna al Menu");
+        styleButton(backButton, "#95a5a6");
+        backButton.setOnAction(e -> backToMainMenu());
+
+        Button refreshButton = new Button("🔄 Aggiorna");
+        styleButton(refreshButton, "#4a86e8");
+        refreshButton.setOnAction(e -> loadReviewsData());
+
+        Button deleteButton = new Button("🗑️ Elimina Selezionata");
+        styleButton(deleteButton, "#e74c3c");
+        deleteButton.setOnAction(e -> deleteSelectedReview());
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label sectionLabel = new Label("⭐ Gestione Recensioni");
+        sectionLabel.setTextFill(Color.WHITE);
+        sectionLabel.setFont(Font.font("System", FontWeight.BOLD, 14));
+
+        toolbar.getChildren().addAll(backButton, refreshButton, deleteButton, spacer, sectionLabel);
+        return toolbar;
+    }
+
+    /**
+     * Crea la tabella delle recensioni
+     */
+    private void createReviewsTable() {
+        reviewsTable = new TableView<>();
+        reviewsTable.setItems(reviewsData);
+        reviewsTable.setPrefHeight(500);
+        reviewsTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        reviewsTable.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
+
+        reviewsTable.setStyle(
+                "-fx-selection-bar: #E0E0E0; " +
+                        "-fx-selection-bar-non-focused: #F0F0F0; " +
+                        "-fx-text-fill: black;"
+        );
+
+        // Colonna Username
+        TableColumn<BookRating, String> usernameCol = new TableColumn<>("👤 Utente");
+        usernameCol.setCellValueFactory(new PropertyValueFactory<>("username"));
+        usernameCol.setPrefWidth(120);
+
+        // Colonna ISBN
+        TableColumn<BookRating, String> isbnCol = new TableColumn<>("📚 ISBN");
+        isbnCol.setCellValueFactory(new PropertyValueFactory<>("isbn"));
+        isbnCol.setPrefWidth(120);
+
+        // Colonna Voti dettagliati
+        TableColumn<BookRating, String> votesCol = new TableColumn<>("📊 Voti");
+        votesCol.setPrefWidth(100);
+        votesCol.setCellFactory(col -> new TableCell<BookRating, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setText("");
+                } else {
+                    BookRating rating = getTableView().getItems().get(getIndex());
+                    String votesText = String.format("S:%d C:%d P:%d O:%d E:%d",
+                            rating.getStyle() != null ? rating.getStyle() : 0,
+                            rating.getContent() != null ? rating.getContent() : 0,
+                            rating.getPleasantness() != null ? rating.getPleasantness() : 0,
+                            rating.getOriginality() != null ? rating.getOriginality() : 0,
+                            rating.getEdition() != null ? rating.getEdition() : 0);
+                    setText(votesText);
+
+                    // Colore condizionale per selezione
+                    if (!isSelected()) {
+                        setTextFill(Color.STEELBLUE);
+                    } else {
+                        setTextFill(Color.BLACK);
+                    }
+                }
+            }
+        });
+
+        // Colonna Media voti
+        TableColumn<BookRating, Double> averageCol = new TableColumn<>("⭐ Media");
+        averageCol.setCellValueFactory(new PropertyValueFactory<>("average"));
+        averageCol.setPrefWidth(80);
+        averageCol.setCellFactory(col -> new TableCell<BookRating, Double>() {
+            @Override
+            protected void updateItem(Double average, boolean empty) {
+                super.updateItem(average, empty);
+                if (empty || average == null) {
+                    setText("");
+                } else {
+                    setText(String.format("%.1f/5", average));
+
+                    // Colore condizionale in base a valutazione
+                    if (!isSelected()) {
+                        if (average >= 4.0) {
+                            setTextFill(Color.FORESTGREEN);
+                        } else if (average >= 3.0) {
+                            setTextFill(Color.GOLDENROD);
+                        } else {
+                            setTextFill(Color.CRIMSON);
+                        }
+                    } else {
+                        setTextFill(Color.BLACK);
+                    }
+                }
+            }
+        });
+
+        // Colonna Recensione
+        TableColumn<BookRating, String> reviewCol = new TableColumn<>("💬 Recensione");
+        reviewCol.setCellValueFactory(new PropertyValueFactory<>("review"));
+        reviewCol.setPrefWidth(250);
+        reviewCol.setCellFactory(col -> new TableCell<BookRating, String>() {
+            @Override
+            protected void updateItem(String reviewText, boolean empty) {
+                super.updateItem(reviewText, empty);
+                if (empty || reviewText == null || reviewText.trim().isEmpty()) {
+                    setText("");
+                    setOnMouseClicked(null);
+                } else {
+                    // Tronca il testo se è troppo lungo
+                    String displayText = reviewText.length() > 40 ?
+                            reviewText.substring(0, 37) + "..." : reviewText;
+                    setText(displayText);
+                    setTextFill(Color.BLACK);
+
+                    setTooltip(new Tooltip(reviewText));
+
+                    setOnMouseClicked(e -> {
+                        if (e.getClickCount() == 1) { // Click singolo
+                            showFullReviewDialog(reviewText, getTableView().getItems().get(getIndex()));
+                        }
+                    });
+
+                    setStyle("-fx-cursor: hand;");
+                }
+            }
+        });
+
+        // Colonna Data
+        TableColumn<BookRating, String> dateCol = new TableColumn<>("📅 Data");
+        dateCol.setCellValueFactory(new PropertyValueFactory<>("data"));
+        dateCol.setPrefWidth(120);
+        dateCol.setCellFactory(col -> new TableCell<BookRating, String>() {
+            @Override
+            protected void updateItem(String date, boolean empty) {
+                super.updateItem(date, empty);
+                if (empty || date == null) {
+                    setText("");
+                } else {
+                    setText(date.substring(0, Math.min(10, date.length())));
+                    setTextFill(Color.BLACK);
+                }
+            }
+        });
+
+        reviewsTable.getColumns().addAll(usernameCol, isbnCol, votesCol, averageCol, reviewCol, dateCol);
+    }
+
+    /**
+     * Metodo per visualizzazione completa della recensione
+     */
+    private void showFullReviewDialog(String reviewText, BookRating rating) {
+        Alert dialog = new Alert(Alert.AlertType.INFORMATION);
+        dialog.setTitle("📖 Recensione Completa");
+        dialog.setHeaderText("Recensione di " + rating.getUsername() + " per ISBN: " + rating.getIsbn());
+
+        TextArea textArea = new TextArea(reviewText);
+        textArea.setEditable(false);
+        textArea.setWrapText(true);
+        textArea.setPrefRowCount(10);
+        textArea.setPrefColumnCount(50);
+
+        String additionalInfo = String.format(
+                "\n\n📊 Dettaglio Voti:\n" +
+                        "• Stile: %d/5\n" +
+                        "• Contenuto: %d/5\n" +
+                        "• Piacevolezza: %d/5\n" +
+                        "• Originalità: %d/5\n" +
+                        "• Edizione: %d/5\n" +
+                        "• Media: %.1f/5\n" +
+                        "• Data: %s",
+                rating.getStyle() != null ? rating.getStyle() : 0,
+                rating.getContent() != null ? rating.getContent() : 0,
+                rating.getPleasantness() != null ? rating.getPleasantness() : 0,
+                rating.getOriginality() != null ? rating.getOriginality() : 0,
+                rating.getEdition() != null ? rating.getEdition() : 0,
+                rating.getAverage() != null ? rating.getAverage() : 0.0,
+                rating.getData() != null ? rating.getData() : "N/A"
+        );
+
+        textArea.setText(reviewText + additionalInfo);
+
+        dialog.getDialogPane().setContent(textArea);
+        dialog.getDialogPane().setPrefSize(600, 400);
+
+        dialog.showAndWait();
+    }
+
+    /**
+     * Carica le recensioni
+     */
+    private void loadReviewsData() {
+        System.out.println("🔄 Caricamento recensioni dal database...");
+
+        if (statusLabel != null) {
+            statusLabel.setText("🔄 Caricamento recensioni...");
+            statusLabel.setTextFill(Color.YELLOW);
+        }
+
+        reviewsData.clear();
+
+        // Verifica che l'utente sia autenticato come admin
+        String adminEmail = authManager.getCurrentUser() != null ?
+                authManager.getCurrentUser().getEmail() : null;
+
+        if (adminEmail == null) {
+            if (statusLabel != null) {
+                statusLabel.setText("❌ Errore: utente non autenticato");
+                statusLabel.setTextFill(Color.RED);
+            }
+            loadFallbackReviewsData();
+            return;
+        }
+
+        adminService.getAllReviewsAsync(adminEmail)
+                .thenAccept(response -> {
+                    Platform.runLater(() -> {
+                        if (response != null && response.isSuccess() && response.getRatings() != null) {
+                            List<BookRating> ratings = response.getRatings();
+
+                            reviewsData.clear();
+                            reviewsData.addAll(ratings);
+
+                            if (statusLabel != null) {
+                                statusLabel.setText("✅ Caricate " + reviewsData.size() + " recensioni");
+                                statusLabel.setTextFill(Color.LIGHTGREEN);
+                            }
+
+                            System.out.println("✅ Caricate " + reviewsData.size() + " recensioni");
+                        } else {
+                            String error = response != null ? response.getMessage() : "Risposta nulla dal server";
+
+                            if (statusLabel != null) {
+                                statusLabel.setText("❌ Errore: " + error);
+                                statusLabel.setTextFill(Color.RED);
+                            }
+                            System.err.println("❌ Errore nel caricamento recensioni: " + error);
+                            loadFallbackReviewsData();
+                        }
+                    });
+                })
+                .exceptionally(throwable -> {
+                    Platform.runLater(() -> {
+                        if (statusLabel != null) {
+                            statusLabel.setText("❌ Errore di connessione");
+                            statusLabel.setTextFill(Color.RED);
+                        }
+                        System.err.println("❌ Errore di connessione nel caricamento recensioni: " + throwable.getMessage());
+                        throwable.printStackTrace();
+                        loadFallbackReviewsData();
+                    });
+                    return null;
+                });
+    }
+
+    /**
+     * Carica delle recensioni di fallback in caso di server offline
+     */
+    private void loadFallbackReviewsData() {
+        System.out.println("🔄 Caricamento dati di esempio...");
+
+        BookRating rating1 = new BookRating();
+        rating1.setUsername("mario.rossi");
+        rating1.setIsbn("978-0123456789");
+        rating1.setStyle(5);
+        rating1.setContent(4);
+        rating1.setPleasantness(5);
+        rating1.setOriginality(4);
+        rating1.setEdition(4);
+        rating1.setReview("Un capolavoro assoluto della letteratura italiana.");
+        rating1.setData("2025-08-15");
+
+        BookRating rating2 = new BookRating();
+        rating2.setUsername("anna.verdi");
+        rating2.setIsbn("978-0987654321");
+        rating2.setStyle(4);
+        rating2.setContent(4);
+        rating2.setPleasantness(3);
+        rating2.setOriginality(5);
+        rating2.setEdition(3);
+        rating2.setReview("Inquietante e profetico, un libro che fa riflettere.");
+        rating2.setData("2025-08-12");
+
+        BookRating rating3 = new BookRating();
+        rating3.setUsername("luca.bianchi");
+        rating3.setIsbn("978-1234567890");
+        rating3.setStyle(3);
+        rating3.setContent(5);
+        rating3.setPleasantness(4);
+        rating3.setOriginality(3);
+        rating3.setEdition(4);
+        rating3.setReview("Interessante ma un po' lento all'inizio.");
+        rating3.setData("2025-08-10");
+
+        reviewsData.addAll(rating1, rating2, rating3);
+
+        if (statusLabel != null) {
+            statusLabel.setText("⚠️ Dati di esempio caricati (" + reviewsData.size() + " recensioni)");
+            statusLabel.setTextFill(Color.ORANGE);
+        }
+    }
+
+    /**
+     * Elimina recensione selezionata
+     */
+    private void deleteSelectedReview() {
+        ObservableList<BookRating> selectedRatings = reviewsTable.getSelectionModel().getSelectedItems();
+
+        if (selectedRatings.isEmpty()) {
+            if (statusLabel != null) {
+                statusLabel.setText("⚠️ Seleziona almeno una recensione da eliminare");
+                statusLabel.setTextFill(Color.ORANGE);
+            }
+            return;
+        }
+
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("🗑️ Conferma Eliminazione");
+        confirmAlert.setHeaderText("Eliminare le recensioni selezionate?");
+        confirmAlert.setContentText("Vuoi eliminare " + selectedRatings.size() + " recensione/i?");
+
+        Optional<ButtonType> result = confirmAlert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+
+            List<BookRating> toDelete = List.copyOf(selectedRatings);
+
+            if (statusLabel != null) {
+                statusLabel.setText("🔄 Eliminazione in corso...");
+                statusLabel.setTextFill(Color.YELLOW);
+            }
+
+            String adminEmail = authManager.getCurrentUser() != null ?
+                    authManager.getCurrentUser().getEmail() : null;
+
+            if (adminEmail == null) {
+                if (statusLabel != null) {
+                    statusLabel.setText("❌ Errore: utente non autenticato");
+                    statusLabel.setTextFill(Color.RED);
+                }
+                return;
+            }
+
+            for (BookRating rating : toDelete) {
+                adminService.deleteRatingAsync(adminEmail, rating.getUsername(), rating.getIsbn())
+                        .thenAccept(deleteResponse -> {
+                            Platform.runLater(() -> {
+                                if (deleteResponse.isSuccess()) {
+                                    reviewsData.remove(rating);
+                                    System.out.println("✅ Eliminata recensione: " + rating.getUsername() + " - " + rating.getIsbn());
+                                } else {
+                                    String error = deleteResponse.getMessage();
+                                    System.err.println("❌ Errore eliminazione: " + error);
+                                }
+                            });
+                        })
+                        .exceptionally(throwable -> {
+                            Platform.runLater(() -> {
+                                System.err.println("❌ Errore eliminazione recensione: " + throwable.getMessage());
+                                if (statusLabel != null) {
+                                    statusLabel.setText("❌ Errore durante l'eliminazione");
+                                    statusLabel.setTextFill(Color.RED);
+                                }
+                            });
+                            return null;
+                        });
+            }
+
+            if (statusLabel != null) {
+                statusLabel.setText("🗑️ Eliminazione completata");
+                statusLabel.setTextFill(Color.LIGHTGREEN);
+            }
+        }
+    }
+
+    /**
      * Torna al menu principale
      */
     private void backToMainMenu() {
@@ -2036,10 +1825,8 @@ public class AdminPanel {
         if (mainAdminPanel != null) {
             mainAdminPanel.getChildren().clear();
 
-            // Header
             VBox header = createHeader();
 
-            // Menu di selezione
             VBox menuContainer = createAdminMenu();
 
             mainAdminPanel.getChildren().addAll(header, menuContainer);
@@ -2058,114 +1845,12 @@ public class AdminPanel {
                         "-fx-cursor: hand;"
         );
 
-        // Hover effect
         button.setOnMouseEntered(e ->
                 button.setStyle(button.getStyle().replace(color, "derive(" + color + ", 20%)"))
         );
         button.setOnMouseExited(e ->
                 button.setStyle(button.getStyle().replace("derive(" + color + ", 20%)", color))
         );
-    }
-
-    private void loadUsers() {
-        statusLabel.setText("🔄 Caricamento utenti...");
-        statusLabel.setTextFill(Color.ORANGE);
-
-        String adminEmail = authManager.getCurrentUser().getEmail();
-
-        adminService.getAllUsersAsync(adminEmail)
-                .thenAccept(response -> Platform.runLater(() -> {
-                    if (response.isSuccess() && response.getUsers() != null) {
-                        usersData.clear();
-                        usersData.addAll(response.getUsers());
-
-                        statusLabel.setText("✅ Caricati " + response.getUsers().size() + " utenti");
-                        statusLabel.setTextFill(Color.LIGHTGREEN);
-
-                    } else {
-                        statusLabel.setText("❌ Errore: " + response.getMessage());
-                        statusLabel.setTextFill(Color.RED);
-
-                        showAlert("Errore", "Impossibile caricare gli utenti: " + response.getMessage());
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    Platform.runLater(() -> {
-                        statusLabel.setText("❌ Errore di connessione");
-                        statusLabel.setTextFill(Color.RED);
-                        showAlert("Errore", "Errore di connessione: " + throwable.getMessage());
-                    });
-                    return null;
-                });
-    }
-
-    private void deleteSelectedUser() {
-        User selectedUser = usersTable.getSelectionModel().getSelectedItem();
-
-        if (selectedUser == null) {
-            showAlert("Attenzione", "Seleziona un utente da eliminare");
-            return;
-        }
-
-        System.out.println("🔍 DEBUG Utente selezionato:");
-        System.out.println("   ID: " + selectedUser.getId());
-        System.out.println("   Username: " + selectedUser.getUsername());
-        System.out.println("   Email: " + selectedUser.getEmail());
-        System.out.println("   Nome: " + selectedUser.getName());
-        System.out.println("   Cognome: " + selectedUser.getSurname());
-
-        // Verifica che l'ID non sia null o vuoto
-        if (selectedUser.getId() == null || selectedUser.getId().trim().isEmpty()) {
-            showAlert("Errore", "ID utente non valido. Aggiorna la lista e riprova.");
-            return;
-        }
-
-        // Conferma eliminazione
-        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-        confirmAlert.setTitle("Conferma Eliminazione");
-        confirmAlert.setHeaderText("Eliminare l'utente selezionato?");
-        confirmAlert.setContentText(
-                "Stai per eliminare:\n" +
-                        "ID: " + selectedUser.getId() + "\n" +
-                        "Username: " + selectedUser.getUsername() + "\n" +
-                        "Email: " + selectedUser.getEmail() + "\n\n" +
-                        "Questa operazione non può essere annullata."
-        );
-
-        Optional<ButtonType> result = confirmAlert.showAndWait();
-
-        if (result.isPresent() && result.get() == ButtonType.OK) {
-            performDeleteUser(selectedUser);
-        }
-    }
-
-    private void performDeleteUser(User user) {
-        statusLabel.setText("🗑️ Eliminazione in corso...");
-        statusLabel.setTextFill(Color.ORANGE);
-
-        String adminEmail = authManager.getCurrentUser().getEmail();
-
-        adminService.deleteUserAsync(String.valueOf(user.getId()), adminEmail)
-                .thenAccept(response -> Platform.runLater(() -> {
-                    if (response.isSuccess()) {
-                        usersData.remove(user);
-                        statusLabel.setText("✅ Utente eliminato con successo");
-                        statusLabel.setTextFill(Color.LIGHTGREEN);
-
-                    } else {
-                        statusLabel.setText("❌ Eliminazione fallita");
-                        statusLabel.setTextFill(Color.RED);
-                        showAlert("Errore", "Impossibile eliminare l'utente: " + response.getMessage());
-                    }
-                }))
-                .exceptionally(throwable -> {
-                    Platform.runLater(() -> {
-                        statusLabel.setText("❌ Errore di connessione");
-                        statusLabel.setTextFill(Color.RED);
-                        showAlert("Errore", "Errore di connessione: " + throwable.getMessage());
-                    });
-                    return null;
-                });
     }
 
     private void showAlert(String title, String message) {

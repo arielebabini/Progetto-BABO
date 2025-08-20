@@ -226,17 +226,6 @@ public class BookService {
     /**
      * Ricerca libri per autore e anno
      */
-    public CompletableFuture<List<Book>> searchBooksByAuthorAndYearAsync(String author, String year) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return searchBooksByAuthorAndYear(author, year);
-            } catch (Exception e) {
-                System.err.println("❌ Errore durante la ricerca per autore e anno: " + e.getMessage());
-                return new ArrayList<>();
-            }
-        });
-    }
-
     public List<Book> searchBooksByAuthorAndYear(String author, String year) throws IOException {
         HttpUrl.Builder urlBuilder = HttpUrl.parse(SERVER_BASE_URL + "/books/search/author-year")
                 .newBuilder()
@@ -352,12 +341,12 @@ public class BookService {
     }
 
     /**
-     * Recupera libri gratuiti
+     * Recupera libri consigliasti (sezione home)
      */
-    public CompletableFuture<List<Book>> getFreeBooksAsync() {
+    public CompletableFuture<List<Book>> getSuggestedBooksAsync() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return getFreeBooks();
+                return getSuggestedBooks();
             } catch (Exception e) {
                 System.err.println("❌ Errore durante il recupero dei libri gratuiti: " + e.getMessage());
                 return getFallbackBooks();
@@ -366,9 +355,9 @@ public class BookService {
     }
 
     /**
-     * Recupera libri gratuiti
+     * Recupera libri consigliati
      */
-    public List<Book> getFreeBooks() throws IOException {
+    public List<Book> getSuggestedBooks() throws IOException {
         Request request = new Request.Builder()
                 .url(SERVER_BASE_URL + "/books/free")
                 .get()
@@ -385,7 +374,7 @@ public class BookService {
     }
 
     /**
-     * Recupera nuove uscite
+     * Recupera libri nuovi
      */
     public CompletableFuture<List<Book>> getNewReleasesAsync() {
         return CompletableFuture.supplyAsync(() -> {
@@ -399,7 +388,7 @@ public class BookService {
     }
 
     /**
-     * Recupera nuove uscite
+     * Recupera libri nuovi
      */
     public List<Book> getNewReleases() throws IOException {
         Request request = new Request.Builder()
@@ -417,9 +406,11 @@ public class BookService {
         }
     }
 
-    // ===================================================================
-    // UTILITY E FALLBACK
-    // ===================================================================
+    /**
+    * ===================================================================
+    * UTILITY E FALLBACK
+    * ===================================================================
+    */
 
     /**
      * Libri di fallback quando il server non è disponibile
@@ -444,80 +435,6 @@ public class BookService {
         books.add(new Book(8L, "Cento Anni di Solitudine", "Gabriel García Márquez",
                 "Un capolavoro del realismo magico latinoamericano.","placeholder.jpg"));
         return books;
-    }
-
-    /**
-     * Test connessione server (per Header.java)
-     */
-    public boolean testServerConnection() {
-        return isServerAvailable();
-    }
-
-    /**
-     * Debug endpoint server (per Header.java)
-     */
-    public void debugServerEndpoints() {
-        System.out.println("🔧 [CLIENT] Debug endpoint server: funzionalità base disponibile");
-    }
-
-    /**
-     * Metodo placeholder per libri più recensiti
-     */
-    public CompletableFuture<List<Book>> getMostReviewedBooksAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            // Placeholder: usa libri gratuiti come sostituto
-            try {
-                return getFreeBooks();
-            } catch (Exception e) {
-                return getFallbackBooks();
-            }
-        });
-    }
-
-    /**
-     * Metodo placeholder per libri top rated
-     */
-    public CompletableFuture<List<Book>> getTopRatedBooksAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            // Placeholder: usa nuove uscite come sostituto
-            try {
-                return getNewReleases();
-            } catch (Exception e) {
-                return getFallbackBooks();
-            }
-        });
-    }
-
-    /**
-     * Metodo placeholder per libri per categoria
-     */
-    public CompletableFuture<List<Book>> getBooksByCategoryAsync(String category) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Placeholder: usa tutti i libri e filtra per categoria nel nome
-            try {
-                List<Book> allBooks = getAllBooks();
-                List<Book> filtered = new ArrayList<>();
-
-                String categoryLower = category.toLowerCase();
-                for (Book book : allBooks) {
-                    // Filtro semplice: controlla se categoria è nel titolo o descrizione
-                    if ((book.getTitle() != null && book.getTitle().toLowerCase().contains(categoryLower)) ||
-                            (book.getDescription() != null && book.getDescription().toLowerCase().contains(categoryLower))) {
-                        filtered.add(book);
-                    }
-                }
-
-                // Se non trova nulla, restituisci alcuni libri casuali
-                if (filtered.isEmpty()) {
-                    int maxBooks = Math.min(8, allBooks.size());
-                    return allBooks.subList(0, maxBooks);
-                }
-
-                return filtered;
-            } catch (Exception e) {
-                return getFallbackBooks();
-            }
-        });
     }
 
     /**

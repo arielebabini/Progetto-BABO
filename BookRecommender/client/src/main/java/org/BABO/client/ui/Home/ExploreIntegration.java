@@ -2,6 +2,7 @@ package org.BABO.client.ui.Home;
 
 import org.BABO.client.service.ClientRatingService;
 import org.BABO.client.ui.AppleBooksClient;
+import org.BABO.client.ui.Authentication.AuthenticationManager;
 import org.BABO.client.ui.Category.CategoryView;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
@@ -41,6 +42,7 @@ public class ExploreIntegration {
     private boolean isViewingCategory = false;
     private List<Book> mostReviewedBooks = new ArrayList<>();
     private List<Book> topRatedBooks = new ArrayList<>();
+    private AuthenticationManager authManager;
 
     public ExploreIntegration(BookService bookService, boolean serverAvailable) {
         this.bookService = bookService;
@@ -55,6 +57,10 @@ public class ExploreIntegration {
 
     public void setBookClickHandler(Consumer<Book> handler) {
         this.bookClickHandler = handler;
+    }
+
+    public void setAuthManager(AuthenticationManager authManager) {
+        this.authManager = authManager;
     }
 
     /**
@@ -285,7 +291,9 @@ public class ExploreIntegration {
             // Stelle
             Label starsLabel = new Label(createStarString(book.getAverageRating()));
             starsLabel.setFont(Font.font("System", 10));
-            starsLabel.setTextFill(Color.web("#FFD700"));
+            starsLabel.getStyleClass().add("stars-white");
+
+            starsLabel.setTextFill(Color.WHITE);
 
             // Rating numerico
             Label ratingText = new Label(String.format("%.1f", book.getAverageRating()));
@@ -329,19 +337,30 @@ public class ExploreIntegration {
                     break;
             }
 
-            // Apri direttamente BookDetailsPopup con la lista completa della sezione
-            AppleBooksClient.openBookDetails(book, sectionBooks, null);
+            AppleBooksClient.openBookDetails(book, sectionBooks, authManager);
         });
 
         // Effetti hover
         card.setOnMouseEntered(e -> {
             card.setScaleX(1.05);
             card.setScaleY(1.05);
+
+            ratingBox.getChildren().forEach(child -> {
+                if (child instanceof Label && ((Label) child).getStyleClass().contains("stars-white")) {
+                    ((Label) child).setTextFill(Color.WHITE);
+                }
+            });
         });
 
         card.setOnMouseExited(e -> {
             card.setScaleX(1.0);
             card.setScaleY(1.0);
+
+            ratingBox.getChildren().forEach(child -> {
+                if (child instanceof Label && ((Label) child).getStyleClass().contains("stars-white")) {
+                    ((Label) child).setTextFill(Color.WHITE);
+                }
+            });
         });
 
         card.setStyle("-fx-cursor: hand;");
@@ -480,6 +499,8 @@ public class ExploreIntegration {
                     bookService,
                     bookClickHandler
             );
+
+            categoryView.setAuthManager(authManager);
 
             // Mostra la vista categoria
             showCategoryView(categoryView);

@@ -269,7 +269,7 @@ public class RatingDialog {
 
         // Valore
         valueLabel.setFont(Font.font("SF Pro Text", FontWeight.BOLD, 14));
-        valueLabel.setTextFill(Color.YELLOW);
+        valueLabel.setTextFill(Color.WHITE);
         valueLabel.setPrefWidth(30);
 
         // Stelle visuali
@@ -283,12 +283,12 @@ public class RatingDialog {
             valueLabel.setText(String.valueOf(value));
 
             if (value > 0) {
-                String stars = "★".repeat(value) + "☆".repeat(5 - value);
+                String stars = "★".repeat(value) + "★".repeat(5 - value);
                 starsLabel.setText(stars);
-                starsLabel.setTextFill(Color.GOLD);
+                starsLabel.getStyleClass().add("stars-white");
             } else {
-                starsLabel.setText("☆☆☆☆☆");
-                starsLabel.setTextFill(Color.GRAY);
+                starsLabel.setText("★★★★★");
+                starsLabel.getStyleClass().add("stars-white");
             }
 
             updatePreview();
@@ -386,7 +386,7 @@ public class RatingDialog {
 
         averageLabel = new Label("⭐ 0.0/5");
         averageLabel.setFont(Font.font("SF Pro Display", FontWeight.BOLD, 20));
-        averageLabel.setTextFill(Color.GOLD);
+        averageLabel.getStyleClass().add("stars-white");
 
         qualityLabel = new Label("Non valutato");
         qualityLabel.setFont(Font.font("SF Pro Text", 14));

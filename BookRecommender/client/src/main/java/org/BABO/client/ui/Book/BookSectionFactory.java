@@ -144,7 +144,7 @@ public class BookSectionFactory {
 
         switch (sectionType) {
             case "free":
-                future = bookService.getFreeBooksAsync();
+                future = bookService.getSuggestedBooksAsync();
                 specificCallback = freeBooksCallback;
                 break;
             case "new":

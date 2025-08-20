@@ -149,9 +149,6 @@ public class Header {
                         org.BABO.client.service.BookService clientService =
                                 (org.BABO.client.service.BookService) bookService;
 
-                        // Test connessione
-                        clientService.testServerConnection();
-
                         // Debug endpoint
                         //clientService.debugServerEndpoints();
 

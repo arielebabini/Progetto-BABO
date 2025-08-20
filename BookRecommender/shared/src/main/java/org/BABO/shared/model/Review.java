@@ -224,16 +224,12 @@ public class Review {
     public String getRatingStars() {
         int ratingValue = getRating();
         if (ratingValue < 1 || ratingValue > 5) {
-            return "☆☆☆☆☆";
+            return "★★★★★";
         }
 
         StringBuilder stars = new StringBuilder();
         for (int i = 1; i <= 5; i++) {
-            if (i <= ratingValue) {
-                stars.append("⭐");
-            } else {
-                stars.append("☆");
-            }
+            stars.append("★");
         }
         return stars.toString();
     }

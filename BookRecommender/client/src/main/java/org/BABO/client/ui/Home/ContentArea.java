@@ -98,7 +98,6 @@ public class ContentArea {
             System.out.println("🔍 Search results salvati per navigazione: " + books.size());
         });
 
-        // ✅ AGGIUNTO: Configura il category click handler
         this.sectionFactory.setCategoryClickHandler(category -> handleCategoryClick(category));
         System.out.println("✅ Category click handler configurato");
 
@@ -186,6 +185,8 @@ public class ContentArea {
         try {
             // Crea la vista per la categoria
             currentCategoryView = new CategoryView(category, bookService, book -> handleBookClickWithPopupManager(book));
+
+            currentCategoryView.setAuthManager(authManager);
 
             // Sostituisci il contenuto corrente con la vista della categoria
             content.getChildren().clear();

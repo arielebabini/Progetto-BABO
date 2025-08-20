@@ -35,7 +35,7 @@
     -fx-padding: 20px;
 }
 
-/* Sezione singola (Libri gratuiti, Nuove uscite, ecc.) */
+/* Sezione singola (Consigliati, Nuovi, ecc.) */
 .book-section {
     -fx-background-color: #1e1e1e;
     -fx-padding: 10 30 30 30;
@@ -67,4 +67,90 @@
 /* ScrollPane */
 .scroll-pane {
     -fx-background-color: transparent;
+}
+
+Button, ImageView {
+    -fx-transition: none !important;
+}
+
+/* Transizioni specifiche per elementi che ne hanno bisogno */
+.menu-item-box,
+.see-all-button,
+.search-field {
+    -fx-transition: all 0.15s ease-in-out;
+}
+
+/* Transizioni specifiche per le copertine dei libri */
+.book-cover {
+    -fx-transition: -fx-effect 0.15s ease-in-out, -fx-opacity 0.15s ease-in-out;
+}
+
+/* ============================= */
+/*  STILE GLOBALE STELLE BIANCHE  */
+/* ============================= */
+
+/* Stelle bianche per tutti i Label che contengono stelle */
+.stars-white,
+.rating-stars,
+.star-display,
+.book-rating-stars,
+.user-rating-stars,
+.average-rating-stars {
+    -fx-text-fill: white !important;
+}
+
+/* Stelle bianche nei diversi contesti */
+.book-item .stars-white,
+.rating-dialog .stars-white,
+.dialog-pane .stars-white,
+.popup .stars-white,
+.tooltip .stars-white {
+    -fx-text-fill: white !important;
+}
+
+/* Stelle bianche per elementi specifici dell'interfaccia */
+#averageRatingLabel,
+#userRatingLabel,
+#bookStarsLabel,
+#ratingStarsDisplay {
+    -fx-text-fill: white !important;
+}
+
+/* Override per stelle in stati speciali */
+.stars-white:hover,
+.stars-white:focused,
+.stars-white:pressed {
+    -fx-text-fill: white !important;
+}
+
+.stars-white:hover,
+.rating-stars:hover,
+.star-display:hover,
+.book-rating-stars:hover,
+.user-rating-stars:hover,
+.average-rating-stars:hover,
+Label.stars-white:hover,
+Label.rating-stars:hover,
+Label.star-display:hover,
+Label.book-rating-stars:hover,
+Label.user-rating-stars:hover,
+Label.average-rating-stars:hover {
+    -fx-text-fill: white !important;
+}
+
+/* Override ancora più specifico per essere sicuri */
+.book-item .stars-white:hover,
+.rating-dialog .stars-white:hover,
+.dialog-pane .stars-white:hover,
+.popup .stars-white:hover,
+.tooltip .stars-white:hover {
+    -fx-text-fill: white !important;
+}
+
+/* REGOLA ANTI-INHERIT: impedisce l'ereditarietà del colore durante l'hover */
+VBox:hover .stars-white,
+HBox:hover .stars-white,
+StackPane:hover .stars-white,
+.book-item:hover .stars-white {
+    -fx-text-fill: white !important;
 }
