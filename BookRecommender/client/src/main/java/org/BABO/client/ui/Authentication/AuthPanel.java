@@ -14,35 +14,211 @@ import javafx.scene.text.FontWeight;
 import java.util.function.Consumer;
 
 /**
- * Pannello principale per l'autenticazione che include sia Login che Registrazione
- * Aggiornato per comunicare con il server tramite AuthService
+ * Pannello di interfaccia utente per operazioni di autenticazione nell'applicazione BABO.
+ * <p>
+ * Questa classe fornisce un'interfaccia grafica completa e moderna per tutte le operazioni
+ * di autenticazione degli utenti, inclusi login, registrazione e reset password.
+ * Il pannello è progettato con un'interfaccia a schede (TabPane) che permette agli utenti
+ * di navigare facilmente tra le diverse modalità di autenticazione.
+ * </p>
+ *
+ * <h3>Funzionalità principali:</h3>
+ * <ul>
+ *   <li><strong>Login Utente:</strong> Autenticazione tramite email e password</li>
+ *   <li><strong>Registrazione:</strong> Creazione di nuovi account utente con validazione completa</li>
+ *   <li><strong>Reset Password:</strong> Funzionalità per reimpostare password dimenticate</li>
+ *   <li><strong>Validazione Form:</strong> Controlli di input lato client per migliorare UX</li>
+ *   <li><strong>Feedback Visivo:</strong> Indicatori di progresso e messaggi di stato</li>
+ *   <li><strong>Design Responsivo:</strong> Layout adattivo con supporto per scroll quando necessario</li>
+ * </ul>
+ *
+ * <h3>Architettura e Design:</h3>
+ * <p>
+ * Il pannello estende {@link VBox} e utilizza un sistema di callback per comunicare
+ * con il componente padre. Implementa un design pattern Observer per notificare
+ * eventi di autenticazione riuscita e richieste di chiusura pannello.
+ * L'interfaccia segue i principi di Material Design con colori e animazioni moderne.
+ * </p>
+ *
+ * <h3>Sistema di Validazione:</h3>
+ * <ul>
+ *   <li><strong>Email:</strong> Verifica presenza e formato base</li>
+ *   <li><strong>Password:</strong> Controllo lunghezza minima (8 caratteri)</li>
+ *   <li><strong>Conferma Password:</strong> Validazione corrispondenza</li>
+ *   <li><strong>Campi Obbligatori:</strong> Verifica completamento form</li>
+ *   <li><strong>Termini e Condizioni:</strong> Accettazione obbligatoria per registrazione</li>
+ * </ul>
+ *
+ * <h3>Gestione Errori:</h3>
+ * <p>
+ * Il pannello implementa una gestione robusta degli errori con:
+ * </p>
+ * <ul>
+ *   <li>Validazione lato client per feedback immediato</li>
+ *   <li>Gestione asincrona delle operazioni di rete</li>
+ *   <li>Messaggi di errore user-friendly</li>
+ *   <li>Indicatori di caricamento durante operazioni asincrone</li>
+ *   <li>Timeout automatici e retry logic tramite AuthService</li>
+ * </ul>
+ *
+ * <h3>Personalizzazione Visiva:</h3>
+ * <p>
+ * Il pannello utilizza un tema scuro personalizzabile con:
+ * </p>
+ * <ul>
+ *   <li>Colori definiti come costanti per facile manutenzione</li>
+ *   <li>Stili CSS inline per compatibilità</li>
+ *   <li>Effetti hover e focus per migliorare l'interattività</li>
+ *   <li>Supporto per CSS esterni quando disponibili</li>
+ * </ul>
+ *
+ * <h3>Esempio di utilizzo:</h3>
+ * <pre>{@code
+ * // Creazione del pannello
+ * AuthPanel authPanel = new AuthPanel();
+ *
+ * // Configurazione callback per autenticazione riuscita
+ * authPanel.setOnSuccessfulAuth(user -> {
+ *     System.out.println("Utente autenticato: " + user.getDisplayName());
+ *     // Aggiorna UI principale
+ *     updateMainUI(user);
+ * });
+ *
+ * // Configurazione callback per chiusura pannello
+ * authPanel.setOnClosePanel(() -> {
+ *     // Rimuovi pannello dall'UI
+ *     mainContainer.getChildren().remove(authPanel);
+ * });
+ *
+ * // Aggiunta a container principale
+ * StackPane overlay = new StackPane();
+ * overlay.getChildren().add(authPanel);
+ * mainRoot.getChildren().add(overlay);
+ * }</pre>
+ *
+ * <h3>Integrazione con AuthService:</h3>
+ * <p>
+ * Il pannello si integra strettamente con {@link AuthService} per tutte le operazioni
+ * di backend, garantendo:
+ * </p>
+ * <ul>
+ *   <li>Operazioni asincrone non bloccanti</li>
+ *   <li>Gestione automatica di timeout e retry</li>
+ *   <li>Feedback immediato all'utente</li>
+ *   <li>Sicurezza nelle comunicazioni</li>
+ * </ul>
+ *
+ * <h3>Accessibilità e UX:</h3>
+ * <ul>
+ *   <li>Tab navigation supportata nativamente</li>
+ *   <li>Prompt text descrittivi per ogni campo</li>
+ *   <li>Messaggi di errore chiari e actionable</li>
+ *   <li>Indicatori di progresso durante operazioni lunghe</li>
+ *   <li>Layout responsivo per diverse dimensioni</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see AuthService
+ * @see AuthenticationManager
+ * @see User
  */
 public class AuthPanel extends VBox {
 
-    // Colori e stili principali
+    /** Colore di sfondo principale del pannello */
     private static final String BG_COLOR = "#1e1e1e";
+
+    /** Colore di sfondo per controlli e input */
     private static final String BG_CONTROL = "#2b2b2b";
+
+    /** Colore di accento per pulsanti e elementi interattivi */
     private static final String ACCENT_COLOR = "#4a86e8";
+
+    /** Colore principale per il testo */
     private static final String TEXT_COLOR = "#ffffff";
+
+    /** Colore per testo di suggerimento e elementi secondari */
     private static final String HINT_COLOR = "#9e9e9e";
 
+    /** Servizio per operazioni di autenticazione backend */
     private AuthService authService;
+
+    /** Callback eseguito quando l'autenticazione ha successo */
     private Consumer<User> onSuccessfulAuth;
+
+    /** Callback eseguito quando si richiede la chiusura del pannello */
     private Runnable onClosePanel;
 
+    /**
+     * Costruttore del pannello di autenticazione.
+     * <p>
+     * Inizializza il servizio di autenticazione e configura l'interfaccia utente.
+     * Il pannello viene creato con tutti i controlli necessari per login,
+     * registrazione e reset password, ma non esegue operazioni di rete
+     * fino all'interazione dell'utente.
+     * </p>
+     */
     public AuthPanel() {
         this.authService = new AuthService();
         setupPanel();
     }
 
+    /**
+     * Imposta il callback da eseguire quando l'autenticazione ha successo.
+     * <p>
+     * Il callback riceve l'oggetto {@link User} dell'utente appena autenticato
+     * e deve gestire l'aggiornamento dell'interfaccia principale e la transizione
+     * post-login. Il callback viene eseguito nel JavaFX Application Thread.
+     * </p>
+     *
+     * @param callback il {@link Consumer} da eseguire quando l'autenticazione ha successo.
+     *                Riceve l'oggetto {@link User} autenticato. Può essere {@code null}
+     *                per rimuovere callback esistenti.
+     * @apiNote Il callback deve essere leggero e non-bloccante. Per operazioni
+     *          complesse post-autenticazione, considerare l'uso di thread separati.
+     */
     public void setOnSuccessfulAuth(Consumer<User> callback) {
         this.onSuccessfulAuth = callback;
     }
 
+    /**
+     * Imposta il callback da eseguire quando si richiede la chiusura del pannello.
+     * <p>
+     * Il callback viene invocato quando l'utente richiede la chiusura del pannello
+     * (tramite pulsanti di chiusura o dopo autenticazione riuscita) e deve gestire
+     * la rimozione del pannello dall'interfaccia utente. Il callback viene eseguito
+     * nel JavaFX Application Thread.
+     * </p>
+     *
+     * @param callback il {@link Runnable} da eseguire per chiudere il pannello.
+     *                Può essere {@code null} per rimuovere callback esistenti.
+     * @apiNote Il callback dovrebbe rimuovere il pannello dal suo container padre
+     *          e gestire eventuali animazioni di chiusura.
+     */
     public void setOnClosePanel(Runnable callback) {
         this.onClosePanel = callback;
     }
 
+    /**
+     * Configura e inizializza l'interfaccia utente del pannello.
+     * <p>
+     * Questo metodo privato gestisce la creazione e configurazione di tutti
+     * gli elementi UI del pannello, inclusi layout, stili, e la struttura
+     * a schede per navigare tra login e registrazione.
+     * </p>
+     *
+     * <h4>Elementi creati:</h4>
+     * <ul>
+     *   <li>Header con titolo dell'applicazione</li>
+     *   <li>TabPane con schede per Login e Registrazione</li>
+     *   <li>Styling personalizzato per tema scuro</li>
+     *   <li>Dimensioni responsive del pannello</li>
+     * </ul>
+     *
+     * @implNote Il metodo tenta di caricare CSS esterni ma fallback su stili
+     *           inline per garantire funzionalità anche senza file CSS.
+     */
     private void setupPanel() {
         // Configurazione del pannello principale
         setPadding(new Insets(20));
@@ -61,7 +237,7 @@ public class AuthPanel extends VBox {
         setMaxHeight(730);
 
         // Logo o titolo dell'applicazione
-        Label appTitle = new Label("📚 Apple Books");
+        Label appTitle = new Label("📚 Books");
         appTitle.setFont(Font.font("System", FontWeight.BOLD, 28));
         appTitle.setTextFill(Color.web(TEXT_COLOR));
         appTitle.setPadding(new Insets(0, 0, 15, 0));
@@ -102,7 +278,30 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Crea il pannello per il login
+     * Crea e configura il pannello per il login degli utenti.
+     * <p>
+     * Costruisce l'interfaccia per l'autenticazione con email e password,
+     * includendo validazione lato client, gestione errori, e feedback visivo.
+     * Il pannello include anche un link per il reset password.
+     * </p>
+     *
+     * <h4>Controlli inclusi:</h4>
+     * <ul>
+     *   <li>Campo email con validazione presenza</li>
+     *   <li>Campo password con validazione lunghezza</li>
+     *   <li>Link per password dimenticata</li>
+     *   <li>Pulsante login con indicatore di progresso</li>
+     *   <li>Gestione asincrona della richiesta di login</li>
+     * </ul>
+     *
+     * <h4>Validazioni implementate:</h4>
+     * <ul>
+     *   <li>Campi non vuoti</li>
+     *   <li>Email in formato valido (validazione di base)</li>
+     *   <li>Feedback immediato per errori di input</li>
+     * </ul>
+     *
+     * @return un {@link VBox} contenente tutti i controlli per il login
      */
     private VBox createLoginPanel() {
         VBox loginPanel = new VBox(15);
@@ -205,7 +404,36 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Crea il pannello per la registrazione
+     * Crea e configura il pannello per la registrazione di nuovi utenti.
+     * <p>
+     * Costruisce un'interfaccia completa per la registrazione con tutti i campi
+     * necessari, validazione estensiva, e gestione scroll per contenuti lunghi.
+     * Include controlli per termini e condizioni e gestione asincrona della
+     * richiesta di registrazione.
+     * </p>
+     *
+     * <h4>Campi di registrazione:</h4>
+     * <ul>
+     *   <li>Nome (obbligatorio)</li>
+     *   <li>Cognome (obbligatorio)</li>
+     *   <li>Codice Fiscale (opzionale)</li>
+     *   <li>Email (obbligatorio, con validazione formato)</li>
+     *   <li>Username (obbligatorio, univoco)</li>
+     *   <li>Password (minimo 8 caratteri)</li>
+     *   <li>Conferma password (deve corrispondere)</li>
+     *   <li>Accettazione termini e condizioni</li>
+     * </ul>
+     *
+     * <h4>Validazioni implementate:</h4>
+     * <ul>
+     *   <li>Tutti i campi obbligatori compilati</li>
+     *   <li>Password minimo 8 caratteri</li>
+     *   <li>Corrispondenza password e conferma</li>
+     *   <li>Accettazione termini obbligatoria</li>
+     *   <li>Format validation per email</li>
+     * </ul>
+     *
+     * @return un {@link ScrollPane} contenente il form di registrazione
      */
     private ScrollPane createSignupPanel() {
         // Crea il pannello di contenuto originale
@@ -356,7 +584,33 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Mostra dialog per reset password
+     * Mostra una finestra di dialogo per il reset della password.
+     * <p>
+     * Crea e visualizza una finestra di dialogo modale personalizzata che permette
+     * agli utenti di reimpostare la password fornendo email e nuova password.
+     * Include validazione completa e gestione asincrona della richiesta di reset.
+     * </p>
+     *
+     * <h4>Funzionalità del dialogo:</h4>
+     * <ul>
+     *   <li>Campo email per identificazione utente</li>
+     *   <li>Campo nuova password con validazione lunghezza</li>
+     *   <li>Campo conferma password per verifica</li>
+     *   <li>Validazione lato client prima dell'invio</li>
+     *   <li>Gestione asincrona della richiesta</li>
+     *   <li>Feedback visivo durante l'operazione</li>
+     * </ul>
+     *
+     * <h4>Validazioni implementate:</h4>
+     * <ul>
+     *   <li>Email non vuota</li>
+     *   <li>Password minimo 6 caratteri</li>
+     *   <li>Corrispondenza password e conferma</li>
+     * </ul>
+     *
+     * @apiNote Il dialogo utilizza stili personalizzati per mantenere coerenza
+     *          con il tema dell'applicazione. La richiesta viene processata
+     *          tramite {@link AuthService#resetPasswordAsync(String, String)}.
      */
     private void showPasswordResetDialog() {
         Alert resetDialog = new Alert(Alert.AlertType.NONE);
@@ -479,9 +733,39 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Stile per i campi di input
+     * Applica stili personalizzati ai campi di input per mantenere coerenza visiva.
+     * <p>
+     * Questo metodo applica un set completo di stili CSS a campi di testo e password
+     * per creare un'esperienza visiva coerente e moderna. Include gestione dello
+     * stato focus con effetti visivi appropriati.
+     * </p>
+     *
+     * <h4>Stili applicati:</h4>
+     * <ul>
+     *   <li>Colori di sfondo e testo in tema con il design scuro</li>
+     *   <li>Bordi arrotondati per aspetto moderno</li>
+     *   <li>Padding interno per migliorare leggibilità</li>
+     *   <li>Effetti di focus con bordo colorato</li>
+     *   <li>Transizioni fluide tra stati</li>
+     * </ul>
+     *
+     * <h4>Gestione stati:</h4>
+     * <ul>
+     *   <li><strong>Normale:</strong> Sfondo scuro, bordo trasparente</li>
+     *   <li><strong>Focus:</strong> Bordo accent color, evidenziazione</li>
+     *   <li><strong>Prompt text:</strong> Colore suggerimento per testo placeholder</li>
+     * </ul>
+     *
+     * @param field il {@link TextField} a cui applicare gli stili personalizzati
+     * @throws IllegalArgumentException se field è {@code null}
+     * @apiNote Il metodo utilizza listener per gestire dinamicamente i cambiamenti
+     *          di stato focus, garantendo feedback visivo immediato all'utente.
      */
     private void styleInput(TextField field) {
+        if (field == null) {
+            throw new IllegalArgumentException("Il campo di input non può essere null");
+        }
+
         field.setStyle(
                 "-fx-background-color: " + BG_CONTROL + ";" +
                         "-fx-text-fill: " + TEXT_COLOR + ";" +
@@ -524,9 +808,40 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Stile per i pulsanti principali
+     * Applica stili personalizzati ai pulsanti di azione principali.
+     * <p>
+     * Configura i pulsanti di azione (login, registrazione, reset) con stili
+     * coerenti e effetti interattivi. Include gestione completa degli stati
+     * hover, press e release per feedback visivo ottimale.
+     * </p>
+     *
+     * <h4>Stili applicati:</h4>
+     * <ul>
+     *   <li>Colore di sfondo accent per evidenziare l'azione principale</li>
+     *   <li>Testo bianco su sfondo colorato per contrasto</li>
+     *   <li>Bordi arrotondati e padding interno</li>
+     *   <li>Font weight bold per enfasi</li>
+     *   <li>Cursore pointer per indicare interattività</li>
+     * </ul>
+     *
+     * <h4>Effetti interattivi:</h4>
+     * <ul>
+     *   <li><strong>Hover:</strong> Schiarimento del colore di sfondo del 20%</li>
+     *   <li><strong>Press:</strong> Scurimento del colore di sfondo del 20%</li>
+     *   <li><strong>Release:</strong> Ritorno al colore originale</li>
+     *   <li><strong>Exit:</strong> Rimozione effetti hover</li>
+     * </ul>
+     *
+     * @param button il {@link Button} a cui applicare gli stili personalizzati
+     * @throws IllegalArgumentException se button è {@code null}
+     * @apiNote Gli effetti utilizzano la funzione CSS derive() per calcolare
+     *          automaticamente le variazioni di colore mantenendo armonia visiva.
      */
     private void styleActionButton(Button button) {
+        if (button == null) {
+            throw new IllegalArgumentException("Il pulsante non può essere null");
+        }
+
         button.setStyle(
                 "-fx-background-color: " + ACCENT_COLOR + ";" +
                         "-fx-text-fill: white;" +
@@ -586,56 +901,33 @@ public class AuthPanel extends VBox {
     }
 
     /**
-     * Crea pulsanti per login/signup tramite social
-     */
-    private Button createSocialButton(String provider) {
-        Button button = new Button(provider);
-        button.setStyle(
-                "-fx-background-color: transparent;" +
-                        "-fx-text-fill: " + TEXT_COLOR + ";" +
-                        "-fx-border-color: " + HINT_COLOR + ";" +
-                        "-fx-border-radius: 8px;" +
-                        "-fx-background-radius: 8px;" +
-                        "-fx-cursor: hand;" +
-                        "-fx-padding: 8px 12px;"
-        );
-
-        // Aggiungi azione placeholder
-        button.setOnAction(e -> {
-            showAlert("🚧 Info", "Login con " + provider.substring(2) + " sarà implementato in futuro!");
-        });
-
-        // Effetti hover e press
-        button.setOnMouseEntered(e ->
-                button.setStyle(
-                        "-fx-background-color: rgba(255,255,255,0.1);" +
-                                "-fx-text-fill: " + TEXT_COLOR + ";" +
-                                "-fx-border-color: " + HINT_COLOR + ";" +
-                                "-fx-border-radius: 8px;" +
-                                "-fx-background-radius: 8px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 8px 12px;"
-                )
-        );
-        button.setOnMouseExited(e ->
-                button.setStyle(
-                        "-fx-background-color: transparent;" +
-                                "-fx-text-fill: " + TEXT_COLOR + ";" +
-                                "-fx-border-color: " + HINT_COLOR + ";" +
-                                "-fx-border-radius: 8px;" +
-                                "-fx-background-radius: 8px;" +
-                                "-fx-cursor: hand;" +
-                                "-fx-padding: 8px 12px;"
-                )
-        );
-
-        return button;
-    }
-
-    /**
-     * Mostra un alert informativo
+     * Visualizza un messaggio informativo all'utente tramite finestra di dialogo.
+     * <p>
+     * Metodo di utilità per mostrare messaggi di errore, successo, o informativi
+     * in modo consistente nell'applicazione. Utilizza le finestre di dialogo
+     * standard JavaFX per semplicità e compatibilità.
+     * </p>
+     *
+     * <h4>Utilizzi tipici:</h4>
+     * <ul>
+     *   <li>Errori di validazione lato client</li>
+     *   <li>Messaggi di errore da operazioni di rete</li>
+     *   <li>Conferme di successo per operazioni completate</li>
+     *   <li>Messaggi informativi per funzionalità non implementate</li>
+     * </ul>
+     *
+     * @param title il titolo della finestra di dialogo
+     * @param message il messaggio da visualizzare all'utente
+     * @throws IllegalArgumentException se title o message sono {@code null}
+     * @apiNote La finestra di dialogo è modale e blocca l'interazione con
+     *          l'applicazione fino alla chiusura. Per messaggi non-bloccanti,
+     *          considerare l'uso di toast notifications o status bar.
      */
     private void showAlert(String title, String message) {
+        if (title == null || message == null) {
+            throw new IllegalArgumentException("Titolo e messaggio non possono essere null");
+        }
+
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);
         alert.setHeaderText(null);

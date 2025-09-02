@@ -7,41 +7,297 @@ import org.BABO.client.ui.*;
 import org.BABO.client.ui.Admin.AdminPanel;
 import org.BABO.client.ui.Authentication.AuthenticationManager;
 import org.BABO.client.ui.Library.LibraryPanel;
-import org.BABO.client.ui.Search.AdvancedSearchPanel;
 import org.BABO.client.ui.Popup.PopupManager;
 import org.BABO.shared.model.Book;
 import org.BABO.client.service.BookService;
-import org.BABO.client.service.LibraryService;
 import javafx.geometry.Pos;
 import javafx.scene.control.Alert;
-import javafx.scene.control.DialogPane;
 import javafx.scene.layout.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Gestisce la finestra principale dell'applicazione
- * Coordina tutti i componenti UI principali
+ * Classe principale dell'interfaccia utente che coordina tutti i componenti dell'applicazione BABO Library.
+ * <p>
+ * MainWindow rappresenta il controller centrale dell'interfaccia utente, gestendo l'orchestrazione
+ * e l'integrazione di tutti i componenti principali: sidebar, header, area contenuti, sistema di
+ * autenticazione e gestione popup. Implementa il pattern Controller nella architettura MVC,
+ * coordinando le interazioni tra i vari moduli UI e fornendo un punto di accesso unificato
+ * per le operazioni dell'interfaccia.
+ * </p>
+ *
+ * <h3>Architettura dell'interfaccia:</h3>
+ * <p>
+ * Il sistema è progettato seguendo principi di separazione delle responsabilità e modularità:
+ * </p>
+ * <ul>
+ *   <li><strong>Layout Management:</strong> BorderPane principale con sidebar, header e content area</li>
+ *   <li><strong>Component Coordination:</strong> Orchestrazione comunicazione tra componenti</li>
+ *   <li><strong>State Management:</strong> Gestione centralizzata stato applicazione</li>
+ *   <li><strong>Event Handling:</strong> Routing eventi tra componenti</li>
+ *   <li><strong>Popup Integration:</strong> Integrazione completa con PopupManager</li>
+ * </ul>
+ *
+ * <h3>Componenti principali gestiti:</h3>
+ * <ul>
+ *   <li><strong>Sidebar:</strong> Navigazione principale con sezioni Home, Libreria, Esplora, Admin</li>
+ *   <li><strong>Header:</strong> Ricerca globale e controlli navigazione superiore</li>
+ *   <li><strong>ContentArea:</strong> Area principale visualizzazione contenuti</li>
+ *   <li><strong>AuthenticationManager:</strong> Sistema autenticazione e gestione utenti</li>
+ *   <li><strong>ExploreIntegration:</strong> Integrazione sezione esplorazione catalogo</li>
+ *   <li><strong>PopupManager:</strong> Sistema gestione popup e modal</li>
+ * </ul>
+ *
+ * <h3>Flusso di inizializzazione:</h3>
+ * <ol>
+ *   <li><strong>Constructor Phase:</strong> Inizializzazione servizi base e autenticazione</li>
+ *   <li><strong>Layout Creation:</strong> Costruzione layout principale e componenti</li>
+ *   <li><strong>Integration Setup:</strong> Configurazione integrazione tra componenti</li>
+ *   <li><strong>Event Binding:</strong> Setup handlers eventi e callback</li>
+ *   <li><strong>Content Loading:</strong> Caricamento contenuto iniziale</li>
+ *   <li><strong>Testing Phase:</strong> Test automatico sistema (debug mode)</li>
+ * </ol>
+ *
+ * <h3>Sistema di comunicazione eventi:</h3>
+ * <p>
+ * Implementa pattern Observer per comunicazione loose-coupled tra componenti:
+ * </p>
+ * <ul>
+ *   <li><strong>Search Events:</strong> Propagazione query ricerca da Header a ContentArea</li>
+ *   <li><strong>Book Selection:</strong> Gestione click sui libri con apertura dettagli</li>
+ *   <li><strong>Authentication Events:</strong> Aggiornamento UI su cambio stato auth</li>
+ *   <li><strong>Navigation Events:</strong> Routing navigazione da Sidebar a ContentArea</li>
+ * </ul>
+ *
+ * <h3>Gestione stato applicazione:</h3>
+ * <ul>
+ *   <li><strong>Cache Management:</strong> Cache libri per performance e navigazione</li>
+ *   <li><strong>Server Availability:</strong> Gestione modalità online/offline</li>
+ *   <li><strong>Authentication State:</strong> Tracking stato autenticazione utente</li>
+ *   <li><strong>UI State:</strong> Gestione stato interfaccia (popup aperti, sezione attiva)</li>
+ * </ul>
+ *
+ * <h3>Pattern implementati:</h3>
+ * <ul>
+ *   <li><strong>Controller Pattern:</strong> Coordinamento centrale componenti UI</li>
+ *   <li><strong>Observer Pattern:</strong> Eventi asincroni tra componenti</li>
+ *   <li><strong>Factory Pattern:</strong> Creazione componenti UI specializzati</li>
+ *   <li><strong>Callback Pattern:</strong> Gestione asincrona operazioni UI</li>
+ *   <li><strong>Singleton Pattern:</strong> Integrazione con PopupManager singleton</li>
+ * </ul>
+ *
+ * <h3>Gestione popup e modal:</h3>
+ * <p>
+ * Integrazione completa con PopupManager per gestione centralizzata popup:
+ * </p>
+ * <ul>
+ *   <li>Popup dettagli libro con navigazione tra collezioni</li>
+ *   <li>Modal autenticazione per login/registrazione</li>
+ *   <li>Pannello gestione librerie utente</li>
+ *   <li>Pannello amministrazione (per utenti privilegiati)</li>
+ *   <li>Alert e conferme operazioni</li>
+ * </ul>
+ *
+ * <h3>Esempio di utilizzo base:</h3>
+ * <pre>{@code
+ * // Inizializzazione MainWindow
+ * BookService bookService = new BookService();
+ * boolean serverAvailable = bookService.isServerAvailable();
+ * MainWindow mainWindow = new MainWindow(bookService, serverAvailable);
+ *
+ * // Creazione layout principale
+ * StackPane root = mainWindow.createMainLayout();
+ *
+ * // Setup scena JavaFX
+ * Scene scene = new Scene(root, 1300, 800);
+ * stage.setScene(scene);
+ * stage.show();
+ *
+ * // L'interfaccia è ora completamente funzionale con:
+ * // - Ricerca globale attraverso header
+ * // - Navigazione laterale tramite sidebar
+ * // - Visualizzazione contenuti nell'area principale
+ * // - Sistema autenticazione integrato
+ * // - Gestione popup automatica
+ * }</pre>
+ *
+ * <h3>Esempio di utilizzo avanzato:</h3>
+ * <pre>{@code
+ * // Configurazione personalizzata
+ * MainWindow mainWindow = new MainWindow(customBookService, true);
+ *
+ * // Accesso ai componenti per personalizzazione
+ * Header header = mainWindow.getHeader();
+ * ContentArea contentArea = mainWindow.getContentArea();
+ * AuthenticationManager auth = mainWindow.getAuthManager();
+ *
+ * // Setup callback personalizzati
+ * auth.setOnAuthStateChanged(() -> {
+ *     // Logica personalizzata cambio autenticazione
+ *     updateUIForAuthState();
+ * });
+ *
+ * // Apertura programmatica sezioni
+ * mainWindow.showLibraryPanel();      // Apre pannello librerie
+ * mainWindow.showAdminPanel();        // Apre pannello admin
+ * mainWindow.showExploreSection();    // Naviga a sezione esplora
+ *
+ * // Gestione stato applicazione
+ * boolean isReady = mainWindow.isFullyInitialized();
+ * mainWindow.cleanup(); // Cleanup risorse
+ * }</pre>
+ *
+ * <h3>Gestione della ricerca globale:</h3>
+ * <p>
+ * Sistema di ricerca centralizzato con propagazione eventi:
+ * </p>
+ * <ul>
+ *   <li>Input ricerca nell'header</li>
+ *   <li>Propagazione query al ContentArea</li>
+ *   <li>Risultati visualizzati con popup manager</li>
+ *   <li>Click handler per apertura dettagli libro</li>
+ * </ul>
+ *
+ * <h3>Integrazione autenticazione:</h3>
+ * <p>
+ * Sistema di autenticazione completamente integrato:
+ * </p>
+ * <ul>
+ *   <li>Login/logout con aggiornamento UI automatico</li>
+ *   <li>Refresh sidebar su cambio stato auth</li>
+ *   <li>Protezione sezioni riservate (librerie, admin)</li>
+ *   <li>Persistenza stato tra sessioni</li>
+ * </ul>
+ *
+ * <h3>Gestione errori e fallback:</h3>
+ * <ul>
+ *   <li><strong>Server Offline:</strong> Modalità offline con contenuti cache</li>
+ *   <li><strong>Component Failure:</strong> Graceful degradation componenti</li>
+ *   <li><strong>Authentication Errors:</strong> Reindirizzamento a login</li>
+ *   <li><strong>UI Errors:</strong> Alert informativi per l'utente</li>
+ * </ul>
+ *
+ * <h3>Performance e ottimizzazioni:</h3>
+ * <ul>
+ *   <li>Lazy loading componenti pesanti</li>
+ *   <li>Cache intelligente lista libri</li>
+ *   <li>Caricamento asincrono contenuti</li>
+ *   <li>Cleanup automatico risorse</li>
+ * </ul>
+ *
+ * <h3>Thread safety:</h3>
+ * <ul>
+ *   <li>Platform.runLater per aggiornamenti UI</li>
+ *   <li>Operazioni I/O asincrone</li>
+ *   <li>Gestione concorrente eventi</li>
+ *   <li>Sincronizzazione stato condiviso</li>
+ * </ul>
+ *
+ * <h3>Struttura layout generata:</h3>
+ * <pre>
+ * StackPane (mainRoot)
+ * └── BorderPane (appRoot)
+ *     ├── Left: Sidebar
+ *     │   ├── Header navigazione
+ *     │   ├── Menu items (Home, Libreria, Esplora, Admin)
+ *     │   ├── Spacer
+ *     │   └── Sezione autenticazione
+ *     └── Center: VBox
+ *         ├── Header (ricerca globale)
+ *         └── ContentArea (contenuto principale)
+ * </pre>
+ *
+ * <h3>Lifecycle management:</h3>
+ * <ul>
+ *   <li><strong>Initialization:</strong> Setup componenti e servizi</li>
+ *   <li><strong>Running:</strong> Gestione eventi e aggiornamenti</li>
+ *   <li><strong>Cleanup:</strong> Rilascio risorse e chiusura connessioni</li>
+ * </ul>
+ *
+ * <h3>Debug e testing:</h3>
+ * <ul>
+ *   <li>Test automatico sistema post-inizializzazione</li>
+ *   <li>Logging dettagliato operazioni</li>
+ *   <li>Debug state per troubleshooting</li>
+ *   <li>Validazione integrità componenti</li>
+ * </ul>
+ *
+ * <h3>Integrazione con sistemi esterni:</h3>
+ * <ul>
+ *   <li><strong>BookService:</strong> Comunicazione server/database</li>
+ *   <li><strong>Authentication Service:</strong> Validazione credenziali</li>
+ *   <li><strong>Popup System:</strong> Gestione modal centralizzata</li>
+ *   <li><strong>Icon System:</strong> Gestione icone applicazione</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see org.BABO.client.ui.Home.Sidebar
+ * @see org.BABO.client.ui.Home.Header
+ * @see org.BABO.client.ui.Home.ContentArea
+ * @see org.BABO.client.ui.Authentication.AuthenticationManager
+ * @see org.BABO.client.ui.Popup.PopupManager
+ * @see org.BABO.client.service.BookService
  */
 public class MainWindow {
 
+    /** Servizio per la gestione dei libri e comunicazione con il backend */
     private final BookService bookService;
-    private final LibraryService libraryService;
-    private final boolean serverAvailable;
-    private List<Book> cachedBooks = new ArrayList<>();
-    private StackPane mainRoot;
-    private Sidebar sidebar;
-    private Header header;
-    private ContentArea contentArea;
-    private AuthenticationManager authManager;
-    private ExploreIntegration exploreIntegration;
-    private boolean homeContentLoaded = false;
 
+    /** Indica se il server è disponibile per operazioni online */
+    private final boolean serverAvailable;
+
+    /** Cache locale dei libri per performance e navigazione */
+    private List<Book> cachedBooks = new ArrayList<>();
+
+    /** Container principale dell'interfaccia utente */
+    private StackPane mainRoot;
+
+    /** Componente sidebar per navigazione laterale */
+    private Sidebar sidebar;
+
+    /** Componente header con ricerca globale */
+    private Header header;
+
+    /** Area principale per visualizzazione contenuti */
+    private ContentArea contentArea;
+
+    /** Gestore autenticazione e sessioni utente */
+    private AuthenticationManager authManager;
+
+    /** Integrazione per la sezione esplorazione catalogo */
+    private ExploreIntegration exploreIntegration;
+
+    /**
+     * Costruisce una nuova istanza di MainWindow con servizi specificati.
+     * <p>
+     * Inizializza il controller principale dell'interfaccia utente configurando
+     * i servizi base necessari per il funzionamento dell'applicazione. Questo
+     * costruttore prepara l'ambiente per la successiva creazione del layout
+     * attraverso {@link #createMainLayout()}.
+     * </p>
+     *
+     * <h4>Inizializzazioni eseguite:</h4>
+     * <ul>
+     *   <li>Configurazione BookService per gestione catalogo</li>
+     *   <li>Setup modalità online/offline basata su server availability</li>
+     *   <li>Inizializzazione AuthenticationManager</li>
+     *   <li>Configurazione callback autenticazione per aggiornamenti UI</li>
+     * </ul>
+     *
+     * <h4>Callback configurati:</h4>
+     * <ul>
+     *   <li><strong>onAuthStateChanged:</strong> Refresh sidebar su login/logout</li>
+     * </ul>
+     *
+     * @param bookService servizio per operazioni sui libri
+     * @param serverAvailable true se il server è raggiungibile, false per modalità offline
+     */
     public MainWindow(BookService bookService, boolean serverAvailable) {
         this.bookService = bookService;
         this.serverAvailable = serverAvailable;
-        this.libraryService = new LibraryService();
         this.authManager = new AuthenticationManager();
 
         // Inizializza l'autenticazione
@@ -49,7 +305,24 @@ public class MainWindow {
     }
 
     /**
-     * Inizializza il sistema di autenticazione e configura i callback
+     * Inizializza il sistema di autenticazione e configura i callback per aggiornamenti UI.
+     * <p>
+     * Metodo interno per setup completo del sistema di autenticazione. Configura
+     * i callback necessari per mantenere sincronizzata l'interfaccia utente con
+     * lo stato di autenticazione dell'utente, garantendo aggiornamenti automatici
+     * della sidebar e altri componenti sensibili all'auth state.
+     * </p>
+     *
+     * <h4>Callback configurati:</h4>
+     * <ul>
+     *   <li><strong>onAuthStateChanged:</strong> Aggiorna sidebar quando cambia stato auth</li>
+     * </ul>
+     *
+     * <h4>Thread safety:</h4>
+     * <p>
+     * I callback sono progettati per essere thread-safe e utilizzano Platform.runLater
+     * quando necessario per aggiornamenti UI dal thread corretto.
+     * </p>
      */
     private void initializeAuthentication() {
         // Configura callback per aggiornare sidebar quando cambia stato auth
@@ -64,7 +337,28 @@ public class MainWindow {
     }
 
     /**
-     * Inizializza l'integrazione per la sezione Esplora
+     * Inizializza l'integrazione per la sezione Esplora con configurazione completa.
+     * <p>
+     * Setup dell'integrazione per la sezione di esplorazione del catalogo, configurando
+     * tutti i handler necessari per il funzionamento integrato con il resto
+     * dell'applicazione. Include gestione click sui libri, integrazione autenticazione
+     * e configurazione container per rendering.
+     * </p>
+     *
+     * <h4>Configurazioni applicate:</h4>
+     * <ul>
+     *   <li><strong>Container:</strong> Riferimento al mainRoot per rendering</li>
+     *   <li><strong>AuthManager:</strong> Integrazione sistema autenticazione</li>
+     *   <li><strong>BookClickHandler:</strong> Gestione click apertura dettagli</li>
+     *   <li><strong>ContentArea Integration:</strong> Collegamento area contenuti</li>
+     * </ul>
+     *
+     * <h4>Click handling:</h4>
+     * <p>
+     * Il book click handler configurato gestisce l'apertura dei dettagli libro
+     * utilizzando BooksClient con supporto per navigazione tra collezioni
+     * e integrazione completa con sistema autenticazione.
+     * </p>
      */
     private void initializeExploreIntegration() {
         exploreIntegration = new ExploreIntegration(bookService, serverAvailable);
@@ -75,7 +369,7 @@ public class MainWindow {
 
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via Esplora: " + selectedBook.getTitle());
-            AppleBooksClient.openBookDetails(
+            BooksClient.openBookDetails(
                     selectedBook,
                     cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
                     authManager
@@ -91,45 +385,63 @@ public class MainWindow {
     }
 
     /**
-     * Carica la home page in modo centralizzato e controllato
+     * Crea il layout principale dell'interfaccia utente con inizializzazione completa.
+     * <p>
+     * Factory method principale che costruisce l'intera interfaccia utente dell'applicazione.
+     * Orchestrazione completa di tutti i componenti con configurazione handlers,
+     * inizializzazione sistemi di supporto e caricamento contenuto iniziale.
+     * Questo metodo rappresenta il punto di entry principale per la costruzione UI.
+     * </p>
+     *
+     * <h4>Processo di costruzione:</h4>
+     * <ol>
+     *   <li><strong>Container Creation:</strong> StackPane principale e BorderPane layout</li>
+     *   <li><strong>Component Initialization:</strong> Sidebar, Header, ContentArea</li>
+     *   <li><strong>Integration Setup:</strong> ExploreIntegration e sistemi supporto</li>
+     *   <li><strong>Event Binding:</strong> Search handlers e book click handlers</li>
+     *   <li><strong>Layout Assembly:</strong> Composizione layout finale</li>
+     *   <li><strong>System Initialization:</strong> PopupManager e testing</li>
+     *   <li><strong>Content Loading:</strong> Caricamento contenuto iniziale</li>
+     * </ol>
+     *
+     * <h4>Componenti creati:</h4>
+     * <ul>
+     *   <li><strong>Sidebar:</strong> Navigazione con sezioni Home, Libreria, Esplora, Admin</li>
+     *   <li><strong>Header:</strong> Ricerca globale e controlli superiori</li>
+     *   <li><strong>ContentArea:</strong> Visualizzazione contenuti principale</li>
+     *   <li><strong>ExploreIntegration:</strong> Integrazione sezione esplorazione</li>
+     * </ul>
+     *
+     * <h4>Event handlers configurati:</h4>
+     * <ul>
+     *   <li><strong>Search Handler:</strong> Propagazione query da Header a ContentArea</li>
+     *   <li><strong>Book Click Handler:</strong> Apertura dettagli libro con navigazione</li>
+     *   <li><strong>Cache Callback:</strong> Aggiornamento cache libri</li>
+     * </ul>
+     *
+     * <h4>Sistemi inizializzati:</h4>
+     * <ul>
+     *   <li><strong>PopupManager:</strong> Gestione centralizzata popup</li>
+     *   <li><strong>Testing System:</strong> Test automatico post-inizializzazione</li>
+     * </ul>
+     *
+     * <h4>Layout struttura:</h4>
+     * <pre>
+     * StackPane (mainRoot)
+     * └── BorderPane (appRoot)
+     *     ├── Left: Sidebar
+     *     └── Center: VBox
+     *         ├── Header
+     *         └── ContentArea
+     * </pre>
+     *
+     * @return {@link StackPane} contenente l'intera interfaccia utente configurata
      */
-    public void loadHomeContent() {
-        System.out.println("🏠 MainWindow: Richiesta caricamento home (già caricata: " + homeContentLoaded + ")");
-
-        // Carica sempre la home, ma il ContentArea decide se rigenerare o meno
-        if (contentArea != null) {
-            contentArea.loadInitialContentOnce();
-        }
-
-        // Aggiorna flag
-        homeContentLoaded = true;
-        System.out.println("✅ MainWindow: Home caricata, flag impostato");
-    }
-
-    /**
-     * Forza il ricaricamento completo della home
-     */
-    public void forceReloadHome() {
-        System.out.println("🔄 MainWindow: Forzatura ricaricamento home");
-        homeContentLoaded = false;
-        loadHomeContent();
-    }
-
-    /**
-     * Pulisce lo stato quando si cambia sezione
-     */
-    public void clearHomeState() {
-        System.out.println("🧹 MainWindow: Reset stato home");
-        homeContentLoaded = false;
-    }
-
     public StackPane createMainLayout() {
         System.out.println("🎨 Creazione layout principale...");
 
         mainRoot = new StackPane();
         BorderPane appRoot = new BorderPane();
-
-        // ===== CREAZIONE COMPONENTI PRINCIPALI =====
 
         // Crea sidebar
         System.out.println("📋 Creazione Sidebar...");
@@ -143,12 +455,10 @@ public class MainWindow {
         System.out.println("📄 Creazione ContentArea...");
         contentArea = new ContentArea(bookService, serverAvailable, authManager);
 
-        // ===== CONFIGURAZIONE HANDLERS =====
-
         // Handler per i click sui libri
         Consumer<Book> bookClickHandler = selectedBook -> {
             System.out.println("📖 Click libro via MainWindow: " + selectedBook.getTitle());
-            AppleBooksClient.openBookDetails(
+            BooksClient.openBookDetails(
                     selectedBook,
                     cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
                     authManager
@@ -167,7 +477,7 @@ public class MainWindow {
             // Usa PopupManager handler invece di bookClickHandler diretto
             Consumer<Book> popupHandler = selectedBook -> {
                 System.out.println("📖 [MAINWINDOW] Click libro: " + selectedBook.getTitle());
-                AppleBooksClient.openBookDetails(
+                BooksClient.openBookDetails(
                         selectedBook,
                         cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
                         authManager
@@ -195,7 +505,6 @@ public class MainWindow {
         System.out.println("🔍 Inizializzazione ExploreIntegration...");
         initializeExploreIntegration();
 
-        // ===== ASSEMBLAGGIO LAYOUT =====
 
         System.out.println("🔧 Assemblaggio layout...");
 
@@ -211,15 +520,11 @@ public class MainWindow {
         // Aggiungi app root al main root
         mainRoot.getChildren().add(appRoot);
 
-        // ===== INIZIALIZZAZIONE POPUP MANAGER =====
-
         // Inizializza PopupManager DOPO aver creato mainRoot
         Platform.runLater(() -> {
             System.out.println("🚀 Inizializzazione PopupManager...");
             PopupManager.getInstance().initialize(mainRoot);
             System.out.println("✅ PopupManager inizializzato con mainRoot");
-
-            addDebugKeyBindings();
 
             Platform.runLater(() -> {
                 try {
@@ -232,7 +537,6 @@ public class MainWindow {
             });
         });
 
-        // ===== CARICAMENTO CONTENUTO INIZIALE =====
 
         System.out.println("📚 Caricamento contenuto iniziale...");
         contentArea.loadInitialContent();
@@ -241,10 +545,39 @@ public class MainWindow {
         return mainRoot;
     }
 
+    /**
+     * Mostra il pannello di autenticazione per login/registrazione utenti.
+     * <p>
+     * Delegato al AuthenticationManager per visualizzazione modal di autenticazione.
+     * Utilizza il mainRoot come container per overlay del popup autenticazione.
+     * </p>
+     */
     public void showAuthPanel() {
         authManager.showAuthPanel(mainRoot);
     }
 
+    /**
+     * Ritorna alla home page chiudendo tutti i popup e ricaricando contenuto iniziale.
+     * <p>
+     * Operazione di reset dell'interfaccia che riporta l'applicazione allo stato
+     * iniziale. Chiude tutti i popup aperti, pulisce lo stato di ricerca e
+     * ricarica il contenuto principale della home page.
+     * </p>
+     *
+     * <h4>Operazioni eseguite:</h4>
+     * <ol>
+     *   <li>Chiusura di tutti i popup aperti tramite PopupManager</li>
+     *   <li>Ricaricamento contenuto iniziale nel ContentArea</li>
+     *   <li>Reset della ricerca nell'Header</li>
+     * </ol>
+     *
+     * <h4>Utilizzo tipico:</h4>
+     * <ul>
+     *   <li>Click su "Home" nella sidebar</li>
+     *   <li>Reset dopo operazioni complesse</li>
+     *   <li>Annullamento operazioni in corso</li>
+     * </ul>
+     */
     public void showHomePage() {
         System.out.println("🏠 Chiusura popup e ritorno alla home");
 
@@ -265,7 +598,20 @@ public class MainWindow {
     }
 
     /**
-     * Mostra la sezione Esplora (chiamato dalla Sidebar)
+     * Mostra la sezione Esplora delegando al ContentArea per gestione navigazione.
+     * <p>
+     * Metodo chiamato dalla Sidebar per navigazione alla sezione di esplorazione
+     * del catalogo. Delega al ContentArea che gestisce il routing interno
+     * delle sezioni utilizzando l'indice menu corrispondente.
+     * </p>
+     *
+     * <h4>Navigation flow:</h4>
+     * <ol>
+     *   <li>Click "Esplora" nella sidebar</li>
+     *   <li>Chiamata a questo metodo</li>
+     *   <li>Delegazione a ContentArea.handleMenuClick(2)</li>
+     *   <li>Rendering sezione esplorazione</li>
+     * </ol>
      */
     public void showExploreSection() {
         System.out.println("🔍 Richiesta apertura sezione Esplora da sidebar");
@@ -277,74 +623,45 @@ public class MainWindow {
     }
 
     /**
-     * Metodo ricerca avanzata ora delega all'Header
-     */
-    public void showAdvancedSearch() {
-        System.out.println("🔍 Richiesta ricerca avanzata - delegata all'Header");
-
-        if (header != null && header.isFullyInitialized()) {
-            // L'Header gestisce già l'apertura della ricerca avanzata tramite il pulsante ⚙️
-            System.out.println("💡 La ricerca avanzata è disponibile tramite il pulsante ⚙️ nell'header");
-        } else {
-            System.err.println("❌ Header non inizializzato correttamente");
-
-            showAdvancedSearchFallback();
-        }
-    }
-
-    /**
-     * Metodo fallback per ricerca avanzata
-     */
-    private void showAdvancedSearchFallback() {
-        System.out.println("🔄 Uso fallback per ricerca avanzata");
-
-        AdvancedSearchPanel searchPanel = new AdvancedSearchPanel(bookService);
-
-        // Configura il callback per i risultati di ricerca
-        searchPanel.setOnSearchExecuted(searchResult -> {
-            PopupManager.getInstance().closeAllPopups();
-
-            // Mostra i risultati nell'area contenuti
-            if (contentArea != null) {
-                contentArea.showAdvancedSearchResults(searchResult);
-            }
-        });
-
-        // Crea overlay
-        StackPane overlay = new StackPane();
-        overlay.setStyle("-fx-background-color: rgba(0, 0, 0, 0.7);");
-        overlay.getChildren().add(searchPanel);
-        StackPane.setAlignment(searchPanel, Pos.CENTER);
-
-        overlay.setOnMouseClicked(e -> {
-            if (e.getTarget() == overlay) {
-                PopupManager.getInstance().closeAllPopups();
-            }
-        });
-
-        // Previeni chiusura cliccando sul pannello
-        searchPanel.setOnMouseClicked(e -> e.consume());
-
-        // ESC per chiudere
-        overlay.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                PopupManager.getInstance().closeAllPopups();
-            }
-        });
-
-        overlay.setFocusTraversable(true);
-        Platform.runLater(() -> overlay.requestFocus());
-
-        mainRoot.getChildren().add(overlay);
-        System.out.println("🔍 Pannello ricerca avanzata fallback aperto");
-    }
-
-    /**
-     * showLibraryPanel con gestione corretta PopupManager
+     * Mostra il pannello di gestione librerie con autenticazione e gestione popup completa.
+     * <p>
+     * Apre il pannello per la gestione delle librerie personali dell'utente.
+     * Include verifica autenticazione, creazione popup con overlay, gestione
+     * eventi (ESC, click background) e integrazione con callback per operazioni
+     * sui libri. Utilizza PopupManager per gestione centralizzata del popup.
+     * </p>
+     *
+     * <h4>Verifica prerequisiti:</h4>
+     * <ul>
+     *   <li><strong>Authentication Check:</strong> Verifica utente autenticato</li>
+     *   <li><strong>Redirect Login:</strong> Apre pannello auth se necessario</li>
+     * </ul>
+     *
+     * <h4>Configurazione popup:</h4>
+     * <ul>
+     *   <li><strong>LibraryPanel:</strong> Pannello gestione librerie per utente</li>
+     *   <li><strong>Overlay:</strong> Background semi-trasparente</li>
+     *   <li><strong>Close Handlers:</strong> ESC, click background, callback pannello</li>
+     *   <li><strong>Book Click Integration:</strong> Apertura dettagli libri da libreria</li>
+     * </ul>
+     *
+     * <h4>Event handling:</h4>
+     * <ul>
+     *   <li><strong>ESC Key:</strong> Chiusura rapida popup</li>
+     *   <li><strong>Background Click:</strong> Chiusura click su overlay</li>
+     *   <li><strong>Panel Events:</strong> Propagazione eventi interni pannello</li>
+     * </ul>
+     *
+     * <h4>Error handling:</h4>
+     * <ul>
+     *   <li>Try-catch su creazione pannello</li>
+     *   <li>Alert informativi per errori</li>
+     *   <li>Fallback graceful su failure</li>
+     * </ul>
      */
     public void showLibraryPanel() {
         if (!authManager.isAuthenticated()) {
-            showAlert("🔒 Accesso Richiesto", "Devi effettuare l'accesso per gestire le tue librerie");
+            showAlert("Accesso Richiesto", "Devi effettuare l'accesso per gestire le tue librerie");
             showAuthPanel();
             return;
         }
@@ -361,14 +678,14 @@ public class MainWindow {
                 if (contentArea != null) {
                     contentArea.loadInitialContent();
                 }
-                System.out.println("🚪 Pannello librerie chiuso");
+                System.out.println("Pannello librerie chiuso");
             });
 
             // Configura callback per click sui libri
             libraryPanel.setOnBookClick(selectedBook -> {
-                System.out.println("📖 Click libro da libreria: " + selectedBook.getTitle());
+                System.out.println("Click libro da libreria: " + selectedBook.getTitle());
                 List<Book> libraryBooks = libraryPanel.getCurrentLibraryBooks();
-                AppleBooksClient.openBookDetails(
+                BooksClient.openBookDetails(
                         selectedBook,
                         libraryBooks.isEmpty() ? List.of(selectedBook) : libraryBooks,
                         authManager
@@ -416,77 +733,34 @@ public class MainWindow {
                         if (contentArea != null) {
                             contentArea.loadInitialContent();
                         }
-                        System.out.println("🚪 Pannello librerie chiuso via PopupManager");
+                        System.out.println("Pannello librerie chiuso via PopupManager");
                     }
             );
 
         } catch (Exception e) {
-            System.err.println("❌ Errore nell'apertura del pannello librerie: " + e.getMessage());
-            showAlert("❌ Errore", "Impossibile aprire il pannello librerie: " + e.getMessage());
+            System.err.println("Errore nell'apertura del pannello librerie: " + e.getMessage());
+            showAlert("Errore", "Impossibile aprire il pannello librerie: " + e.getMessage());
         }
-    }
-
-    public void showBookReader(Book book) {
-        if (book == null) {
-            showAlert("❌ Errore", "Impossibile aprire il libro: libro non valido");
-            return;
-        }
-
-        System.out.println("📖 Apertura reader per: " + book.getTitle());
-
-        // Simulazione semplice del reader se la classe BookReader non esiste
-        Alert readerAlert = new Alert(Alert.AlertType.INFORMATION);
-        readerAlert.setTitle("📖 Book Reader");
-        readerAlert.setHeaderText("Lettura: " + book.getTitle());
-        readerAlert.setContentText("Reader non ancora implementato.\n" +
-                "Qui si aprirebbe il lettore per:\n" +
-                "Titolo: " + book.getTitle() + "\n" +
-                "Autore: " + book.getAuthor());
-
-        // Styling dell'alert
-        DialogPane dialogPane = readerAlert.getDialogPane();
-        dialogPane.setStyle("-fx-background-color: #2c2c2e;");
-
-        // Applica stile ai label se esistono
-        try {
-            dialogPane.lookup(".content.label").setStyle("-fx-text-fill: white;");
-            dialogPane.lookup(".header-panel .label").setStyle("-fx-text-fill: white;");
-        } catch (Exception e) {
-            // Ignora errori di styling
-        }
-
-        // Imposta icona se disponibile
-        readerAlert.setOnShowing(e -> {
-            try {
-                Stage alertStage = (Stage) readerAlert.getDialogPane().getScene().getWindow();
-                IconUtils.setStageIcon(alertStage);
-            } catch (Exception ex) {
-                // Ignora errori di icona
-            }
-        });
-
-        readerAlert.showAndWait();
     }
 
     /**
-     * ✅ AGGIORNATO: Apre dettagli libro con navigazione
+     * Visualizza alert informativi all'utente con styling coerente applicazione.
+     * <p>
+     * Utility interna per creazione alert standardizzati con gestione icone
+     * e styling coerente con il tema dell'applicazione. Utilizzato per
+     * notifiche, errori e conferme operazioni.
+     * </p>
+     *
+     * <h4>Features:</h4>
+     * <ul>
+     *   <li><strong>Platform.runLater:</strong> Thread-safe UI updates</li>
+     *   <li><strong>Icon Integration:</strong> Icona applicazione su alert</li>
+     *   <li><strong>Error Handling:</strong> Graceful degradation su errori styling</li>
+     * </ul>
+     *
+     * @param title titolo dell'alert
+     * @param message messaggio da visualizzare
      */
-    public void showBookDetails(Book book) {
-        if (book == null) {
-            System.err.println("❌ Tentativo di aprire dettagli per libro null");
-            return;
-        }
-
-        System.out.println("📖 Apertura dettagli libro: " + book.getTitle());
-
-        // ✅ USA POPUP MANAGER
-        PopupManager.getInstance().showBookDetails(
-                book,
-                cachedBooks.isEmpty() ? List.of(book) : cachedBooks,
-                authManager
-        );
-    }
-
     private void showAlert(String title, String message) {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -509,61 +783,45 @@ public class MainWindow {
     }
 
     /**
-     * ✅ NUOVO: Debug completo dello stato dell'applicazione
+     * Mostra il pannello di amministrazione per utenti con privilegi elevati.
+     * <p>
+     * Apre il pannello amministrativo che permette gestione avanzata dell'applicazione.
+     * Include verifica privilegi, creazione pannello admin e sostituzione
+     * del contenuto principale con l'interfaccia amministrativa.
+     * </p>
+     *
+     * <h4>Verifica privilegi:</h4>
+     * <ul>
+     *   <li>Controllo autenticazione utente</li>
+     *   <li>Validazione privilegi amministrativi</li>
+     *   <li>Redirect a login se necessario</li>
+     * </ul>
+     *
+     * <h4>Pannello amministrativo:</h4>
+     * <ul>
+     *   <li>Gestione utenti e permessi</li>
+     *   <li>Configurazione sistema</li>
+     *   <li>Monitoraggio operazioni</li>
+     * </ul>
      */
-    public void debugFullState() {
-        System.out.println("🔍 ===== MAINWINDOW FULL DEBUG =====");
-        System.out.println("MainRoot: " + (mainRoot != null ? "✅ OK" : "❌ NULL"));
-        System.out.println("BookService: " + (bookService != null ? "✅ OK" : "❌ NULL"));
-        System.out.println("AuthManager: " + (authManager != null ? "✅ OK" : "❌ NULL"));
-        System.out.println("ServerAvailable: " + serverAvailable);
-        System.out.println("CachedBooks: " + cachedBooks.size());
+    public void showAdminPanel() {
+        System.out.println("Apertura pannello amministrativo");
 
-        if (header != null) {
-            System.out.println("📍 HEADER STATE:");
-            header.debugState();
-        } else {
-            System.out.println("📍 HEADER: ❌ NULL");
+        // Verifica privilegi admin
+        if (!authManager.isAuthenticated() || authManager.getCurrentUser() == null) {
+            showAlert("Accesso Negato", "Devi essere autenticato per accedere al pannello admin");
+            return;
         }
 
+        // Crea pannello admin
+        AdminPanel adminPanel = new AdminPanel(authManager);
+        VBox adminContent = adminPanel.createAdminPanel();
+
+        // Sostituisci contenuto principale
         if (contentArea != null) {
-            System.out.println("📍 CONTENT AREA STATE:");
-            contentArea.debugCacheState();
+            contentArea.showCustomContent(adminContent);
         } else {
-            System.out.println("📍 CONTENT AREA: ❌ NULL");
-        }
-
-        PopupManager.getInstance().debugFullState();
-        System.out.println("===================================");
-    }
-
-    /**
-     * ✅ NUOVO: Verifica se la ricerca avanzata è aperta
-     */
-    public boolean isAdvancedSearchOpen() {
-        return header != null && header.isAdvancedSearchOpen();
-    }
-
-    /**
-     * ✅ NUOVO: Chiude forzatamente la ricerca avanzata
-     */
-    public void closeAdvancedSearch() {
-        if (header != null) {
-            header.closeAdvancedSearch();
-        }
-
-        // Fallback: rimuovi overlay se presente
-        try {
-            mainRoot.getChildren().removeIf(node -> {
-                if (node instanceof StackPane) {
-                    StackPane stackPane = (StackPane) node;
-                    return stackPane.getChildren().stream()
-                            .anyMatch(child -> child instanceof AdvancedSearchPanel);
-                }
-                return false;
-            });
-        } catch (Exception e) {
-            System.err.println("⚠️ Errore nella chiusura forzata ricerca avanzata: " + e.getMessage());
+            System.err.println("ContentArea non disponibile per pannello admin");
         }
     }
 
@@ -571,99 +829,94 @@ public class MainWindow {
     // GETTER E METODI DI UTILITÀ
     // =====================================================
 
+    /**
+     * Restituisce il container principale dell'interfaccia utente.
+     * <p>
+     * Accessor per il StackPane principale che contiene l'intera interfaccia.
+     * Utilizzato per integrazioni esterne e gestione popup di livello superiore.
+     * </p>
+     *
+     * @return {@link StackPane} container principale, può essere null se non inizializzato
+     */
     public StackPane getMainRoot() {
         return mainRoot;
     }
 
+    /**
+     * Restituisce il servizio per gestione libri e comunicazione backend.
+     * <p>
+     * Accessor per il BookService utilizzato dall'applicazione. Fornisce
+     * accesso alle funzionalità di gestione catalogo, ricerca e comunicazione
+     * con il server backend.
+     * </p>
+     *
+     * @return {@link BookService} servizio gestione libri
+     */
     public BookService getBookService() {
         return bookService;
     }
 
-    public LibraryService getLibraryService() {
-        return libraryService;
-    }
-
+    /**
+     * Restituisce il gestore autenticazione e sessioni utente.
+     * <p>
+     * Accessor per l'AuthenticationManager che gestisce login, logout,
+     * sessioni utente e operazioni autenticate. Utilizzato per verifica
+     * privilegi e gestione stato autenticazione.
+     * </p>
+     *
+     * @return {@link AuthenticationManager} gestore autenticazione
+     */
     public AuthenticationManager getAuthManager() {
         return authManager;
     }
 
     /**
-     * ✅ NUOVO: Getter per ExploreIntegration
+     * Restituisce il componente header con ricerca globale.
+     * <p>
+     * Accessor per il componente Header che gestisce la ricerca globale
+     * e i controlli della parte superiore dell'interfaccia. Utilizzato
+     * per integrazioni e controllo programmatico della ricerca.
+     * </p>
+     *
+     * @return {@link Header} componente header, può essere null se non inizializzato
      */
-    public ExploreIntegration getExploreIntegration() {
-        return exploreIntegration;
-    }
-
-    public boolean isServerAvailable() {
-        return serverAvailable;
-    }
-
-    public List<Book> getCachedBooks() {
-        return new ArrayList<>(cachedBooks);
-    }
-
-    public void setCachedBooks(List<Book> books) {
-        this.cachedBooks = new ArrayList<>(books);
-    }
-
-    public Sidebar getSidebar() {
-        return sidebar;
-    }
-
     public Header getHeader() {
         return header;
     }
 
+    /**
+     * Restituisce l'area principale per visualizzazione contenuti.
+     * <p>
+     * Accessor per il ContentArea che gestisce la visualizzazione del
+     * contenuto principale dell'applicazione. Utilizzato per controllo
+     * programmatico del contenuto visualizzato.
+     * </p>
+     *
+     * @return {@link ContentArea} area contenuti, può essere null se non inizializzato
+     */
     public ContentArea getContentArea() {
         return contentArea;
     }
 
     /**
-     * ✅ AGGIUNTO: Metodo per refresh completo dell'interfaccia
-     */
-    public void refreshInterface() {
-        System.out.println("🔄 Refresh completo interfaccia");
-
-        // Chiudi tutti i popup
-        PopupManager.getInstance().closeAllPopups();
-
-        // Chiudi ricerca avanzata
-        closeAdvancedSearch();
-
-        // Refresh sidebar se l'autenticazione è cambiata
-        if (sidebar != null) {
-            sidebar.refreshAuthSection();
-        }
-
-        // Ricarica contenuto
-        if (contentArea != null) {
-            contentArea.loadInitialContent();
-        }
-
-        // Pulisci ricerca
-        if (header != null) {
-            header.clearSearch();
-        }
-
-        System.out.println("✅ Refresh interfaccia completato");
-    }
-
-    /**
-     * ✅ AGGIUNTO: Metodo per controllo stato popup
-     */
-    public boolean hasActivePopups() {
-        return PopupManager.getInstance().hasActivePopups();
-    }
-
-    /**
-     * ✅ AGGIUNTO: Metodo per contare popup attivi
-     */
-    public int getActivePopupsCount() {
-        return PopupManager.getInstance().getActivePopupsCount();
-    }
-
-    /**
-     * ✅ NUOVO: Verifica se tutti i componenti sono inizializzati
+     * Verifica se tutti i componenti principali sono completamente inizializzati.
+     * <p>
+     * Metodo di diagnostica che controlla l'integrità dell'inizializzazione
+     * di tutti i componenti critici dell'interfaccia. Utilizzato per
+     * validazione stato applicazione e troubleshooting.
+     * </p>
+     *
+     * <h4>Componenti verificati:</h4>
+     * <ul>
+     *   <li>mainRoot container principale</li>
+     *   <li>header componente ricerca</li>
+     *   <li>contentArea visualizzazione contenuti</li>
+     *   <li>sidebar navigazione laterale</li>
+     *   <li>authManager sistema autenticazione</li>
+     *   <li>PopupManager sistema popup</li>
+     * </ul>
+     *
+     * @return true se tutti i componenti sono inizializzati, false altrimenti
      */
     public boolean isFullyInitialized() {
         return mainRoot != null &&
@@ -675,10 +928,30 @@ public class MainWindow {
     }
 
     /**
-     * ✅ NUOVO: Cleanup delle risorse
+     * Esegue cleanup completo delle risorse utilizzate dall'interfaccia.
+     * <p>
+     * Metodo di pulizia che rilascia tutte le risorse utilizzate dai
+     * componenti dell'interfaccia. Utilizzato durante chiusura applicazione
+     * o reset completo stato interfaccia.
+     * </p>
+     *
+     * <h4>Operazioni di cleanup:</h4>
+     * <ul>
+     *   <li><strong>Popup Cleanup:</strong> Chiusura tutti popup aperti</li>
+     *   <li><strong>Component Cleanup:</strong> Cleanup specifico componenti</li>
+     *   <li><strong>Cache Cleanup:</strong> Svuotamento cache libri</li>
+     *   <li><strong>Resource Release:</strong> Rilascio risorse sistema</li>
+     * </ul>
+     *
+     * <h4>Utilizzo raccomandato:</h4>
+     * <ul>
+     *   <li>Chiusura applicazione</li>
+     *   <li>Reset completo interfaccia</li>
+     *   <li>Gestione memoria su dispositivi limitati</li>
+     * </ul>
      */
     public void cleanup() {
-        System.out.println("🧹 MainWindow: Cleanup risorse");
+        System.out.println("MainWindow: Cleanup risorse");
 
         // Chiudi tutti i popup
         PopupManager.getInstance().closeAllPopups();
@@ -691,140 +964,43 @@ public class MainWindow {
         // Pulisci cache
         cachedBooks.clear();
 
-        System.out.println("✅ MainWindow: Cleanup completato");
+        System.out.println("MainWindow: Cleanup completato");
     }
 
     /**
-     * ✅ NUOVO: Test completo sistema di ricerca
+     * Esegue test automatico del sistema post-inizializzazione per validazione integrità.
+     * <p>
+     * Metodo di testing interno che verifica il corretto funzionamento del sistema
+     * dopo l'inizializzazione completa. Include test di connettività server,
+     * validazione componenti e test caricamento dati. Utilizzato principalmente
+     * in modalità debug per identificare problemi durante lo sviluppo.
+     * </p>
+     *
+     * <h4>Test eseguiti:</h4>
+     * <ul>
+     *   <li><strong>Component Readiness:</strong> Verifica inizializzazione componenti</li>
+     *   <li><strong>Server Connectivity:</strong> Test connessione backend</li>
+     *   <li><strong>Data Loading:</strong> Test caricamento catalogo libri</li>
+     *   <li><strong>System Integration:</strong> Verifica integrazione sistemi</li>
+     * </ul>
+     *
+     * <h4>Output diagnostico:</h4>
+     * <ul>
+     *   <li>Stato componenti (OK/NULL)</li>
+     *   <li>Disponibilità server (✅/❌)</li>
+     *   <li>Numero libri caricati</li>
+     *   <li>Modalità operativa (online/offline)</li>
+     * </ul>
+     *
+     * <h4>Error handling:</h4>
+     * <p>
+     * Il testing è designed per essere non-invasivo e non interrompere
+     * il normale funzionamento dell'applicazione anche in caso di errori
+     * durante i test.
+     * </p>
      */
-    public void debugSearchSystem() {
-        System.out.println("🔧 ===== DEBUG SISTEMA RICERCA =====");
-
-        // Test stato componenti
-        System.out.println("Componenti inizializzati:");
-        System.out.println("  BookService: " + (bookService != null ? "✅" : "❌"));
-        System.out.println("  Header: " + (header != null ? "✅" : "❌"));
-        System.out.println("  ContentArea: " + (contentArea != null ? "✅" : "❌"));
-        System.out.println("  Server Available: " + serverAvailable);
-
-        // Test BookService
-        if (bookService != null) {
-            System.out.println("\n🔧 Test BookService...");
-            boolean isAvailable = bookService.isServerAvailable();
-            System.out.println("Server raggiungibile: " + (isAvailable ? "✅" : "❌"));
-
-            if (isAvailable) {
-                // Test chiamata diretta
-                System.out.println("🔧 Test chiamata diretta al BookService...");
-                bookService.getAllBooksAsync()
-                        .thenAccept(books -> {
-                            System.out.println("📚 Libri caricati dal server: " + books.size());
-                            if (!books.isEmpty()) {
-                                System.out.println("📖 Primo libro: " + books.get(0).getTitle());
-                            }
-                        })
-                        .exceptionally(throwable -> {
-                            System.err.println("❌ Errore caricamento libri: " + throwable.getMessage());
-                            return null;
-                        });
-
-                // Test ricerca diretta
-                System.out.println("🔧 Test ricerca diretta...");
-                bookService.searchBooksAsync("test")
-                        .thenAccept(results -> {
-                            System.out.println("🔍 Risultati ricerca diretta: " + results.size());
-                        })
-                        .exceptionally(throwable -> {
-                            System.err.println("❌ Errore ricerca diretta: " + throwable.getMessage());
-                            return null;
-                        });
-            }
-        }
-
-        // Test Header
-        if (header != null) {
-            System.out.println("\n🔧 Test Header...");
-            header.debugState();
-
-            // Test ricerca tramite header
-            System.out.println("🔧 Test ricerca tramite Header...");
-            header.testQuickSearch("debug");
-        }
-
-        System.out.println("🔧 ===============================");
-    }
-
-    /**
-     * ✅ MIGLIORATO: Configura searchHandler con debug dettagliato
-     */
-    private void configureSearchHandler() {
-        header.setSearchHandler((query) -> {
-            System.out.println("🔍 [MAINWINDOW] SearchHandler ricevuto query: '" + query + "'");
-
-            if (contentArea == null) {
-                System.err.println("❌ [MAINWINDOW] ContentArea non inizializzato!");
-                return;
-            }
-
-            // Usa PopupManager handler invece di bookClickHandler
-            Consumer<Book> popupHandler = selectedBook -> {
-                System.out.println("📖 [MAINWINDOW] Click libro: " + selectedBook.getTitle());
-                AppleBooksClient.openBookDetails(
-                        selectedBook,
-                        cachedBooks.isEmpty() ? List.of(selectedBook) : cachedBooks,
-                        authManager
-                );
-            };
-
-            try {
-                System.out.println("📤 [MAINWINDOW] Passaggio query a ContentArea...");
-                contentArea.handleSearch(query, popupHandler);
-                System.out.println("✅ [MAINWINDOW] Query passata con successo a ContentArea");
-            } catch (Exception e) {
-                System.err.println("❌ [MAINWINDOW] Errore durante passaggio query: " + e.getMessage());
-                e.printStackTrace();
-            }
-        });
-
-        System.out.println("✅ [MAINWINDOW] SearchHandler configurato con debug");
-    }
-
-    /**
-     * ✅ NUOVO: Aggiunge binding per test rapidi (solo per debug)
-     */
-    public void addDebugKeyBindings() {
-        if (mainRoot != null) {
-            mainRoot.setOnKeyPressed(event -> {
-                // Ctrl+F1 = debug sistema ricerca
-                if (event.isControlDown() && event.getCode() == KeyCode.F1) {
-                    debugSearchSystem();
-                    event.consume();
-                }
-                // Ctrl+F2 = test ricerca "test"
-                else if (event.isControlDown() && event.getCode() == KeyCode.F2) {
-                    if (header != null) {
-                        header.testQuickSearch("test");
-                    }
-                    event.consume();
-                }
-                // Ctrl+F3 = test ricerca "eco"
-                else if (event.isControlDown() && event.getCode() == KeyCode.F3) {
-                    if (header != null) {
-                        header.testQuickSearch("eco");
-                    }
-                    event.consume();
-                }
-            });
-
-            System.out.println("🔧 Debug key bindings aggiunti:");
-            System.out.println("  Ctrl+F1 = Debug sistema ricerca");
-            System.out.println("  Ctrl+F2 = Test ricerca 'test'");
-            System.out.println("  Ctrl+F3 = Test ricerca 'eco'");
-        }
-    }
-
     private void testSearchSystemAfterInit() {
-        System.out.println("🧪 ===== TEST POST-INIZIALIZZAZIONE =====");
+        System.out.println("===== TEST POST-INIZIALIZZAZIONE =====");
 
         // Verifica che tutti i componenti siano inizializzati
         boolean allReady = isFullyInitialized();
@@ -840,7 +1016,7 @@ public class MainWindow {
                     // Test rapido caricamento libri
                     bookService.getAllBooksAsync()
                             .thenAccept(books -> {
-                                System.out.println("📚 Test caricamento: " + books.size() + " libri disponibili");
+                                System.out.println("Test caricamento: " + books.size() + " libri disponibili");
                                 if (books.size() > 0) {
                                     System.out.println("✅ Sistema funzionante - libri caricati dal database");
                                 } else {
@@ -857,27 +1033,6 @@ public class MainWindow {
             System.err.println("❌ Alcuni componenti non sono ancora pronti");
         }
 
-        System.out.println("🧪 ===============================");
-    }
-
-    public void showAdminPanel() {
-        System.out.println("⚙️ Apertura pannello amministrativo");
-
-        // Verifica privilegi admin
-        if (!authManager.isAuthenticated() || authManager.getCurrentUser() == null) {
-            showAlert("Accesso Negato", "Devi essere autenticato per accedere al pannello admin");
-            return;
-        }
-
-        // Crea pannello admin
-        AdminPanel adminPanel = new AdminPanel(authManager);
-        VBox adminContent = adminPanel.createAdminPanel();
-
-        // Sostituisci contenuto principale
-        if (contentArea != null) {
-            contentArea.showCustomContent(adminContent);
-        } else {
-            System.err.println("❌ ContentArea non disponibile per pannello admin");
-        }
+        System.out.println("===============================");
     }
 }

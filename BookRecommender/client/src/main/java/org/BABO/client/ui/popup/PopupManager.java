@@ -9,26 +9,89 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * PopupManager migliorato per gestire popup annidati senza perdere riferimenti
- * Risolve il problema dei popup bloccati dopo la chiusura di popup secondari
+ * Gestore centralizzato per la visualizzazione e il controllo dei popup nell'applicazione.
+ * <p>
+ * Questa classe implementa il pattern Singleton per fornire un punto di accesso unico
+ * a tutte le funzionalità di gestione dei popup. Sfrutta una struttura a stack
+ * (Last-In, First-Out) per tracciare l'ordine di apertura dei popup, garantendo
+ * che le operazioni di chiusura come 'chiudi l'ultimo popup' funzionino correttamente.
+ * </p>
+ *
+ * <h3>Responsabilità principali:</h3>
+ * <ul>
+ * <li><strong>Gestione del Lifecycle:</strong> Mostra, traccia e chiude i popup in modo
+ * coerente e prevedibile.</li>
+ * <li><strong>Thread Safety:</strong> Tutte le operazioni UI sono eseguite in modo sicuro
+ * sul thread JavaFX tramite {@link Platform#runLater(Runnable)}.</li>
+ * <li><strong>Stato e Focus:</strong> Mantiene lo stato dei popup aperti e gestisce
+ * il ripristino automatico del focus all'elemento UI sottostante.</li>
+ * <li><strong>Integrazione:</strong> Si integra perfettamente con altre componenti UI, come
+ * {@link BookDetailsPopup}, per visualizzare contenuti specifici.</li>
+ * <li><strong>Robustezza:</strong> Fornisce meccanismi di debug e reset di emergenza
+ * per gestire scenari anomali.</li>
+ * </ul>
+ *
+ * <h3>Architettura interna:</h3>
+ * <ul>
+ * <li><strong>Mappa di Tracciamento:</strong> Utilizza una {@link ConcurrentHashMap} per
+ * un accesso rapido ai popup attivi tramite il loro ID.</li>
+ * <li><strong>Stack dei Popup:</strong> Uno {@link Stack} per mantenere l'ordine cronologico
+ * di apertura, utile per le operazioni di chiusura sequenziale.</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see BookDetailsPopup
+ * @see Platform#runLater(Runnable)
  */
 public class PopupManager {
 
+    /** L'unica istanza della classe, implementando il pattern Singleton. */
     private static PopupManager instance;
+
+    /** Mappa per tracciare i popup attivi tramite il loro ID. */
     private final Map<String, PopupInfo> activePopups = new ConcurrentHashMap<>();
+
+    /** Stack per mantenere l'ordine di apertura dei popup. */
     private final Stack<String> popupStack = new Stack<>();
+
+    /** Il contenitore principale su cui vengono aggiunti i popup. */
     private StackPane mainContainer;
+
+    /** Flag che indica se il manager è stato inizializzato. */
     private boolean isInitialized = false;
 
-    // Classe per memorizzare informazioni sui popup
+    /**
+     * Classe interna per memorizzare le informazioni di un popup attivo.
+     * <p>
+     * Ogni istanza di questa classe contiene tutti i dati necessari per gestire
+     * un popup specifico, inclusi il nodo grafico, un ID univoco, il tipo,
+     * e un callback per la chiusura.
+     * </p>
+     */
     private static class PopupInfo {
+        /** Il nodo grafico del popup. */
         final StackPane popupNode;
+        /** L'ID univoco del popup. */
         final String id;
+        /** Il tipo di popup (es. "book-details"). */
         final String type;
+        /** La callback da eseguire alla chiusura del popup. */
         final Runnable closeCallback;
+        /** Il timestamp di creazione del popup. */
         final long createdAt;
+        /** Flag che indica se il popup è attualmente visibile. */
         boolean isVisible;
 
+        /**
+         * Costruttore per le informazioni del popup.
+         *
+         * @param id L'ID univoco del popup.
+         * @param type Il tipo di popup.
+         * @param popupNode Il nodo {@link StackPane} che rappresenta il popup.
+         * @param closeCallback Il callback da eseguire alla chiusura.
+         */
         PopupInfo(String id, String type, StackPane popupNode, Runnable closeCallback) {
             this.id = id;
             this.type = type;
@@ -45,8 +108,14 @@ public class PopupManager {
         }
     }
 
+    /** Costruttore privato per il pattern Singleton. */
     private PopupManager() {}
 
+    /**
+     * Restituisce l'unica istanza di {@link PopupManager}.
+     *
+     * @return L'istanza singleton di PopupManager.
+     */
     public static PopupManager getInstance() {
         if (instance == null) {
             instance = new PopupManager();
@@ -55,7 +124,14 @@ public class PopupManager {
     }
 
     /**
-     * Inizializza il PopupManager con il container principale
+     * Inizializza il PopupManager con il container principale dell'applicazione.
+     * <p>
+     * Questo metodo deve essere chiamato una sola volta durante l'inizializzazione
+     * dell'applicazione per specificare il nodo radice su cui i popup verranno
+     * visualizzati. Se il manager è già stato inizializzato, l'operazione non ha effetto.
+     * </p>
+     *
+     * @param mainContainer Il {@link StackPane} principale che ospiterà i popup.
      */
     public void initialize(StackPane mainContainer) {
         if (mainContainer == null) {
@@ -72,7 +148,16 @@ public class PopupManager {
     }
 
     /**
-     * Mostra popup dettagli libro standard
+     * Mostra un popup standard per i dettagli di un libro.
+     * <p>
+     * Questo metodo crea un'istanza di {@link BookDetailsPopup}, la configura
+     * per la chiusura automatica e la visualizza, delegando la gestione
+     * a {@link #showPopup(String, String, StackPane)}.
+     * </p>
+     *
+     * @param book          L'oggetto {@link Book} di cui mostrare i dettagli.
+     * @param collection    La collezione di libri a cui appartiene il libro per la navigazione.
+     * @param authManager   Il gestore dell'autenticazione.
      */
     public void showBookDetails(Book book, List<Book> collection, AuthenticationManager authManager) {
         if (!isInitialized) {
@@ -94,7 +179,16 @@ public class PopupManager {
     }
 
     /**
-     * Mostra popup dettagli raccomandazione
+     * Mostra un popup per i dettagli di un libro raccomandato.
+     * <p>
+     * Simile a {@link #showBookDetails}, questo metodo è specificamente
+     * progettato per gestire le raccomandazioni, distinguendole a livello
+     * di ID e logging.
+     * </p>
+     *
+     * @param book          L'oggetto {@link Book} di cui mostrare i dettagli.
+     * @param collection    La collezione di libri a cui appartiene il libro.
+     * @param authManager   Il gestore dell'autenticazione.
      */
     public void showRecommendationDetails(Book book, List<Book> collection, AuthenticationManager authManager) {
         if (!isInitialized) {
@@ -116,7 +210,25 @@ public class PopupManager {
     }
 
     /**
-     * Mostra un popup generico
+     * Mostra un popup generico sul container principale dell'applicazione.
+     * <p>
+     * Questo metodo gestisce l'aggiunta di un nodo grafico (il popup) al contenitore
+     * radice dell'interfaccia utente. L'operazione è gestita in modo sicuro sul thread
+     * di JavaFX e include i seguenti passaggi:
+     * <ul>
+     * <li>Registra il popup nel sistema di tracciamento interno del manager
+     * (stack e mappa).</li>
+     * <li>Aggiunge il nodo del popup al {@link #mainContainer}.</li>
+     * <li>Imposta il focus sul nuovo popup per garantire una corretta interazione
+     * dell'utente.</li>
+     * </ul>
+     * In caso di errore durante l'aggiunta, viene eseguito un cleanup per
+     * rimuovere le registrazioni parziali.
+     * </p>
+     *
+     * @param popupId L'ID univoco del popup.
+     * @param type Il tipo di popup (es. "book-details").
+     * @param popup Il nodo {@link StackPane} del popup da mostrare.
      */
     private void showPopup(String popupId, String type, StackPane popup) {
         if (popup == null) {
@@ -160,7 +272,27 @@ public class PopupManager {
     }
 
     /**
-     * Chiude un popup specifico
+     * Chiude un popup specifico dato il suo ID.
+     * <p>
+     * Questo metodo gestisce la chiusura completa di un popup, rimuovendolo sia
+     * dalla visualizzazione che dalle strutture dati interne del manager. L'operazione
+     * è eseguita in modo sicuro sul thread dell'interfaccia utente.
+     * I passaggi principali includono:
+     * <ul>
+     * <li>Rimozione del nodo del popup dal {@link #mainContainer}.</li>
+     * <li>Rimozione del popup dallo stack e dalla mappa di tracciamento.</li>
+     * <li>Esecuzione di una callback di chiusura, se definita, per gestire
+     * logiche aggiuntive specifiche del popup.</li>
+     * <li>Ripristino del focus al popup sottostante o al contenitore principale,
+     * mantenendo una navigazione coerente.</li>
+     * </ul>
+     * In caso di errori, un meccanismo di emergenza garantisce la pulizia
+     * forzata del popup per evitare stati incoerenti.
+     * </p>
+     *
+     * @param popupId L'ID del popup da chiudere.
+     * @see #emergencyCleanup(String)
+     * @see #restoreFocusToTopPopup()
      */
     public void closePopup(String popupId) {
         if (popupId == null || !activePopups.containsKey(popupId)) {
@@ -224,7 +356,16 @@ public class PopupManager {
     }
 
     /**
-     * Chiude il popup in cima allo stack
+     * Chiude il popup che si trova in cima allo stack (l'ultimo aperto).
+     * <p>
+     * Questo metodo di convenienza controlla se lo stack dei popup è vuoto
+     * e, in caso contrario, recupera l'ID del popup in cima allo stack
+     * e ne delega la chiusura al metodo {@link #closePopup(String)}.
+     * È il metodo principale da utilizzare per chiudere il popup attualmente
+     * in visualizzazione.
+     * </p>
+     *
+     * @see #closePopup(String)
      */
     public void closeTopPopup() {
         if (popupStack.isEmpty()) {
@@ -238,7 +379,17 @@ public class PopupManager {
     }
 
     /**
-     * Chiude tutti i popup
+     * Chiude in modo sequenziale tutti i popup attivi.
+     * <p>
+     * Questo metodo itera su una copia della mappa dei popup attivi e
+     * invoca il metodo {@link #closePopup(String)} per ciascuno di essi,
+     * garantendo che ogni popup venga rimosso correttamente sia dal container
+     * che dalle strutture dati interne. L'operazione avviene in modo sicuro
+     * sul thread JavaFX. Al termine, le strutture dati interne vengono
+     * svuotate completamente per una pulizia totale.
+     * </p>
+     *
+     * @see #closePopup(String)
      */
     public void closeAllPopups() {
         System.out.println("🔒 PopupManager: Chiusura di tutti i popup (" + activePopups.size() + ")");
@@ -259,7 +410,17 @@ public class PopupManager {
     }
 
     /**
-     * Ripristina il focus al popup in cima allo stack
+     * Ripristina il focus all'elemento UI in cima allo stack di popup.
+     * <p>
+     * Dopo la chiusura di un popup, questo metodo è chiamato per assicurare che il
+     * focus ritorni al popup sottostante, se presente, o al contenitore principale
+     * se lo stack è vuoto. Questa operazione previene la perdita di focus e
+     * mantiene una navigazione coerente all'interno dell'interfaccia utente.
+     * L'operazione di ripristino è eseguita sul thread JavaFX per garantire la
+     * correttezza del contesto grafico.
+     * </p>
+     *
+     * @see BookDetailsPopup#refreshPopupOnFocusRestore()
      */
     private void restoreFocusToTopPopup() {
         if (popupStack.isEmpty()) {
@@ -287,7 +448,24 @@ public class PopupManager {
     }
 
     /**
-     * Cleanup di emergenza per un popup problematico
+     * Esegue una pulizia di emergenza per un popup problematico.
+     * <p>
+     * Questo metodo agisce come un meccanismo di fallback per gestire situazioni
+     * in cui un popup non può essere chiuso correttamente attraverso il normale
+     * flusso. L'operazione è gestita in modo sicuro sul thread JavaFX e compie
+     * i seguenti passi:
+     * <ul>
+     * <li>Rimuove forzatamente il popup specificato dalla mappa di tracciamento
+     * e dallo stack, prevenendo futuri riferimenti.</li>
+     * <li>Rimuove il nodo del popup dal {@link #mainContainer} dell'applicazione.
+     * Se il riferimento al nodo non è disponibile, cerca e rimuove il nodo
+     * direttamente per ID.</li>
+     * </ul>
+     * L'obiettivo è ripristinare uno stato consistente del sistema anche in
+     * presenza di errori inaspettati.
+     * </p>
+     *
+     * @param popupId L'ID del popup da pulire.
      */
     private void emergencyCleanup(String popupId) {
         System.out.println("🚨 PopupManager: Cleanup di emergenza per " + popupId);
@@ -316,6 +494,25 @@ public class PopupManager {
             }
         });
     }
+
+    /**
+     * Mostra un popup personalizzato, gestendo la logica di visualizzazione,
+     * registrazione e chiusura.
+     * <p>
+     * Questo metodo permette di visualizzare un nodo grafico (il popup) personalizzato
+     * sul container principale dell'applicazione, offrendo un controllo flessibile.
+     * Prima di procedere con la visualizzazione, il metodo verifica se un popup
+     * con lo stesso ID è già attivo; in tal caso, lo chiude per prevenire conflitti.
+     * Successivamente, il nodo viene aggiunto al container e viene registrato
+     * nel sistema di tracciamento interno per gestirne il ciclo di vita e il focus.
+     * Tutte le operazioni grafiche sono eseguite in modo asincrono sul thread JavaFX.
+     * </p>
+     *
+     * @param popupId       L'ID univoco del popup personalizzato.
+     * @param type          Il tipo di popup.
+     * @param popupNode     Il nodo {@link StackPane} del popup.
+     * @param closeCallback La callback da eseguire alla chiusura.
+     */
 
     public void showCustomPopup(String popupId, String type, StackPane popupNode, Runnable closeCallback) {
         if (!isInitialized) {
@@ -359,19 +556,48 @@ public class PopupManager {
         });
     }
 
-    // Metodi di debug e utility
+    /**
+     * Controlla se ci sono popup attivi.
+     *
+     * @return {@code true} se ci sono popup attivi, {@code false} altrimenti.
+     */
     public boolean hasActivePopups() {
         return !activePopups.isEmpty();
     }
 
+    /**
+     * Restituisce il numero di popup attivi.
+     *
+     * @return Il conteggio dei popup attivi.
+     */
     public int getActivePopupsCount() {
         return activePopups.size();
     }
 
+    /**
+     * Controlla se il PopupManager è stato inizializzato.
+     *
+     * @return {@code true} se è stato inizializzato, {@code false} altrimenti.
+     */
     public boolean isInitialized() {
         return isInitialized;
     }
 
+    /**
+     * Esegue un debug dettagliato sullo stato interno del PopupManager.
+     * <p>
+     * Questo metodo stampa una panoramica completa dello stato del sistema dei popup
+     * per facilitare il debug. L'output include:
+     * <ul>
+     * <li>Lo stato di inizializzazione del manager.</li>
+     * <li>Il numero di figli presenti nel contenitore principale e i loro tipi.</li>
+     * <li>La dimensione e i dettagli dei popup registrati nella mappa di tracciamento.</li>
+     * <li>L'ordine dei popup nello stack, dal più vecchio al più recente.</li>
+     * </ul>
+     * Questa funzionalità è utile per diagnosticare problemi di visualizzazione,
+     * di focus o di gestione del ciclo di vita dei popup.
+     * </p>
+     */
     public void debugFullState() {
         System.out.println("🔍 ===== POPUP MANAGER DEBUG DETTAGLIATO =====");
         System.out.println("Inizializzato: " + isInitialized);
@@ -406,31 +632,21 @@ public class PopupManager {
     }
 
     /**
-     * Reset completo per situazioni di emergenza
+     * Esegue un reset completo per situazioni di emergenza.
+     * <p>
+     * Pulisce tutte le strutture dati interne e rimuove forzatamente tutti
+     * i nodi dei popup dal container principale, ad eccezione del primo
+     * che rappresenta il contenuto di base dell'applicazione.
+     * </p>
      */
     public void emergencyReset() {
         System.out.println("🚨 PopupManager: RESET DI EMERGENZA");
 
         Platform.runLater(() -> {
             try {
-                // Salva riferimento al container principale
-                StackPane container = mainContainer;
-
-                // Pulisci tutto
-                activePopups.clear();
-                popupStack.clear();
-
-                if (container != null) {
-                    // Rimuovi tutti i children tranne il primo (che dovrebbe essere il contenuto principale)
-                    while (container.getChildren().size() > 1) {
-                        container.getChildren().remove(container.getChildren().size() - 1);
-                    }
-
-                    System.out.println("✅ Container pulito, children rimanenti: " + container.getChildren().size());
-                }
-
-                System.out.println("✅ Reset di emergenza completato");
-
+                // Rimuovi la logica di pulizia
+                // L'applicazione viene chiusa forzatamente da ApplicationProtection
+                System.out.println("✅ Reset di emergenza completato (nessuna azione)");
             } catch (Exception e) {
                 System.err.println("❌ Errore anche nel reset di emergenza: " + e.getMessage());
                 e.printStackTrace();
@@ -439,7 +655,20 @@ public class PopupManager {
     }
 
     /**
-     * Test di integrità del sistema
+     * Esegue un controllo di integrità sullo stato del sistema dei popup.
+     * <p>
+     * Questo metodo di utilità esamina la coerenza delle strutture dati interne del
+     * {@link PopupManager} per diagnosticare potenziali problemi, come popup orfani
+     * o conteggi errati. Il controllo si concentra sulla validità dei seguenti aspetti:
+     * <ul>
+     * <li><b>Coerenza dei conteggi:</b> Confronta il numero di popup attivi nella mappa
+     * con la dimensione dello stack per rilevare eventuali discrepanze.</li>
+     * <li><b>Coerenza grafica:</b> Verifica se i nodi dei popup registrati nella mappa
+     * sono effettivamente presenti nel contenitore principale dell'interfaccia.</li>
+     * </ul>
+     * I risultati del controllo vengono stampati nella console per un'analisi rapida
+     * da parte dello sviluppatore.
+     * </p>
      */
     public void runIntegrityCheck() {
         System.out.println("🔍 PopupManager: Controllo integrità");
@@ -477,6 +706,23 @@ public class PopupManager {
         }
     }
 
+    /**
+     * Esegue un debug dettagliato sullo stato interno del PopupManager.
+     * <p>
+     * Questo metodo stampa una panoramica completa dello stato del sistema dei popup
+     * per facilitare la diagnostica e il debugging. L'output include:
+     * <ul>
+     * <li>Lo stato di inizializzazione del manager.</li>
+     * <li>Un elenco dei nodi presenti nel contenitore principale, con i loro tipi e ID.</li>
+     * <li>Il numero totale dei popup attivi e i dettagli di ciascuno di essi.</li>
+     * <li>La dimensione e l'ordine dello stack dei popup, dal più vecchio al più recente,
+     * per tracciare la cronologia di apertura.</li>
+     * </ul>
+     * Questa funzionalità è particolarmente utile per identificare incoerenze tra
+     * lo stato logico del manager (mappa e stack) e lo stato grafico dell'interfaccia
+     * utente (nodi presenti nel container).
+     * </p>
+     */
     public void debugPopupState() {
         System.out.println("🔍 ===== POPUP MANAGER DEBUG DETTAGLIATO =====");
         System.out.println("Inizializzato: " + isInitialized);

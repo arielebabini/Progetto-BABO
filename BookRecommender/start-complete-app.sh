@@ -1,10 +1,10 @@
 #!/bin/bash
-# start-complete-app.sh - Avvio automatico completo di Apple Books Client
+# start-complete-app.sh - Avvio automatico completo di Books Client
 # Avvia database, server e client in sequenza
 
 set -e
 
-echo "🚀 AVVIO AUTOMATICO APPLE BOOKS CLIENT"
+echo "🚀 AVVIO AUTOMATICO BOOKS CLIENT"
 echo "======================================"
 
 # Variabili configurabili
@@ -133,8 +133,15 @@ else
     echo "   Porta: $SERVER_PORT"
     echo "   Logs salvati in: server.log"
 
-    # Avvia il server in background
-    nohup mvn spring-boot:run -pl server -Dspring-boot.run.fork=true > server.log 2>&1 &
+    SERVER_JAR=$(find server/target -name "server-*.jar" | head -n 1)
+    if [ -z "$SERVER_JAR" ]; then
+        echo "❌ JAR del server non trovato! Esegui prima ./build-executables.sh"
+        exit 1
+    fi
+
+    echo "   Avvio del file JAR: $SERVER_JAR"
+    # Avvia il server JAR in background
+    nohup java -jar $SERVER_JAR > server.log 2>&1 &
     SERVER_PID=$!
 
     echo "   Server PID: $SERVER_PID"
@@ -155,28 +162,28 @@ echo "4️⃣ VERIFICA DISTRIBUZIONE CLIENT"
 echo "================================="
 
 # Verifica che la distribuzione sia pronta
-if [ ! -f "dist/AppleBooksClient.jar" ]; then
+if [ ! -f "dist/BooksClient.jar" ]; then
     echo "🔄 Distribuzione client non trovata, generazione..."
     ./build-executables.sh
 fi
 
 # Verifica dimensioni JAR (deve contenere dipendenze)
-JAR_SIZE=$(du -m "dist/AppleBooksClient.jar" | cut -f1)
+JAR_SIZE=$(du -m "dist/BooksClient.jar" | cut -f1)
 if [ "$JAR_SIZE" -lt 20 ]; then
     echo "⚠️  JAR sembra troppo piccolo (${JAR_SIZE}MB), rigenerazione..."
     ./build-executables.sh
 fi
 
-echo "✅ Client distribuito: dist/AppleBooksClient.jar (${JAR_SIZE}MB)"
+echo "✅ Client distribuito: dist/BooksClient.jar (${JAR_SIZE}MB)"
 
 echo ""
 echo "5️⃣ AVVIO CLIENT"
 echo "================"
 
-echo "🚀 Avvio Apple Books Client..."
+echo "🚀 Avvio Books Client..."
 echo ""
 echo "📚 ======================================"
-echo "   APPLE BOOKS CLIENT - Starting..."
+echo "   BOOKS CLIENT - Starting..."
 echo "======================================"
 echo ""
 
@@ -186,8 +193,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "🍎 Sistema: macOS"
     java -Djava.awt.headless=false \
          -Djavafx.platform=desktop \
-         -Dprism.order=sw \
-         -jar dist/AppleBooksClient.jar &
+         -jar dist/BooksClient.jar &
     CLIENT_PID=$!
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     # Linux
@@ -195,7 +201,7 @@ elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
     java --add-modules javafx.controls,javafx.fxml \
          --add-opens javafx.graphics/com.sun.javafx.application=ALL-UNNAMED \
          --add-opens javafx.base/com.sun.javafx.reflect=ALL-UNNAMED \
-         -jar dist/AppleBooksClient.jar &
+         -jar dist/BooksClient.jar &
     CLIENT_PID=$!
 else
     # Altri sistemi
@@ -207,7 +213,7 @@ fi
 echo "   Client PID: $CLIENT_PID"
 echo ""
 echo "✅ ==============================================="
-echo "   APPLE BOOKS CLIENT AVVIATO CON SUCCESSO!"
+echo "   BOOKS CLIENT AVVIATO CON SUCCESSO!"
 echo "==============================================="
 echo ""
 echo "📊 SERVIZI ATTIVI:"

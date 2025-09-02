@@ -32,36 +32,182 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.util.concurrent.CompletableFuture;
 
 import javafx.scene.control.TableView;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 /**
- * Pannello di gestione amministrativa degli utenti
+ * Gestisce il pannello di amministrazione per il client dell'applicazione BABO.
+ * <p>
+ * Questa classe fornisce un'interfaccia utente JavaFX completa e dinamica per
+ * le operazioni amministrative, consentendo la gestione di utenti, libri e
+ * recensioni. La sua architettura è modulare, con sezioni dedicate per ogni
+ * tipo di entità e una gestione robusta delle interazioni con i servizi backend.
+ * </p>
+ *
+ * <h3>Funzionalità principali:</h3>
+ * <ul>
+ * <li><strong>Gestione Utenti:</strong> Visualizzazione e eliminazione degli utenti registrati.</li>
+ * <li><strong>Gestione Libri:</strong> Operazioni CRUD (Creazione, Lettura, Aggiornamento, Eliminazione)
+ * sui libri del catalogo, inclusa la gestione delle copertine locali.</li>
+ * <li><strong>Gestione Recensioni:</strong> Visualizzazione e moderazione delle recensioni e delle valutazioni.</li>
+ * <li><strong>Interfaccia Utente Dinamica:</strong> Navigazione fluida tra le diverse sezioni amministrative.</li>
+ * <li><strong>Feedback in tempo reale:</strong> Messaggi di stato dinamici per monitorare l'esito delle operazioni.</li>
+ * </ul>
+ *
+ * <h3>Architettura e Design:</h3>
+ * <p>
+ * Il pannello è costruito come un componente {@link VBox} che gestisce dinamicamente
+ * il suo contenuto in base alla sezione selezionata (utenti, libri, recensioni).
+ * L'integrazione con {@link AuthenticationManager} garantisce che solo gli
+ * amministratori autenticati possano accedere e operare. Il pannello utilizza
+ * {@link ObservableList} per legare i dati ai componenti {@link TableView},
+ * assicurando che le tabelle si aggiornino automaticamente quando i dati
+ * vengono modificati.
+ * </p>
+ *
+ * <h3>Integrazione con Servizi:</h3>
+ * <p>
+ * Tutte le operazioni di gestione dati (recupero, eliminazione, modifica, ecc.)
+ * sono delegate a {@link AdminService}. Questo assicura che la logica di business
+ * e l'accesso al database siano separati dall'interfaccia utente. Le chiamate
+ * ai servizi sono asincrone e gestite tramite {@link java.util.concurrent.CompletableFuture}
+ * per non bloccare il thread dell'interfaccia utente.
+ * </p>
+ *
+ * <h3>Esempio di utilizzo:</h3>
+ * <pre>{@code
+ * // Inizializza il manager di autenticazione e il pannello admin
+ * AuthenticationManager authManager = new AuthenticationManager();
+ * AdminPanel adminPanel = new AdminPanel(authManager);
+ *
+ * // Crea la scena e la root
+ * StackPane root = new StackPane();
+ * Scene scene = new Scene(root, 1024, 768);
+ *
+ * // Aggiungi il pannello admin alla root della scena
+ * root.getChildren().add(adminPanel.createAdminPanel());
+ *
+ * // Mostra lo stage
+ * primaryStage.setScene(scene);
+ * primaryStage.show();
+ * }</pre>
+ *
+ * <h3>Thread Safety:</h3>
+ * <p>
+ * Tutti gli aggiornamenti dell'interfaccia utente, in risposta ai risultati
+ * delle operazioni asincrone, sono eseguiti in modo sicuro utilizzando
+ * {@link Platform#runLater(Runnable)}, garantendo che le modifiche vengano
+ * applicate sul JavaFX Application Thread.
+ * </p>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see AdminService
+ * @see Book
+ * @see User
+ * @see Review
  */
 public class AdminPanel {
 
+    /**
+     * Gestisce l'interazione con l'API di autenticazione per la verifica dei permessi.
+     */
     private final AuthenticationManager authManager;
+
+    /**
+     * Fornisce i metodi per le operazioni CRUD (Create, Read, Update, Delete) sui dati
+     * gestiti dal pannello di amministrazione, come utenti, libri e recensioni.
+     */
     private final AdminService adminService;
+
+    /**
+     * La tabella JavaFX che visualizza i dati degli utenti.
+     */
     private TableView<User> usersTable;
+
+    /**
+     * Una lista osservabile che contiene i dati degli utenti recuperati dal servizio.
+     * È legata a {@link #usersTable} per garantire aggiornamenti dinamici dell'interfaccia.
+     */
     private ObservableList<User> usersData;
+
+    /**
+     * Un'etichetta JavaFX utilizzata per mostrare messaggi di stato, come l'esito
+     * delle operazioni o lo stato del caricamento dei dati.
+     */
     private Label statusLabel;
 
+    /**
+     * La tabella JavaFX che visualizza i dati dei libri.
+     */
     private TableView<Book> booksTable;
+
+    /**
+     * Una lista osservabile che contiene i dati dei libri recuperati dal servizio.
+     * È legata a {@link #booksTable} per aggiornamenti automatici.
+     */
     private ObservableList<Book> booksData;
+
+    /**
+     * Il contenitore principale per le diverse viste (utenti, libri, recensioni).
+     * Viene aggiornato dinamicamente per mostrare la sezione selezionata.
+     */
     private VBox currentContent;
 
+    /**
+     * Il contenitore radice che incapsula l'intero layout del pannello di amministrazione.
+     */
     private VBox mainAdminPanel;
 
+    /**
+     * Una copia completa e non filtrata di tutti i dati dei libri, utilizzata per
+     * le operazioni di ricerca e aggiornamento.
+     */
     private ObservableList<Book> allBooksData;
+
+    /**
+     * Il campo di testo utilizzato per l'inserimento della stringa di ricerca.
+     */
     private TextField searchField;
 
+    /**
+     * La tabella JavaFX che visualizza i dati delle recensioni.
+     */
     private TableView<BookRating> reviewsTable;
+
+    /**
+     * Una lista osservabile che contiene i dati delle recensioni recuperati e formattati.
+     */
     private ObservableList<BookRating> reviewsData;
+
+    /**
+     * Una copia completa di tutte le recensioni, utilizzata per le operazioni di
+     * ricerca e filtraggio.
+     */
     private ObservableList<Review> allReviewsData;
+
+    /**
+     * Il campo di testo utilizzato per la ricerca all'interno della tabella delle recensioni.
+     */
     private TextField reviewsSearchField;
 
+    /**
+     * Costruisce una nuova istanza di {@code AdminPanel}.
+     * <p>
+     * Questo costruttore inizializza i componenti principali del pannello di amministrazione,
+     * incluse le dipendenze da {@link AuthenticationManager} e {@link AdminService}.
+     * Prepara le {@link ObservableList} per la gestione dinamica dei dati di utenti,
+     * libri e recensioni, e si assicura che la directory per le copertine dei libri
+     * sia pronta per l'uso.
+     * </p>
+     *
+     * @param authManager L'istanza di {@link AuthenticationManager} utilizzata per
+     * gestire l'autenticazione e i permessi dell'utente corrente.
+     */
     public AdminPanel(AuthenticationManager authManager) {
         this.authManager = authManager;
         this.adminService = new AdminService();
@@ -74,12 +220,21 @@ public class AdminPanel {
         this.allBooksData = FXCollections.observableArrayList();
 
         this.reviewsData = FXCollections.observableArrayList();
-        this.allReviewsData = FXCollections.observableArrayList();
     }
 
 
     /**
-     * Crea il pannello per admin
+     * Crea e restituisce il layout principale del pannello di amministrazione.
+     * <p>
+     * Questo metodo costruisce la struttura di base dell'interfaccia utente amministrativa,
+     * impostando lo stile del contenitore principale ({@link VBox}) e aggiungendo i
+     * componenti principali: l'header e il menu di navigazione. È il punto di ingresso
+     * per la visualizzazione dell'intera interfaccia.
+     * </p>
+     *
+     * @return Un {@link VBox} che rappresenta il pannello di amministrazione completo.
+     * @see #createHeader()
+     * @see #createAdminMenu()
      */
     public VBox createAdminPanel() {
         mainAdminPanel = new VBox(20);
@@ -96,7 +251,22 @@ public class AdminPanel {
     }
 
     /**
-     * Crea il menu principale di amministrazione
+     * Crea il contenitore del menu principale per il pannello di amministrazione.
+     * <p>
+     * Questo metodo costruisce la sezione del menu che permette all'amministratore
+     * di navigare tra le diverse aree di gestione: utenti, libri e recensioni.
+     * Il layout è organizzato in un {@link VBox} centrale che contiene un titolo,
+     * un sottotitolo, e una serie di "card" ({@link VBox}) interattive, ognuna
+     * che rappresenta una specifica area di gestione. Ogni card è un pulsante
+     * stilizzato che, al click, attiva la vista corrispondente. Include anche
+     * un'etichetta che mostra l'utente amministratore attualmente connesso.
+     * </p>
+     *
+     * @return Un {@link VBox} che rappresenta il menu di navigazione dell'amministratore.
+     * @see #createMenuCard(String, String, String, String, javafx.event.EventHandler)
+     * @see #showUsersManagement()
+     * @see #showBooksManagement()
+     * @see #showReviewsManagement()
      */
     private VBox createAdminMenu() {
         VBox container = new VBox(30);
@@ -162,7 +332,23 @@ public class AdminPanel {
     }
 
     /**
-     * Crea una card per il menu amministrativo
+     * Crea una card di menu stilizzata e interattiva.
+     * <p>
+     * Questo metodo di utilità genera un componente {@link VBox} che funge da
+     * "card" cliccabile all'interno del menu di amministrazione. La card visualizza
+     * un'icona, un titolo e una breve descrizione. Include uno stile CSS in linea
+     * per il design (colori, bordi, angoli arrotondati) e gestisce gli effetti
+     * visivi al passaggio del mouse (`onMouseEntered`, `onMouseExited`) per
+     * fornire un feedback all'utente. Al click, esegue un'azione definita.
+     * </p>
+     *
+     * @param icon Il carattere Unicode o la stringa per l'icona da visualizzare.
+     * @param title Il titolo della card.
+     * @param description Una breve descrizione delle funzionalità della card.
+     * @param color La stringa esadecimale del colore per il bordo e l'icona.
+     * @param action Un {@link javafx.event.EventHandler} che definisce l'azione da
+     * eseguire al click sulla card.
+     * @return Un {@link VBox} che rappresenta la card di menu creata.
      */
     private VBox createMenuCard(String icon, String title, String description, String color, javafx.event.EventHandler<javafx.scene.input.MouseEvent> action) {
         VBox card = new VBox(15);
@@ -243,7 +429,16 @@ public class AdminPanel {
     }
 
     /**
-     * Crea header del pannello admin
+     * Crea e restituisce l'intestazione standard del pannello di amministrazione.
+     * <p>
+     * Questo metodo di utilità costruisce la sezione superiore del layout, che include
+     * il titolo principale ("Gestione") e un sottotitolo descrittivo. Il layout
+     * è semplice, organizzato in un {@link VBox} allineato a sinistra, e serve a
+     * dare un'immediata indicazione all'utente che si trova nel pannello
+     * amministrativo.
+     * </p>
+     *
+     * @return Un {@link VBox} che rappresenta l'intestazione del pannello.
      */
     private VBox createHeader() {
         VBox header = new VBox(10);
@@ -268,7 +463,27 @@ public class AdminPanel {
      */
 
     /**
-     * Crea tabella di gestione utenti
+     * Crea e configura una {@link TableView} per visualizzare e gestire i dati degli utenti.
+     * <p>
+     * Questo metodo di utilità costruisce la tabella che elenca tutti gli utenti
+     * registrati. Imposta colonne specifiche per ID, nome utente, email, nome completo e
+     * stato, associando i dati del modello {@link User} a ciascuna colonna. Lo stile
+     * della tabella è definito per integrarsi visivamente con il tema scuro del
+     * pannello di amministrazione.
+     * </p>
+     *
+     * <h3>Colonne della tabella:</h3>
+     * <ul>
+     * <li><b>ID:</b> L'identificatore univoco dell'utente.</li>
+     * <li><b>Username:</b> Il nome utente per l'accesso.</li>
+     * <li><b>Email:</b> L'indirizzo email dell'utente.</li>
+     * <li><b>Nome Completo:</b> Combina nome e cognome dell'utente.</li>
+     * <li><b>Stato:</b> Indica lo stato attuale dell'account (es. "Attivo").</li>
+     * </ul>
+     *
+     * @return Un {@link VBox} che contiene la tabella degli utenti con il relativo titolo.
+     * @see User
+     * @see TableView
      */
     private VBox createUsersTable() {
         VBox container = new VBox(10);
@@ -344,7 +559,29 @@ public class AdminPanel {
     }
 
     /**
-     * Mostra la gestione utenti
+     * Orchestra la visualizzazione della sezione di gestione degli utenti.
+     * <p>
+     * Questo metodo è responsabile di aggiornare il pannello di amministrazione per mostrare
+     * l'interfaccia di gestione degli utenti. Esegue i seguenti passaggi:
+     * </p>
+     * <ol>
+     * <li>Cancella il contenuto esistente dal pannello principale.</li>
+     * <li>Crea e aggiunge una nuova intestazione specifica per la sezione.</li>
+     * <li>Crea e aggiunge una barra degli strumenti dedicata agli utenti.</li>
+     * <li>Inizializza il contenitore dei contenuti e la tabella degli utenti.</li>
+     * <li>Aggiunge una barra di stato per fornire feedback all'utente.</li>
+     * <li>Avvia il caricamento asincrono dei dati degli utenti dal servizio.</li>
+     * </ol>
+     * <p>
+     * Questo metodo garantisce che la transizione tra le diverse sezioni del pannello
+     * amministrativo avvenga in modo pulito e strutturato.
+     * </p>
+     *
+     * @see #createHeader()
+     * @see #createUsersToolbar()
+     * @see #createUsersTable()
+     * @see #createStatusBar()
+     * @see #loadUsers()
      */
     private void showUsersManagement() {
         System.out.println("🔄 Passaggio a gestione utenti...");
@@ -376,7 +613,22 @@ public class AdminPanel {
     }
 
     /**
-     * Crea toolbar specifico per gestione utenti
+     * Crea e restituisce la barra degli strumenti per la gestione degli utenti.
+     * <p>
+     * Questo metodo costruisce un {@link HBox} che funge da barra degli strumenti per la
+     * sezione di gestione degli utenti. Contiene pulsanti per le azioni comuni come
+     * tornare al menu principale, aggiornare la tabella degli utenti ed eliminare
+     * un utente selezionato. Ogni pulsante è stilizzato con colori specifici e un
+     * gestore di eventi (`setOnAction`) che invoca il metodo appropriato.
+     * Il layout include anche uno spacer (`Region`) per allineare gli elementi
+     * e un'etichetta che identifica la sezione corrente.
+     * </p>
+     *
+     * @return Un {@link HBox} che rappresenta la barra degli strumenti degli utenti.
+     * @see #backToMainMenu()
+     * @see #loadUsers()
+     * @see #deleteSelectedUser()
+     * @see #styleButton(Button, String)
      */
     private HBox createUsersToolbar() {
         HBox toolbar = new HBox(15);
@@ -407,7 +659,27 @@ public class AdminPanel {
     }
 
     /**
-     * Carica gli utenti
+     * Carica in modo asincrono la lista di tutti gli utenti dal servizio di amministrazione.
+     * <p>
+     * Questo metodo avvia una richiesta non bloccante al servizio {@link AdminService}
+     * per recuperare i dati di tutti gli utenti registrati. L'uso di
+     * assicura che il thread dell'interfaccia utente
+     * rimanga reattivo durante l'operazione di rete.
+     * </p>
+     * <p>
+     * Il metodo gestisce sia il successo che il fallimento della richiesta.
+     * Se la chiamata ha successo, la {@link ObservableList} {@code usersData}
+     * viene aggiornata con i nuovi dati e una notifica di successo viene mostrata
+     * tramite {@link #statusLabel}. In caso di errore (sia dal servizio che di
+     * connessione), un messaggio di errore viene visualizzato all'utente,
+     * fornendo un feedback chiaro sul problema.
+     * </p>
+     *
+     * @see AdminService#getAllUsersAsync(String)
+     * @see Platform#runLater(Runnable)
+     * @see #statusLabel
+     * @see #usersData
+     * @see #showAlert(String, String)
      */
     private void loadUsers() {
         statusLabel.setText("🔄 Caricamento utenti...");
@@ -442,7 +714,25 @@ public class AdminPanel {
     }
 
     /**
-     * Elimina l'utente selezionato
+     * Gestisce il processo di eliminazione di un utente selezionato dalla tabella.
+     * <p>
+     * Questo metodo esegue una serie di controlli e richiede una conferma prima di procedere
+     * con l'eliminazione. I passaggi includono:
+     * </p>
+     * <ol>
+     * <li>Verifica se un utente è stato effettivamente selezionato nella tabella.</li>
+     * <li>Mostra una finestra di dialogo di conferma con i dettagli dell'utente per prevenire
+     * eliminazioni accidentali.</li>
+     * <li>Se l'utente conferma, chiama un metodo privato per eseguire la richiesta di
+     * eliminazione al servizio di backend.</li>
+     * </ol>
+     * <p>
+     * Se l'utente non è selezionato o i dati sono incompleti, viene visualizzato un
+     * messaggio di avviso per guidare l'amministratore.
+     * </p>
+     *
+     * @see #performDeleteUser(User)
+     * @see #showAlert(String, String)
      */
     private void deleteSelectedUser() {
         User selectedUser = usersTable.getSelectionModel().getSelectedItem();
@@ -485,7 +775,22 @@ public class AdminPanel {
     }
 
     /**
-     * Verifica di conferma eliminazione utente
+     * Esegue l'operazione di eliminazione di un utente a livello di servizio.
+     * <p>
+     * Questo metodo invia una richiesta asincrona al servizio di amministrazione per
+     * eliminare un utente specifico. Utilizza {@link CompletableFuture} per non bloccare
+     * l'interfaccia utente. Dopo la ricezione della risposta, aggiorna la UI
+     * con un messaggio di stato appropriato. Se l'eliminazione ha successo,
+     * rimuove l'utente dalla {@link ObservableList} locale per aggiornare la tabella.
+     * In caso di errore (sia dal servizio che di connessione), visualizza un
+     * messaggio di errore chiaro all'utente.
+     * </p>
+     *
+     * @param user L'oggetto {@link User} da eliminare.
+     * @see AdminService#deleteUserAsync(String, String)
+     * @see #statusLabel
+     * @see #usersData
+     * @see #showAlert(String, String)
      */
     private void performDeleteUser(User user) {
         statusLabel.setText("🗑️ Eliminazione in corso...");
@@ -523,7 +828,29 @@ public class AdminPanel {
      */
 
     /**
-     * Crea la tabella per la gestione libri
+     * Crea e configura una {@link TableView} per visualizzare e gestire i dati dei libri.
+     * <p>
+     * Questo metodo di utilità costruisce la tabella che elenca tutti i libri nel catalogo.
+     * Imposta colonne specifiche per vari dettagli dei libri, inclusa una colonna personalizzata
+     * per visualizzare le copertine. Le colonne sono associate ai campi del modello {@link Book}
+     * per un'efficace visualizzazione dei dati. Lo stile della tabella è definito per
+     * integrarsi con il tema scuro dell'interfaccia di amministrazione.
+     * </p>
+     *
+     * <h3>Colonne della tabella:</h3>
+     * <ul>
+     * <li><b>Copertina:</b> Anteprima visiva della copertina del libro.</li>
+     * <li><b>ISBN:</b> Il codice ISBN univoco del libro.</li>
+     * <li><b>Titolo:</b> Il titolo del libro.</li>
+     * <li><b>Autore:</b> L'autore del libro.</li>
+     * <li><b>Anno:</b> L'anno di pubblicazione.</li>
+     * <li><b>Categoria:</b> La categoria di appartenenza del libro.</li>
+     * </ul>
+     *
+     * @return Un {@link VBox} che contiene la tabella dei libri con il relativo titolo.
+     * @see Book
+     * @see TableView
+     * @see #loadCoverPreview(Book, javafx.scene.image.ImageView)
      */
     private void createBooksTable() {
         booksTable = new TableView<>();
@@ -620,7 +947,27 @@ public class AdminPanel {
     }
 
     /**
-     * Carica la lista dei libri
+     * Carica in modo asincrono l'intero catalogo di libri dal servizio di amministrazione.
+     * <p>
+     * Questo metodo avvia una richiesta non bloccante al servizio {@link AdminService} per
+     * recuperare tutti i libri presenti nel database. L'utilizzo di {@link CompletableFuture}
+     * garantisce che l'interfaccia utente rimanga reattiva durante l'operazione di rete.
+     * </p>
+     * <p>
+     * Il metodo gestisce sia il successo che il fallimento della richiesta. In caso di successo,
+     * i dati vengono salvati nella lista locale {@code allBooksData} e poi copiati in
+     * {@code booksData} per la visualizzazione nella tabella. Infine, aggiorna il
+     * messaggio di stato e la UI per riflettere il risultato dell'operazione. Se si verifica
+     * un errore, sia dal servizio che di connessione, un messaggio di errore viene
+     * visualizzato per fornire un feedback chiaro all'amministratore.
+     * </p>
+     *
+     * @see AdminService#getAllBooksAsync(String)
+     * @see Platform#runLater(Runnable)
+     * @see #statusLabel
+     * @see #booksData
+     * @see #allBooksData
+     * @see #showAlert(String, String)
      */
     private void loadBooks() {
         statusLabel.setText("📚 Caricamento libri...");
@@ -661,7 +1008,26 @@ public class AdminPanel {
     }
 
     /**
-     * Elimina il libro selezionato
+     * Gestisce il processo di eliminazione di un libro selezionato dalla tabella.
+     * <p>
+     * Questo metodo esegue una serie di controlli per garantire che l'operazione sia valida.
+     * I passaggi principali includono:
+     * </p>
+     * <ol>
+     * <li>Verifica se un libro è stato selezionato dall'utente nella tabella.</li>
+     * <li>Controlla se l'ISBN del libro selezionato è valido.</li>
+     * <li>Mostra una finestra di dialogo di conferma per prevenire l'eliminazione accidentale,
+     * fornendo un riepilogo dei dettagli del libro.</li>
+     * <li>Se l'utente conferma l'operazione, invoca un metodo per eseguire l'eliminazione
+     * a livello di servizio.</li>
+     * </ol>
+     * <p>
+     * Se la selezione è mancante o i dati non sono validi, un messaggio di avviso viene
+     * mostrato all'utente.
+     * </p>
+     *
+     * @see #performDeleteBook(Book)
+     * @see #showAlert(String, String)
      */
     private void deleteSelectedBook() {
         Book selectedBook = booksTable.getSelectionModel().getSelectedItem();
@@ -695,7 +1061,25 @@ public class AdminPanel {
     }
 
     /**
-     * Esegue l'eliminazione del libro
+     * Esegue l'operazione di eliminazione di un libro a livello di servizio.
+     * <p>
+     * Questo metodo invia una richiesta asincrona al servizio di amministrazione per
+     * eliminare un libro specifico. Utilizza {@link java.util.concurrent.CompletableFuture}
+     * per non bloccare l'interfaccia utente durante la comunicazione con il backend.
+     * </p>
+     * <p>
+     * Una volta completata la richiesta, il metodo gestisce la risposta, aggiornando
+     * la UI con un messaggio di stato appropriato. Se l'eliminazione ha successo,
+     * il libro viene rimosso dalla lista locale {@code booksData} per riflettere
+     * immediatamente la modifica nella tabella. In caso di errore, sia dal servizio
+     * che di connessione, viene visualizzato un avviso all'utente.
+     * </p>
+     *
+     * @param book L'oggetto {@link Book} da eliminare.
+     * @see org.BABO.client.service.AdminService#deleteBookAsync(String, String)
+     * @see #statusLabel
+     * @see #booksData
+     * @see #showAlert(String, String)
      */
     private void performDeleteBook(Book book) {
         statusLabel.setText("🗑️ Eliminazione in corso...");
@@ -727,7 +1111,31 @@ public class AdminPanel {
     }
 
     /**
-     * Mostra il dialog per aggiungere un nuovo libro
+     * Mostra una finestra di dialogo modale per l'aggiunta di un nuovo libro.
+     * <p>
+     * Questo metodo crea e gestisce un'interfaccia utente interattiva per l'inserimento
+     * dei dati di un nuovo libro. La finestra di dialogo include campi di testo per
+     * le informazioni principali del libro (ISBN, titolo, autore, descrizione, anno, categoria)
+     * e un selettore di file per caricare un'immagine di copertina.
+     * </p>
+     *
+     * <h3>Caratteristiche principali:</h3>
+     * <ul>
+     * <li><b>Validazione Immagine:</b> Verifica che l'immagine di copertina selezionata sia valida
+     * e che le sue proporzioni (larghezza:altezza) siano comprese tra 1:1 e 1:2.</li>
+     * <li><b>Anteprima Copertina:</b> Mostra una piccola anteprima dell'immagine selezionata.</li>
+     * <li><b>Salvataggio Copertina:</b> Salva l'immagine di copertina nella directory locale
+     * con un nome file basato sull'ISBN per un'organizzazione coerente.</li>
+     * <li><b>Validazione Dati:</b> Prima di inviare i dati al servizio, verifica che
+     * i campi obbligatori (ISBN, titolo, autore) non siano vuoti.</li>
+     * <li><b>Gestione Asincrona:</b> L'inserimento del nuovo libro nel database avviene
+     * tramite una chiamata asincrona a {@code addNewBook}.</li>
+     * </ul>
+     *
+     * @see #addNewBook(java.util.Map)
+     * @see #saveCoverImageWithDebug(java.io.File, String)
+     * @see javafx.scene.control.Dialog
+     * @see javafx.stage.FileChooser
      */
     private void showAddBookDialog() {
         Dialog<Map<String, String>> dialog = new Dialog<>();
@@ -887,7 +1295,29 @@ public class AdminPanel {
     }
 
     /**
-     * Salva l'immagine di copertina nella cartella books_covers
+     * Salva in modo sicuro un'immagine di copertina del libro nella directory delle risorse.
+     * <p>
+     * Questo metodo di utilità esegue diverse operazioni critiche per il salvataggio
+     * di un'immagine di copertina, garantendo che il file sia valido e che la directory
+     * di destinazione esista. Il nome del file di destinazione viene creato a partire
+     * dall'ISBN per garantire un'identificazione univoca.
+     * </p>
+     *
+     * <h3>Passaggi operativi:</h3>
+     * <ol>
+     * <li>Valida l'ISBN per assicurarsi che sia presente e pulito da caratteri non validi.</li>
+     * <li>Costruisce il percorso completo di destinazione basato su una directory di risorse predefinita.</li>
+     * <li>Crea la directory di destinazione se non esiste già.</li>
+     * <li>Esegue una serie di verifiche sul file sorgente, inclusa la sua esistenza e la dimensione massima (5MB).</li>
+     * <li>Copia il file sorgente nel percorso di destinazione, sovrascrivendo qualsiasi file esistente con lo stesso nome.</li>
+     * <li>Restituisce il nome del file di destinazione per l'uso nel modello dati.</li>
+     * </ol>
+     *
+     * @param sourceFile Il {@link File} sorgente che rappresenta l'immagine di copertina selezionata.
+     * @param isbn La stringa ISBN del libro, utilizzata per il nome del file di destinazione.
+     * @return Il nome del file dell'immagine salvata (es. "9781234567890.jpg").
+     * @throws IOException Se si verifica un errore durante il salvataggio, la verifica del file,
+     * o se l'ISBN non è valido, il file sorgente non esiste, o supera il limite di dimensione.
      */
     private String saveCoverImageWithDebug(File sourceFile, String isbn) throws IOException {
         if (isbn == null || isbn.trim().isEmpty()) {
@@ -950,7 +1380,28 @@ public class AdminPanel {
     }
 
     /**
-     * Inizializza la directory books_covers se non esiste
+     * Inizializza la directory locale per la memorizzazione delle copertine dei libri.
+     * <p>
+     * Questo metodo di utilità garantisce che il percorso di sistema richiesto per
+     * salvare e recuperare le immagini di copertina dei libri esista prima che l'applicazione
+     * tenti di accedervi. Esegue i seguenti passaggi:
+     * </p>
+     * <ol>
+     * <li>Costruisce il percorso completo della directory {@code books_covers} all'interno
+     * della cartella delle risorse del progetto.</li>
+     * <li>Verifica se la directory esiste; se non è presente, la crea, insieme a tutte le
+     * directory genitrici necessarie.</li>
+     * <li>Verifica la presenza di un'immagine segnaposto {@code placeholder.jpg} e
+     * stampa un avviso se non viene trovata, poiché potrebbe essere necessaria per
+     * gestire i libri senza copertina.</li>
+     * </ol>
+     * <p>
+     * L'operazione è critica per il corretto funzionamento delle funzionalità di gestione dei libri.
+     * </p>
+     *
+     * @throws IOException Se si verifica un errore durante la creazione della directory.
+     * @see java.nio.file.Files#createDirectories(Path, java.nio.file.attribute.FileAttribute[])
+     * @see java.nio.file.Paths#get(String, String...)
      */
     private void initializeBooksCoversDirectory() {
         try {
@@ -975,7 +1426,29 @@ public class AdminPanel {
     }
 
     /**
-     * Carica l'anteprima della copertina per un libro
+     * Carica un'immagine di copertina per un libro e la imposta su una {@link ImageView}.
+     * <p>
+     * Questo metodo di utilità gestisce il caricamento delle anteprime delle copertine dei libri
+     * dalla directory locale. Funziona in questo modo:
+     * </p>
+     * <ol>
+     * <li>Costruisce il percorso del file immagine basandosi sull'ISBN del libro.</li>
+     * <li>Verifica se il file di copertina esiste in locale.</li>
+     * <li>Se il file esiste, lo carica e lo imposta sulla {@link ImageView} fornita,
+     * assicurandosi che l'immagine sia ridimensionata correttamente.</li>
+     * <li>In caso di file non trovato, errore di caricamento o eccezione, il metodo
+     * ripiega sul caricamento di un'immagine segnaposto per garantire la coerenza
+     * dell'interfaccia utente.</li>
+     * </ol>
+     * <p>
+     * L'uso di questa logica di fallback migliora la robustezza dell'applicazione,
+     * evitando errori di visualizzazione se mancano le immagini.
+     * </p>
+     *
+     * @param book L'oggetto {@link Book} per il quale si sta cercando la copertina.
+     * @param imageView L'{@link ImageView} di destinazione su cui visualizzare l'immagine.
+     * @see #loadPlaceholderImage(ImageView)
+     * @see Book#getIsbn()
      */
     private void loadCoverPreview(Book book, ImageView imageView) {
         try {
@@ -1009,7 +1482,28 @@ public class AdminPanel {
     }
 
     /**
-     * Carica l'immagine placeholder
+     * Carica un'immagine segnaposto (placeholder) e la imposta su una {@link ImageView}.
+     * <p>
+     * Questo metodo di utilità viene utilizzato come fallback quando l'immagine di copertina
+     * di un libro non è disponibile o non può essere caricata. Esegue i seguenti passaggi:
+     * </p>
+     * <ol>
+     * <li>Costruisce il percorso del file {@code placeholder.jpg} all'interno della directory
+     * delle copertine dei libri.</li>
+     * <li>Verifica l'esistenza del file segnaposto.</li>
+     * <li>Se il file esiste, lo carica e lo imposta sulla {@link ImageView} fornita,
+     * con le dimensioni corrette.</li>
+     * <li>Se il file segnaposto non è presente o si verifica un errore durante il caricamento,
+     * viene creato un semplice segnaposto a livello di codice per garantire che l'interfaccia
+     * utente non rimanga vuota.</li>
+     * </ol>
+     * <p>
+     * Questo approccio migliora la robustezza dell'applicazione, gestendo in modo
+     * elegante i casi in cui mancano le immagini.
+     * </p>
+     *
+     * @param imageView L'{@link ImageView} di destinazione su cui visualizzare il segnaposto.
+     * @see #createSimplePlaceholder(ImageView)
      */
     private void loadPlaceholderImage(ImageView imageView) {
         try {
@@ -1034,7 +1528,28 @@ public class AdminPanel {
     }
 
     /**
-     * Aggiunge un nuovo libro
+     * Aggiunge un nuovo libro al catalogo tramite una chiamata asincrona al servizio.
+     * <p>
+     * Questo metodo orchestra il processo di inserimento di un nuovo libro nel database.
+     * Avvia un'operazione non bloccante per inviare i dati del libro forniti
+     * dalla finestra di dialogo a {@link AdminService}.
+     * </p>
+     * <p>
+     * Il metodo gestisce il feedback all'utente tramite {@link #statusLabel}:
+     * </p>
+     * <ul>
+     * <li>Mostra un messaggio "Aggiunta in corso" e aggiorna lo stato visivo.</li>
+     * <li>Se l'operazione ha successo, visualizza un messaggio di conferma e richiama
+     * {@link #loadBooks()} per aggiornare automaticamente la tabella dei libri.</li>
+     * <li>In caso di errore (sia dal servizio che di connessione), visualizza un messaggio
+     * di errore e un avviso.</li>
+     * </ul>
+     *
+     * @param bookData Una {@link Map} contenente i dati del libro da aggiungere,
+     * con chiavi come "isbn", "title", "author", ecc.
+     * @see AdminService#addBookAsync(String, String, String, String, String, String, String)
+     * @see #loadBooks()
+     * @see #showAlert(String, String)
      */
     private void addNewBook(Map<String, String> bookData) {
         statusLabel.setText("📚 Aggiunta libro in corso...");
@@ -1082,6 +1597,24 @@ public class AdminPanel {
                 });
     }
 
+    /**
+     * Crea e restituisce la barra di stato dell'applicazione.
+     * <p>
+     * Questo metodo di utilità costruisce un {@link HBox} che funge da contenitore
+     * per mostrare messaggi di stato all'utente. Contiene una singola etichetta,
+     * {@link #statusLabel}, che viene aggiornata dinamicamente per fornire feedback
+     * sullo stato delle operazioni in corso (es. caricamento dati, eliminazione
+     * di elementi, messaggi di errore).
+     * </p>
+     * <p>
+     * La barra di stato è un componente essenziale per l'esperienza utente,
+     * in quanto fornisce un'immediata indicazione visiva del successo o del fallimento
+     * di un'azione.
+     * </p>
+     *
+     * @return Un {@link HBox} che rappresenta la barra di stato.
+     * @see #statusLabel
+     */
     private HBox createStatusBar() {
         HBox statusBar = new HBox();
         statusBar.setAlignment(Pos.CENTER_LEFT);
@@ -1096,7 +1629,31 @@ public class AdminPanel {
     }
 
     /**
-     * Mostra la gestione libri
+     * Orchestra la visualizzazione della sezione di gestione dei libri.
+     * <p>
+     * Questo metodo è responsabile di aggiornare il pannello di amministrazione per mostrare
+     * l'interfaccia di gestione del catalogo dei libri. Esegue i seguenti passaggi:
+     * </p>
+     * <ol>
+     * <li>Cancella il contenuto esistente dal pannello principale.</li>
+     * <li>Crea e aggiunge un'intestazione e una barra degli strumenti dedicate ai libri.</li>
+     * <li>Inizializza i componenti principali della gestione dei libri, inclusi un pulsante
+     * per aggiungere nuovi libri, una barra di ricerca e la tabella dei libri.</li>
+     * <li>Aggiunge una barra di stato per fornire feedback all'utente.</li>
+     * <li>Avvia il caricamento asincrono dei dati dei libri per popolare la tabella.</li>
+     * </ol>
+     * <p>
+     * Questo metodo garantisce che la transizione tra le diverse sezioni del pannello
+     * amministrativo avvenga in modo pulito e strutturato, caricando i dati necessari
+     * solo al momento opportuno.
+     * </p>
+     *
+     * @see #createHeader()
+     * @see #createBooksToolbar()
+     * @see #createSearchBar()
+     * @see #createBooksTable()
+     * @see #showAddBookDialog()
+     * @see #loadBooks()
      */
     private void showBooksManagement() {
         System.out.println("📄 Passaggio a gestione libri..."); // Debug
@@ -1137,7 +1694,26 @@ public class AdminPanel {
     }
 
     /**
-     * Crea la barra di ricerca per i libri
+     * Crea e configura la barra di ricerca per il pannello di gestione dei libri.
+     * <p>
+     * Questo metodo di utilità costruisce un {@link HBox} che contiene tutti gli elementi
+     * necessari per la funzionalità di ricerca: un'icona, un campo di testo, un pulsante
+     * per cancellare la ricerca e un'etichetta per visualizzare il numero di risultati.
+     * La logica di filtraggio è implementata tramite un listener sulla proprietà del testo
+     * del campo di ricerca, che reagisce in tempo reale all'input dell'utente.
+     * </p>
+     *
+     * <h3>Componenti:</h3>
+     * <ul>
+     * <li><b>Campo di Ricerca ({@link TextField}):</b> Consente all'utente di digitare i criteri
+     * di ricerca. Include un listener che attiva il filtraggio dinamico della tabella.</li>
+     * <li><b>Pulsante "❌":</b> Resetta il campo di ricerca e la visualizzazione della tabella.</li>
+     * <li><b>Etichetta Risultati:</b> Mostra il numero di elementi trovati dopo la ricerca.</li>
+     * </ul>
+     *
+     * @return Un {@link HBox} che rappresenta la barra di ricerca completa.
+     * @see #filterBooks(String)
+     * @see #updateResultsInfo()
      */
     private HBox createSearchBar() {
         HBox searchContainer = new HBox(10);
@@ -1189,7 +1765,24 @@ public class AdminPanel {
     }
 
     /**
-     * Filtra i libri in base al testo di ricerca
+     * Filtra la lista dei libri visualizzati nella tabella in base a una stringa di ricerca.
+     * <p>
+     * Questo metodo di utilità esegue un filtraggio dinamico della {@link ObservableList}
+     * {@link #booksData} in base al testo inserito dall'utente nel campo di ricerca.
+     * L'operazione è reattiva, attivandosi ogni volta che il testo del campo di ricerca
+     * cambia.
+     * </p>
+     * <p>
+     * La logica di filtraggio si basa su un'analisi non sensibile alle maiuscole/minuscole
+     * che cerca corrispondenze tra la stringa di ricerca e i campi del libro come ISBN,
+     * titolo, autore e categoria. Se la stringa di ricerca è vuota, la tabella viene
+     * ripopolata con l'intera lista dei libri originali ({@link #allBooksData}).
+     * </p>
+     *
+     * @param searchText La stringa di testo su cui basare il filtraggio.
+     * @see #booksData
+     * @see #allBooksData
+     * @see #updateResultsInfo()
      */
     private void filterBooks(String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
@@ -1208,7 +1801,27 @@ public class AdminPanel {
     }
 
     /**
-     * Verifica se un libro corrisponde al criterio di ricerca
+     * Verifica se un oggetto {@link Book} corrisponde a una stringa di ricerca.
+     * <p>
+     * Questo metodo di utilità esegue una ricerca non sensibile alle maiuscole/minuscole
+     * attraverso vari campi di un libro. Viene utilizzato dal metodo di filtraggio
+     * principale per determinare quali libri includere nei risultati della ricerca.
+     * </p>
+     *
+     * <h3>Campi di ricerca:</h3>
+     * <ul>
+     * <li>ISBN</li>
+     * <li>Titolo</li>
+     * <li>Autore</li>
+     * <li>Categoria</li>
+     * <li>Anno di pubblicazione</li>
+     * </ul>
+     *
+     * @param book L'oggetto {@link Book} da esaminare.
+     * @param searchText La stringa di ricerca (già convertita in minuscolo e pulita).
+     * @return {@code true} se almeno un campo del libro contiene la stringa di ricerca,
+     * {@code false} altrimenti.
+     * @see #filterBooks(String)
      */
     private boolean matchesSearch(Book book, String searchText) {
         if (book == null || searchText == null || searchText.isEmpty()) {
@@ -1249,7 +1862,22 @@ public class AdminPanel {
     }
 
     /**
-     * Aggiorna le informazioni sui risultati di ricerca
+     * Aggiorna in modo dinamico l'etichetta di stato che visualizza il numero di risultati di ricerca.
+     * <p>
+     * Questo metodo di utilità naviga attraverso la struttura dei nodi dell'interfaccia
+     * utente per individuare l'etichetta dei risultati all'interno della barra di ricerca.
+     * Una volta trovata, aggiorna il suo testo per mostrare il numero di libri
+     * attualmente visualizzati nella tabella (dopo un'operazione di filtraggio)
+     * rispetto al numero totale di libri disponibili.
+     * </p>
+     * <p>
+     * Questo metodo garantisce che l'utente abbia sempre un feedback visivo immediato
+     * sul risultato di una ricerca o di un aggiornamento.
+     * </p>
+     *
+     * @see #booksData
+     * @see #allBooksData
+     * @see #createSearchBar()
      */
     private void updateResultsInfo() {
         if (currentContent != null && currentContent.getChildren().size() > 0) {
@@ -1271,7 +1899,17 @@ public class AdminPanel {
     }
 
     /**
-     * Aggiorna il testo delle informazioni sui risultati
+     * Aggiorna il testo di un'etichetta per mostrare il numero di risultati di ricerca.
+     * <p>
+     * Questo metodo è un'utilità usata per fornire un feedback visivo all'utente
+     * dopo un'operazione di filtraggio. Se il numero di elementi mostrati è uguale
+     * al numero totale di elementi, visualizza il totale; altrimenti, mostra il numero
+     * di elementi filtrati rispetto al totale.
+     * </p>
+     *
+     * @param resultsLabel L'etichetta {@link Label} da aggiornare.
+     * @param shown Il numero di elementi attualmente visualizzati.
+     * @param total Il numero totale di elementi disponibili.
      */
     private void updateResultsInfo(Label resultsLabel, int shown, int total) {
         if (shown == total) {
@@ -1282,14 +1920,39 @@ public class AdminPanel {
     }
 
     /**
-     * Crea un placeholder semplice quando non ci sono immagini
+     * Crea e imposta un placeholder semplice quando non è disponibile un'immagine.
+     * <p>
+     * Questo metodo di utilità serve come fallback finale. Quando non è possibile
+     * caricare un'immagine di copertina o il file segnaposto {@code placeholder.jpg},
+     * questo metodo rimuove qualsiasi immagine esistente dalla {@link ImageView},
+     * lasciandola vuota. Questo garantisce che non vengano visualizzate immagini
+     * errate o non funzionanti, mantenendo la coerenza dell'interfaccia.
+     * </p>
+     *
+     * @param imageView L'{@link ImageView} di destinazione.
+     * @see #loadPlaceholderImage(ImageView)
      */
     private void createSimplePlaceholder(ImageView imageView) {
         imageView.setImage(null);
     }
 
     /**
-     * Crea toolbar specifico per gestione libri
+     * Crea e restituisce la barra degli strumenti per la gestione dei libri.
+     * <p>
+     * Questo metodo costruisce un {@link HBox} che funge da barra degli strumenti per la
+     * sezione di gestione del catalogo libri. Contiene pulsanti per le azioni comuni come
+     * tornare al menu principale, aggiornare la tabella dei libri ed eliminare
+     * un libro selezionato. Ogni pulsante è stilizzato con colori specifici e un
+     * gestore di eventi (`setOnAction`) che invoca il metodo appropriato.
+     * Il layout include anche uno spacer (`Region`) per allineare gli elementi
+     * e un'etichetta che identifica la sezione corrente.
+     * </p>
+     *
+     * @return Un {@link HBox} che rappresenta la barra degli strumenti dei libri.
+     * @see #backToMainMenu()
+     * @see #loadBooks()
+     * @see #deleteSelectedBook()
+     * @see #styleButton(javafx.scene.control.Button, String)
      */
     private HBox createBooksToolbar() {
         HBox toolbar = new HBox(15);
@@ -1326,7 +1989,30 @@ public class AdminPanel {
      */
 
     /**
-     * Mostra la gestione recensioni
+     * Orchestra la visualizzazione della sezione di gestione delle recensioni.
+     * <p>
+     * Questo metodo è responsabile di aggiornare il pannello di amministrazione per mostrare
+     * l'interfaccia di gestione delle recensioni. Esegue i seguenti passaggi:
+     * </p>
+     * <ol>
+     * <li>Cancella il contenuto esistente dal pannello principale.</li>
+     * <li>Crea e aggiunge un'intestazione e una barra degli strumenti dedicate alle recensioni.</li>
+     * <li>Inizializza il contenitore dei contenuti e la tabella delle recensioni.</li>
+     * <li>Aggiunge una barra di stato per fornire feedback all'utente.</li>
+     * <li>Avvia il caricamento asincrono dei dati delle recensioni per popolare la tabella.</li>
+     * </ol>
+     * <p>
+     * Questo metodo garantisce che la transizione tra le diverse sezioni del pannello
+     * amministrativo avvenga in modo pulito e strutturato, caricando i dati necessari
+     * solo al momento opportuno.
+     * </p>
+     *
+     * @see #createHeader()
+     * @see #createReviewsToolbar()
+     * @see #createReviewsSearchBar()
+     * @see #createReviewsTable()
+     * @see #createStatusBar()
+     * @see #loadReviewsData()
      */
     private void showReviewsManagement() {
         System.out.println("📄 Passaggio a gestione recensioni...");
@@ -1363,7 +2049,26 @@ public class AdminPanel {
     }
 
     /**
-     * Barra di ricerca per gestione recensioni
+     * Crea e configura la barra di ricerca per il pannello di gestione delle recensioni.
+     * <p>
+     * Questo metodo di utilità costruisce un {@link HBox} che contiene tutti gli elementi
+     * necessari per la funzionalità di ricerca: un'icona, un campo di testo reattivo
+     * e un pulsante per cancellare la ricerca.
+     * </p>
+     *
+     * <h3>Funzionalità:</h3>
+     * <ul>
+     * <li><b>Campo di Ricerca ({@link TextField}):</b> Consente all'utente di digitare i criteri
+     * di ricerca. Un listener sul testo del campo attiva un filtraggio dinamico
+     * della tabella delle recensioni in tempo reale.</li>
+     * <li><b>Pulsante di cancellazione ("✕"):</b> Resetta il campo di ricerca e ripristina
+     * la visualizzazione completa della tabella.</li>
+     * </ul>
+     *
+     * @return Un {@link HBox} che rappresenta la barra di ricerca completa per le recensioni.
+     * @see #filterReviews(String)
+     * @see #reviewsSearchField
+     * @see #styleButton(javafx.scene.control.Button, String)
      */
     private HBox createReviewsSearchBar() {
         HBox searchContainer = new HBox(10);
@@ -1404,7 +2109,25 @@ public class AdminPanel {
 
 
     /**
-     * Filtra le recensioni
+     * Filtra la lista delle recensioni visualizzate nella tabella in base a una stringa di ricerca.
+     * <p>
+     * Questo metodo di utilità esegue un filtraggio dinamico della tabella delle recensioni
+     * (`reviewsTable`) in base al testo inserito dall'utente. La ricerca non è sensibile
+     * alle maiuscole/minuscole e viene eseguita sui seguenti campi di ogni recensione:
+     * </p>
+     * <ul>
+     * <li>Username dell'utente che ha scritto la recensione.</li>
+     * <li>ISBN del libro recensito.</li>
+     * <li>Contenuto della recensione.</li>
+     * </ul>
+     * <p>
+     * Se la stringa di ricerca è nulla o vuota, la tabella viene ripristinata per mostrare
+     * tutti i dati originali.
+     * </p>
+     *
+     * @param searchText La stringa di testo su cui basare il filtraggio.
+     * @see #reviewsTable
+     * @see #reviewsData
      */
     private void filterReviews(String searchText) {
         if (searchText == null || searchText.trim().isEmpty()) {
@@ -1425,7 +2148,22 @@ public class AdminPanel {
     }
 
     /**
-     * Crea toolbar per gestione recensioni
+     * Crea e restituisce la barra degli strumenti per la gestione delle recensioni.
+     * <p>
+     * Questo metodo costruisce un {@link HBox} che funge da barra degli strumenti per la
+     * sezione di gestione delle recensioni. Contiene pulsanti per le azioni comuni come
+     * tornare al menu principale, aggiornare la tabella delle recensioni ed eliminare
+     * una recensione selezionata. Ogni pulsante è stilizzato con colori specifici e un
+     * gestore di eventi (`setOnAction`) che invoca il metodo appropriato.
+     * Il layout include anche uno spacer (`Region`) per allineare gli elementi
+     * e un'etichetta che identifica la sezione corrente.
+     * </p>
+     *
+     * @return Un {@link HBox} che rappresenta la barra degli strumenti delle recensioni.
+     * @see #backToMainMenu()
+     * @see #loadReviewsData()
+     * @see #deleteSelectedReview()
+     * @see #styleButton(javafx.scene.control.Button, String)
      */
     private HBox createReviewsToolbar() {
         HBox toolbar = new HBox(15);
@@ -1456,7 +2194,32 @@ public class AdminPanel {
     }
 
     /**
-     * Crea la tabella delle recensioni
+     * Crea e configura una {@link TableView} per visualizzare le recensioni dei libri.
+     * <p>
+     * Questo metodo di utilità costruisce la tabella che elenca le recensioni disponibili.
+     * La tabella è altamente personalizzata con celle e formattazione specifiche per
+     * ogni colonna, offrendo una visualizzazione chiara e dettagliata delle informazioni.
+     * </p>
+     *
+     * <h3>Colonne della tabella e loro funzionalità:</h3>
+     * <ul>
+     * <li><b>Utente:</b> Mostra l'username dell'utente che ha scritto la recensione.</li>
+     * <li><b>ISBN:</b> Mostra il codice ISBN del libro recensito.</li>
+     * <li><b>Voti:</b> Colonna personalizzata che visualizza i voti dettagliati (stile,
+     * contenuto, piacevolezza, originalità, edizione). I voti non disponibili sono mostrati come 0.</li>
+     * <li><b>Media:</b> Colonna personalizzata che calcola e visualizza la media dei voti,
+     * con colori condizionali per evidenziare valutazioni positive, medie o negative.</li>
+     * <li><b>Recensione:</b> Mostra un'anteprima del testo della recensione. Un tooltip
+     * visualizza il testo completo al passaggio del mouse. Un click sulla cella apre
+     * una finestra di dialogo modale con il testo completo.</li>
+     * <li><b>Data:</b> Mostra la data della recensione.</li>
+     * </ul>
+     * <p>
+     * La tabella supporta la selezione multipla e ha uno stile predefinito per integrarsi
+     * con il tema dell'applicazione.
+     * </p>
+     *
+     * @see #reviewsData
      */
     private void createReviewsTable() {
         reviewsTable = new TableView<>();
@@ -1591,7 +2354,25 @@ public class AdminPanel {
     }
 
     /**
-     * Metodo per visualizzazione completa della recensione
+     * Mostra una finestra di dialogo modale con il testo completo di una recensione
+     * e i dettagli dei voti.
+     * <p>
+     * Questo metodo crea e gestisce una finestra di dialogo informativa che si attiva
+     * quando un utente clicca su una cella della colonna "Recensione" nella tabella.
+     * Fornisce una visualizzazione espansa della recensione completa e include un
+     * riepilogo dettagliato di tutti i voti assegnati (stile, contenuto, ecc.),
+     * oltre alla media e alla data della recensione.
+     * </p>
+     * <p>
+     * L'interfaccia utente della finestra di dialogo è progettata per essere chiara
+     * e leggibile, con un'area di testo non modificabile per la recensione e un
+     * riepilogo formattato dei voti.
+     * </p>
+     *
+     * @param reviewText La stringa di testo completa della recensione.
+     * @param rating L'oggetto {@link BookRating} che contiene tutti i dati della recensione,
+     * inclusi i voti e le informazioni sul libro e sull'utente.
+     * @see #createReviewsTable()
      */
     private void showFullReviewDialog(String reviewText, BookRating rating) {
         Alert dialog = new Alert(Alert.AlertType.INFORMATION);
@@ -1631,7 +2412,26 @@ public class AdminPanel {
     }
 
     /**
-     * Carica le recensioni
+     * Carica in modo asincrono i dati di tutte le recensioni dal servizio di amministrazione.
+     * <p>
+     * Questo metodo avvia un'operazione non bloccante per recuperare tutte le recensioni
+     * dal backend, utilizzando il servizio {@link AdminService}. L'operazione è gestita
+     * in modo asincrono per non bloccare il thread dell'interfaccia utente.
+     * </p>
+     * <p>
+     * Una volta che la risposta dal server viene ricevuta, il metodo verifica l'esito.
+     * Se l'operazione ha successo, la lista locale {@code reviewsData} viene aggiornata
+     * con i dati delle recensioni, e la {@link #statusLabel} viene aggiornata con un messaggio
+     * di successo. In caso di errore (sia di risposta dal server che di connessione),
+     * un messaggio di errore viene visualizzato e viene invocato il metodo di fallback
+     * {@link #loadFallbackReviewsData()} per gestire il fallimento.
+     * </p>
+     *
+     * @see AdminService#getAllReviewsAsync(String)
+     * @see Platform#runLater(Runnable)
+     * @see #statusLabel
+     * @see #reviewsData
+     * @see #loadFallbackReviewsData()
      */
     private void loadReviewsData() {
         System.out.println("🔄 Caricamento recensioni dal database...");
@@ -1698,7 +2498,22 @@ public class AdminPanel {
     }
 
     /**
-     * Carica delle recensioni di fallback in caso di server offline
+     * Carica dei dati di recensione di esempio per il debug o come fallback.
+     * <p>
+     * Questo metodo di utilità popola la lista {@link #reviewsData} con un set
+     * predefinito di oggetti {@link BookRating}. È inteso per essere utilizzato
+     * in scenari in cui il caricamento dei dati reali dal server fallisce,
+     * permettendo all'applicazione di visualizzare un'interfaccia non vuota
+     * e di continuare a funzionare, facilitando il testing e il debug.
+     * </p>
+     * <p>
+     * Dopo aver aggiunto i dati di esempio, aggiorna la {@link #statusLabel}
+     * per informare l'utente che sono stati caricati dati fittizi.
+     * </p>
+     *
+     * @see #reviewsData
+     * @see #loadReviewsData()
+     * @see #statusLabel
      */
     private void loadFallbackReviewsData() {
         System.out.println("🔄 Caricamento dati di esempio...");
@@ -1745,7 +2560,28 @@ public class AdminPanel {
     }
 
     /**
-     * Elimina recensione selezionata
+     * Gestisce l'eliminazione di una o più recensioni selezionate dalla tabella.
+     * <p>
+     * Questo metodo esegue una serie di controlli prima di procedere con l'eliminazione.
+     * I passaggi principali sono:
+     * </p>
+     * <ol>
+     * <li>Verifica se almeno una recensione è stata selezionata. Se non lo è, mostra un avviso.</li>
+     * <li>Mostra una finestra di dialogo di conferma per prevenire l'eliminazione accidentale.</li>
+     * <li>Se l'utente conferma, avvia un'operazione asincrona per eliminare ogni recensione selezionata
+     * tramite il servizio {@link AdminService#deleteRatingAsync(String, String, String)}.</li>
+     * <li>Per ogni recensione, aggiorna il feedback all'utente e gestisce il successo o il fallimento
+     * dell'operazione, rimuovendo la recensione dalla lista locale {@link #reviewsData} in caso di successo.</li>
+     * </ol>
+     * <p>
+     * L'utilizzo di chiamate asincrone garantisce che l'interfaccia utente rimanga reattiva
+     * anche durante l'interazione con il server.
+     * </p>
+     *
+     * @see #reviewsTable
+     * @see #reviewsData
+     * @see #statusLabel
+     * @see #showAlert(String, String)
      */
     private void deleteSelectedReview() {
         ObservableList<BookRating> selectedRatings = reviewsTable.getSelectionModel().getSelectedItems();
@@ -1817,7 +2653,17 @@ public class AdminPanel {
     }
 
     /**
-     * Torna al menu principale
+     * Torna alla schermata del menu principale del pannello di amministrazione.
+     * <p>
+     * Questo metodo gestisce la transizione dall'interfaccia di gestione corrente (libri o recensioni)
+     * al menu principale dell'applicazione. Cancella il contenuto esistente dal pannello principale
+     * e lo ripopola con l'intestazione e il menu di navigazione, offrendo all'utente un modo
+     * semplice e chiaro per tornare indietro.
+     * </p>
+     *
+     * @see #mainAdminPanel
+     * @see #createHeader()
+     * @see #createAdminMenu()
      */
     private void backToMainMenu() {
         System.out.println("🔄 Tornando al menu principale...");
@@ -1835,6 +2681,19 @@ public class AdminPanel {
         }
     }
 
+    /**
+     * Applica uno stile CSS personalizzato a un pulsante e aggiunge un effetto hover.
+     * <p>
+     * Questo metodo di utilità serve per mantenere uno stile uniforme per i pulsanti
+     * nell'intera applicazione. Imposta un colore di sfondo, il colore del testo,
+     * il peso del carattere, il raggio dei bordi e un cursore a mano per indicare
+     * che il pulsante è cliccabile. Aggiunge inoltre un effetto visivo che scurisce
+     * leggermente il colore del pulsante al passaggio del mouse.
+     * </p>
+     *
+     * @param button Il pulsante {@link Button} a cui applicare lo stile.
+     * @param color Una stringa che rappresenta il codice esadecimale del colore di sfondo (es. "#3498db").
+     */
     private void styleButton(Button button, String color) {
         button.setStyle(
                 "-fx-background-color: " + color + ";" +
@@ -1853,6 +2712,17 @@ public class AdminPanel {
         );
     }
 
+    /**
+     * Mostra una finestra di dialogo di avviso all'utente.
+     * <p>
+     * Questo metodo di utilità crea e visualizza una finestra di dialogo modale semplice
+     * di tipo {@link Alert.AlertType#INFORMATION}. È utile per comunicare all'utente
+     * messaggi importanti come avvisi, errori o conferme in un formato non intrusivo.
+     * </p>
+     *
+     * @param title Il titolo della finestra di dialogo.
+     * @param message Il messaggio di testo da visualizzare nella finestra.
+     */
     private void showAlert(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(title);

@@ -26,32 +26,188 @@ import java.util.function.Consumer;
 import javafx.geometry.Pos;
 
 /**
- * ContentArea aggiornata con supporto completo per ricerca avanzata
- * e integrazione migliorata con PopupManager
+ * Componente centrale per la gestione del contenuto principale dell'applicazione BABO.
+ * <p>
+ * Questa classe funge da controller principale per l'area di contenuto, gestendo la
+ * visualizzazione di diverse sezioni dell'applicazione (home, librerie, esplora),
+ * la ricerca avanzata, e la navigazione contestuale tra libri. Implementa un sistema
+ * sofisticato di caching per ottimizzare le performance e un'architettura modulare
+ * per facilitare l'estensione e la manutenzione.
+ * </p>
+ *
+ * <h3>Responsabilità principali:</h3>
+ * <ul>
+ *   <li><strong>Gestione Sezioni:</strong> Home, Librerie, Esplora con transizioni fluide</li>
+ *   <li><strong>Sistema di Ricerca:</strong> Ricerca normale e avanzata con filtri multipli</li>
+ *   <li><strong>Navigazione Contestuale:</strong> Cache intelligente per navigazione tra libri</li>
+ *   <li><strong>Integrazione Popup:</strong> Coordinamento con PopupManager per dettagli libri</li>
+ *   <li><strong>Menu Handling:</strong> Gestione eventi dal menu sidebar principale</li>
+ *   <li><strong>State Management:</strong> Mantenimento stato UI e cache tra transizioni</li>
+ * </ul>
+ *
+ * <h3>Architettura di Caching:</h3>
+ * <p>
+ * Implementa un sistema di cache multi-livello per ottimizzare l'esperienza utente:
+ * </p>
+ * <ul>
+ *   <li><strong>Featured Books Cache:</strong> Libri in evidenza per navigazione rapida</li>
+ *   <li><strong>Free Books Cache:</strong> Libri gratuiti e suggerimenti</li>
+ *   <li><strong>New Books Cache:</strong> Nuove uscite e novità</li>
+ *   <li><strong>Search Results Cache:</strong> Risultati ricerca normale</li>
+ *   <li><strong>Advanced Search Cache:</strong> Risultati ricerca avanzata con filtri</li>
+ * </ul>
+ *
+ * <h3>Sistema di Ricerca Avanzata:</h3>
+ * <p>
+ * Supporta diverse modalità di ricerca con sintassi specializzata:
+ * </p>
+ * <ul>
+ *   <li><strong>Ricerca Normale:</strong> Query libera su titolo e autore</li>
+ *   <li><strong>Solo Titolo:</strong> {@code title-only:query} per ricerca specifica</li>
+ *   <li><strong>Solo Autore:</strong> {@code author:nome} per filtro autore</li>
+ *   <li><strong>Filtro Anno:</strong> {@code year:inizio-fine} per range temporale</li>
+ *   <li><strong>Ricerca Combinata:</strong> {@code author:nome year:range} per query complesse</li>
+ * </ul>
+ *
+ * <h3>Integrazione con Componenti:</h3>
+ * <p>
+ * La classe si integra con diversi componenti del sistema:
+ * </p>
+ * <ul>
+ *   <li>{@link BookSectionFactory} per creazione sezioni di libri</li>
+ *   <li>{@link ExploreIntegration} per la sezione esplora</li>
+ *   <li>{@link PopupManager} per visualizzazione dettagli</li>
+ *   <li>{@link AuthenticationManager} per gestione permessi</li>
+ *   <li>{@link CategoryView} per navigazione categorie</li>
+ * </ul>
+ *
+ * <h3>Gestione Eventi Menu:</h3>
+ * <p>
+ * Implementa un sistema robusto per la gestione degli eventi del menu sidebar:
+ * </p>
+ * <ul>
+ *   <li><strong>Index 0 (Home):</strong> Caricamento contenuto iniziale con sezioni principali</li>
+ *   <li><strong>Index 1 (Librerie):</strong> Vista librerie personali utente</li>
+ *   <li><strong>Index 2 (Esplora):</strong> Vista esplorazione categorie e contenuti</li>
+ * </ul>
+ *
+ * <h3>Esempio di utilizzo:</h3>
+ * <pre>{@code
+ * // Inizializzazione componente
+ * BookService bookService = new BookService();
+ * AuthenticationManager authManager = new AuthenticationManager();
+ * ContentArea contentArea = new ContentArea(bookService, true, authManager);
+ *
+ * // Configurazione navigazione
+ * contentArea.setBookClickHandler(book -> {
+ *     System.out.println("Libro selezionato: " + book.getTitle());
+ * });
+ *
+ * // Configurazione integrazione esplora
+ * ExploreIntegration exploreIntegration = new ExploreIntegration(bookService, true);
+ * contentArea.setExploreIntegration(exploreIntegration);
+ *
+ * // Creazione UI
+ * ScrollPane contentPane = contentArea.createContentArea();
+ *
+ * // Caricamento contenuto iniziale
+ * contentArea.loadInitialContent();
+ *
+ * // Gestione eventi menu
+ * menuSidebar.setOnMenuClick(index -> {
+ *     contentArea.handleMenuClick(index);
+ * });
+ *
+ * // Gestione ricerca
+ * searchBar.setOnSearch(query -> {
+ *     contentArea.handleSearch(query, book -> showBookDetails(book));
+ * });
+ *
+ * // Ricerca avanzata con filtri
+ * contentArea.handleSearch("author:Tolkien year:1950-1970", null);
+ * contentArea.handleSearch("title-only:Hobbit", null);
+ * }</pre>
+ *
+ * <h3>Gestione Stato e Lifecycle:</h3>
+ * <ul>
+ *   <li>Inizializzazione lazy per performance ottimizzate</li>
+ *   <li>Cleanup automatico delle cache per gestione memoria</li>
+ *   <li>State preservation durante transizioni sezioni</li>
+ *   <li>Error recovery automatico per operazioni fallite</li>
+ * </ul>
+ *
+ * <h3>Thread Safety e Performance:</h3>
+ * <ul>
+ *   <li>Utilizzo di {@link Platform#runLater(Runnable)} per thread safety</li>
+ *   <li>Operazioni asincrone per caricamento dati non-bloccante</li>
+ *   <li>Lazy loading e caching intelligente</li>
+ *   <li>Fallback automatici per scenari di errore</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see BookSectionFactory
+ * @see ExploreIntegration
+ * @see PopupManager
+ * @see AuthenticationManager
  */
 public class ContentArea {
 
+    /** Servizio per operazioni sui libri */
     private final BookService bookService;
-    private final boolean serverAvailable;
-    private AuthenticationManager authManager;
-    private VBox content;
-    private Consumer<Book> bookClickHandler;
-    private BookSectionFactory sectionFactory;
-    private Consumer<List<Book>> cachedBooksCallback;
-    private ExploreIntegration exploreIntegration;
-    private MainWindow mainWindowRef;
 
-    // Cache per navigazione contestuale
+    /** Flag indicante disponibilità del server */
+    private final boolean serverAvailable;
+
+    /** Manager per autenticazione e permessi utente */
+    private AuthenticationManager authManager;
+
+    /** Container principale per il contenuto */
+    private VBox content;
+
+    /** Factory per creazione sezioni di libri */
+    private BookSectionFactory sectionFactory;
+
+    /** Integrazione per la sezione esplora */
+    private ExploreIntegration exploreIntegration;
+
+    /** Cache libri in evidenza per navigazione contestuale */
     private List<Book> featuredBooks = new ArrayList<>();
+
+    /** Cache libri gratuiti per navigazione contestuale */
     private List<Book> freeBooks = new ArrayList<>();
+
+    /** Cache nuovi libri per navigazione contestuale */
     private List<Book> newBooks = new ArrayList<>();
+
+    /** Cache risultati ricerca normale */
     private List<Book> searchResults = new ArrayList<>();
+
+    /** Cache risultati ricerca avanzata */
     private List<Book> advancedSearchResults = new ArrayList<>();
 
-    // ✅ AGGIUNTO: Per gestione categorie
+    /** Vista categoria attualmente visualizzata */
     private CategoryView currentCategoryView = null;
 
+    /**
+     * Costruttore del componente ContentArea.
+     * <p>
+     * Inizializza il componente con i servizi necessari e configura
+     * automaticamente il sistema di navigazione contestuale. Non esegue
+     * caricamento dati ma prepara l'infrastruttura per l'uso.
+     * </p>
+     *
+     * @param bookService servizio per operazioni sui libri
+     * @param serverAvailable flag indicante se il server è disponibile
+     * @param authManager manager per autenticazione utente
+     * @throws IllegalArgumentException se bookService è {@code null}
+     */
     public ContentArea(BookService bookService, boolean serverAvailable, AuthenticationManager authManager) {
+        if (bookService == null) {
+            throw new IllegalArgumentException("BookService non può essere null");
+        }
+
         this.bookService = bookService;
         this.serverAvailable = serverAvailable;
         this.authManager = authManager;
@@ -60,21 +216,42 @@ public class ContentArea {
         setupContextualNavigation();
     }
 
-    public ContentArea(BookService bookService, boolean serverAvailable) {
-        this.bookService = bookService;
-        this.serverAvailable = serverAvailable;
-        this.sectionFactory = new BookSectionFactory(bookService, serverAvailable);
-
-        setupContextualNavigation();
-    }
-
+    /**
+     * Aggiorna il manager di autenticazione.
+     * <p>
+     * Permette di aggiornare il riferimento al manager di autenticazione
+     * durante il runtime, utile per aggiornamenti di configurazione o
+     * cambi di stato utente.
+     * </p>
+     *
+     * @param authManager il nuovo manager di autenticazione
+     */
     public void setAuthManager(AuthenticationManager authManager) {
         this.authManager = authManager;
     }
 
     /**
-     * Configura navigazione contestuale con PopupManager
-     * ✅ AGGIORNATO: Include category click handler
+     * Configura il sistema di navigazione contestuale con callback per cache.
+     * <p>
+     * Imposta i callback per le diverse sezioni che permettono di mantenere
+     * cache aggiornate per la navigazione tra libri. Il sistema garantisce
+     * che ogni sezione mantenga il proprio contesto di navigazione per
+     * operazioni next/previous nel popup dei dettagli.
+     * </p>
+     *
+     * <h4>Cache configurate:</h4>
+     * <ul>
+     *   <li>Featured books per sezione in evidenza</li>
+     *   <li>Free books per sezione consigli</li>
+     *   <li>New books per sezione novità</li>
+     *   <li>Search results per risultati ricerca</li>
+     * </ul>
+     *
+     * <h4>Gestione memoria:</h4>
+     * <p>
+     * Ogni callback crea copie difensive per evitare modifiche accidentali
+     * delle cache e garantire consistency dei dati di navigazione.
+     * </p>
      */
     private void setupContextualNavigation() {
         // Configura callback per salvare libri per sezione
@@ -98,9 +275,6 @@ public class ContentArea {
             System.out.println("🔍 Search results salvati per navigazione: " + books.size());
         });
 
-        this.sectionFactory.setCategoryClickHandler(category -> handleCategoryClick(category));
-        System.out.println("✅ Category click handler configurato");
-
         //debug
         this.sectionFactory.setFreeBooksCallback(books -> {
             this.freeBooks = new ArrayList<>(books);
@@ -112,6 +286,16 @@ public class ContentArea {
         });
     }
 
+    /**
+     * Crea e configura l'area di contenuto principale.
+     * <p>
+     * Factory method che costruisce il container principale per il contenuto
+     * con configurazioni ottimizzate per scroll e layout. Il container è
+     * pronto per ricevere diverse tipologie di contenuto.
+     * </p>
+     *
+     * @return {@link ScrollPane} configurato per l'area contenuto
+     */
     public ScrollPane createContentArea() {
         content = new VBox(20);
         content.setId("content");
@@ -127,8 +311,17 @@ public class ContentArea {
         return scrollPane;
     }
 
+    /**
+     * Configura il gestore per i click sui libri integrato con PopupManager.
+     * <p>
+     * Imposta il callback per gestire i click sui libri utilizzando
+     * PopupManager per la visualizzazione dei dettagli. Il sistema
+     * determina automaticamente il contesto di navigazione appropriato.
+     * </p>
+     *
+     * @param handler callback legacy per compatibilità (non utilizzato)
+     */
     public void setBookClickHandler(Consumer<Book> handler) {
-        this.bookClickHandler = handler;
 
         // Usa PopupManager handler invece di gestione diretta
         Consumer<Book> popupManagerHandler = book -> handleBookClickWithPopupManager(book);
@@ -136,7 +329,33 @@ public class ContentArea {
     }
 
     /**
-     * Gestisce click usando PopupManager correttamente
+     * Gestisce i click sui libri utilizzando PopupManager con navigazione contestuale.
+     * <p>
+     * Implementa la logica centrale per gestire i click sui libri, determinando
+     * automaticamente il contesto di navigazione appropriato e delegando a
+     * PopupManager per la visualizzazione. Include gestione di errori robusta
+     * e inizializzazione di emergenza per PopupManager.
+     * </p>
+     *
+     * <h4>Operazioni eseguite:</h4>
+     * <ol>
+     *   <li>Validazione parametri input</li>
+     *   <li>Determinazione contesto navigazione via cache</li>
+     *   <li>Verifica/inizializzazione PopupManager</li>
+     *   <li>Apertura popup dettagli con contesto</li>
+     * </ol>
+     *
+     * <h4>Gestione errori:</h4>
+     * <ul>
+     *   <li>Controllo null safety per parametri</li>
+     *   <li>Inizializzazione emergenza PopupManager</li>
+     *   <li>Fallback per container principale mancante</li>
+     *   <li>Exception handling con logging dettagliato</li>
+     * </ul>
+     *
+     * @param book il libro su cui è stato fatto click
+     * @see #determineNavigationContext(Book)
+     * @see #findMainRootContainer()
      */
     private void handleBookClickWithPopupManager(Book book) {
         if (book == null) {
@@ -177,77 +396,32 @@ public class ContentArea {
     }
 
     /**
-     * ✅ NUOVO: Gestisce il click su una categoria
-     */
-    private void handleCategoryClick(Category category) {
-        System.out.println("🎭 ContentArea: Click su categoria '" + category.getName() + "'");
-
-        try {
-            // Crea la vista per la categoria
-            currentCategoryView = new CategoryView(category, bookService, book -> handleBookClickWithPopupManager(book));
-
-            currentCategoryView.setAuthManager(authManager);
-
-            // Sostituisci il contenuto corrente con la vista della categoria
-            content.getChildren().clear();
-            ScrollPane categoryScrollPane = currentCategoryView.createCategoryView();
-
-            // Assicurati che lo ScrollPane si adatti al contenitore
-            categoryScrollPane.setStyle("-fx-background-color: #1a1a1c;");
-
-            // Aggiungi la vista della categoria al content
-            content.getChildren().add(categoryScrollPane);
-
-            System.out.println("✅ Vista categoria '" + category.getName() + "' caricata");
-
-        } catch (Exception e) {
-            System.err.println("❌ Errore nel caricamento della categoria: " + e.getMessage());
-            e.printStackTrace();
-
-            // In caso di errore, mostra un messaggio e torna alla home
-            showCategoryError(category.getName());
-        }
-    }
-
-    /**
-     * ✅ NUOVO: Mostra un messaggio di errore quando non si riesce a caricare una categoria
-     */
-    private void showCategoryError(String categoryName) {
-        content.getChildren().clear();
-
-        VBox errorContainer = new VBox(20);
-        errorContainer.setAlignment(Pos.CENTER);
-        errorContainer.setPadding(new Insets(50));
-        errorContainer.setStyle("-fx-background-color: #1a1a1c;");
-
-        Label errorTitle = new Label("❌ Errore nel caricamento");
-        errorTitle.setFont(Font.font("System", FontWeight.BOLD, 24));
-        errorTitle.setTextFill(Color.LIGHTCORAL);
-
-        Label errorMessage = new Label("Non è stato possibile caricare i libri della categoria \"" + categoryName + "\"");
-        errorMessage.setFont(Font.font("System", FontWeight.NORMAL, 16));
-        errorMessage.setTextFill(Color.LIGHTGRAY);
-        errorMessage.setWrapText(true);
-
-        Button backButton = new Button("🏠 Torna alla Home");
-        backButton.setStyle(
-                "-fx-background-color: #4a86e8;" +
-                        "-fx-text-fill: white;" +
-                        "-fx-font-weight: bold;" +
-                        "-fx-background-radius: 8;" +
-                        "-fx-padding: 10 20;" +
-                        "-fx-cursor: hand;"
-        );
-        backButton.setOnAction(e -> loadInitialContent());
-
-        errorContainer.getChildren().addAll(errorTitle, errorMessage, backButton);
-        content.getChildren().add(errorContainer);
-    }
-
-    /**
-     * Determina il contesto di navigazione per un libro
+     * Determina il contesto di navigazione appropriato per un libro specifico.
+     * <p>
+     * Analizza le cache delle diverse sezioni per identificare in quale
+     * contesto si trova il libro e restituisce la lista appropriata per
+     * la navigazione contestuale. Include logging dettagliato per debugging.
+     * </p>
+     *
+     * <h4>Priorità di ricerca:</h4>
+     * <ol>
+     *   <li>Featured books (libri in evidenza)</li>
+     *   <li>Free books (consigli gratuiti)</li>
+     *   <li>New books (nuove uscite)</li>
+     *   <li>Search results (risultati ricerca normale)</li>
+     *   <li>Advanced search results (ricerca avanzata)</li>
+     *   <li>Fallback: lista singola con solo il libro corrente</li>
+     * </ol>
+     *
+     * @param book il libro per cui determinare il contesto
+     * @return lista di libri per navigazione contestuale
+     * @throws IllegalArgumentException se book è {@code null}
      */
     private List<Book> determineNavigationContext(Book book) {
+        if (book == null) {
+            throw new IllegalArgumentException("Book non può essere null");
+        }
+
         //debug
         System.out.println("🔍 DEBUG: Determinazione contesto per libro: " + book.getTitle());
         System.out.println("   - Featured books cache: " + featuredBooks.size());
@@ -284,7 +458,14 @@ public class ContentArea {
     }
 
     /**
-     * Trova il container principale per PopupManager
+     * Cerca il container principale StackPane risalendo la gerarchia parent.
+     * <p>
+     * Implementa una ricerca nel parent hierarchy per trovare il container
+     * StackPane principale necessario per l'inizializzazione di PopupManager.
+     * Utilizzato per scenari di inizializzazione di emergenza.
+     * </p>
+     *
+     * @return StackPane principale se trovato, {@code null} altrimenti
      */
     private StackPane findMainRootContainer() {
         try {
@@ -304,6 +485,16 @@ public class ContentArea {
         return null;
     }
 
+    /**
+     * Configura l'integrazione con la sezione Esplora.
+     * <p>
+     * Imposta il componente ExploreIntegration e configura il gestore click
+     * per utilizzare PopupManager. Essenziale per il funzionamento della
+     * sezione esplorazione categorie.
+     * </p>
+     *
+     * @param integration componente di integrazione esplora
+     */
     public void setExploreIntegration(ExploreIntegration integration) {
         this.exploreIntegration = integration;
         if (integration != null) {
@@ -313,7 +504,11 @@ public class ContentArea {
     }
 
     /**
-     * Forza ritorno alla vista home
+     * Forza il ritorno alla vista home ripulendo stato e ricaricando contenuto.
+     * <p>
+     * Metodo di utilità per forzare il ritorno alla home page, utile per
+     * operazioni di reset o navigazione programmatica.
+     * </p>
      */
     public void forceHomeView() {
         System.out.println("🏠 Forzatura ritorno alla vista home");
@@ -321,7 +516,20 @@ public class ContentArea {
     }
 
     /**
-     * Gestisce i click dal menu della sidebar
+     * Gestisce gli eventi di click dal menu della sidebar principale.
+     * <p>
+     * Dispatcher centrale per la navigazione tra le diverse sezioni
+     * dell'applicazione basato sull'index del menu selezionato.
+     * </p>
+     *
+     * <h4>Mapping menu index:</h4>
+     * <ul>
+     *   <li><strong>0:</strong> Home - Contenuto principale con sezioni</li>
+     *   <li><strong>1:</strong> Le Mie Librerie - Gestione librerie personali</li>
+     *   <li><strong>2:</strong> Esplora - Navigazione categorie e scoperta</li>
+     * </ul>
+     *
+     * @param menuIndex indice del menu selezionato
      */
     public void handleMenuClick(int menuIndex) {
         System.out.println("🎯 ContentArea: Click menu index " + menuIndex);
@@ -342,11 +550,22 @@ public class ContentArea {
         }
     }
 
+    /**
+     * Visualizza la sezione Home con contenuto principale.
+     */
     private void showHome() {
         System.out.println("🏠 ContentArea: Caricamento Home");
         loadInitialContent(); // Torna al comportamento originale
     }
 
+    /**
+     * Visualizza la sezione Esplora con integrazione categorie.
+     * <p>
+     * Carica la vista esplorazione utilizzando ExploreIntegration se disponibile,
+     * altrimenti mostra un placeholder. Include gestione errori robusta e
+     * fallback per scenari di failure.
+     * </p>
+     */
     private void showExplore() {
         System.out.println("🔍 ContentArea: Caricamento sezione Esplora");
 
@@ -387,76 +606,22 @@ public class ContentArea {
     }
 
     /**
-     * NUOVO: Carica il contenuto solo se necessario
+     * Visualizza la sezione Le Mie Librerie (placeholder).
      */
-    public void loadInitialContentIfNeeded() {
-        // Controlla se il content è vuoto o contiene solo placeholder/errori
-        boolean needsLoading = content.getChildren().isEmpty() ||
-                isContentEmpty();
-
-        if (needsLoading) {
-            System.out.println("🏠 ContentArea: Contenuto mancante, caricamento necessario");
-            loadInitialContent();
-        } else {
-            System.out.println("✅ ContentArea: Contenuto già presente, salto il caricamento");
-        }
-    }
-
-    /**
-     * NUOVO: Controlla se il content è "vuoto" (solo placeholder o errori)
-     */
-    private boolean isContentEmpty() {
-        return content.getChildren().stream().allMatch(node -> {
-            if (node instanceof VBox) {
-                VBox vbox = (VBox) node;
-                return vbox.getChildren().stream().anyMatch(child -> {
-                    if (child instanceof Label) {
-                        String text = ((Label) child).getText();
-                        return text.contains("Le Mie Librerie") ||
-                                text.contains("Esplora") ||
-                                text.contains("Errore") ||
-                                text.contains("placeholder") ||
-                                text.contains("non disponibile");
-                    }
-                    return false;
-                });
-            }
-            return false;
-        });
-    }
-
-    /**
-     * NUOVO: Imposta il riferimento al MainWindow
-     */
-    public void setMainWindowReference(MainWindow mainWindow) {
-        this.mainWindowRef = mainWindow;
-        System.out.println("✅ ContentArea: Riferimento MainWindow configurato");
-    }
-
     private void showMyLibraries() {
         showPlaceholderSection("📚 Le Mie Librerie", "Gestisci le tue collezioni private di libri");
     }
 
-    private void showAudiobookStore() {
-        showPlaceholderSection("🎧 Audiobook Store", "Scopri audiolibri e contenuti audio");
-    }
-
-    private void showAllBooks() {
-        showPlaceholderSection("📖 Tutti i Libri", "Sfoglia l'intera collezione disponibile");
-    }
-
-    private void showAdvancedSearchInfo() {
-        showPlaceholderSection("🔍 Ricerca Avanzata", "Utilizza l'icona di ricerca nell'header per accedere alla ricerca avanzata");
-    }
-
-    private void showReadBooks() {
-        showPlaceholderSection("✅ Libri Letti", "I tuoi libri completati e le recensioni");
-    }
-
-    private void showPDFBooks() {
-        showPlaceholderSection("📄 Documenti PDF", "Gestisci i tuoi documenti e file PDF");
-    }
-
+    /**
+     * Visualizza una sezione placeholder per funzionalità in sviluppo.
+     * <p>
+     * Utility method per creare sezioni placeholder durante lo sviluppo
+     * o per gestire scenari di errore con interfaccia user-friendly.
+     * </p>
+     *
+     * @param title titolo della sezione
+     * @param description descrizione o messaggio per l'utente
+     */
     private void showPlaceholderSection(String title, String description) {
         if (content != null) {
             content.getChildren().clear();
@@ -481,9 +646,13 @@ public class ContentArea {
         }
     }
 
-
     /**
-     * NUOVO: Carica il contenuto iniziale solo se non è già stato caricato
+     * Carica il contenuto iniziale solo se necessario (ottimizzazione).
+     * <p>
+     * Versione ottimizzata che verifica se il contenuto è già stato caricato
+     * per evitare ricaricamenti non necessari. Migliora le performance
+     * e l'esperienza utente.
+     * </p>
      */
     public void loadInitialContentOnce() {
         // Controlla se il content è vuoto o contiene solo placeholder
@@ -508,7 +677,12 @@ public class ContentArea {
     }
 
     /**
-     * Carica il contenuto iniziale della home page
+     * Carica il contenuto iniziale della home page con reset cache.
+     * <p>
+     * Ripulisce tutto lo stato esistente e ricarica le sezioni principali
+     * dell'applicazione (featured, consigli, nuovi). Include reset completo
+     * delle cache per garantire contenuto fresco.
+     * </p>
      */
     public void loadInitialContent() {
         System.out.println("🏠 ContentArea: Caricamento contenuto iniziale");
@@ -535,7 +709,30 @@ public class ContentArea {
     }
 
     /**
-     * Gestisce le ricerche con supporto per ricerca avanzata
+     * Gestisce le ricerche con supporto per sintassi avanzata e filtri multipli.
+     * <p>
+     * Sistema di ricerca completo che supporta diversi tipi di query con
+     * sintassi specializzata per ricerche specifiche. Include fallback
+     * automatici e gestione errori robusta per garantire sempre un risultato.
+     * </p>
+     *
+     * <h4>Sintassi supportate:</h4>
+     * <ul>
+     *   <li><strong>Query normale:</strong> Ricerca libera su titolo e autore</li>
+     *   <li><strong>title-only:query:</strong> Ricerca specifica solo nel titolo</li>
+     *   <li><strong>author:nome:</strong> Ricerca filtrata per autore</li>
+     *   <li><strong>year:inizio-fine:</strong> Filtro per range anni pubblicazione</li>
+     *   <li><strong>Combinata:</strong> author:nome year:range per query complesse</li>
+     * </ul>
+     *
+     * <h4>Gestione cache:</h4>
+     * <p>
+     * I risultati vengono salvati nelle cache appropriate (searchResults o
+     * advancedSearchResults) per navigazione contestuale tra i risultati.
+     * </p>
+     *
+     * @param query stringa di ricerca con eventuale sintassi speciale
+     * @param clickHandler callback per gestire click sui risultati (legacy)
      */
     public void handleSearch(String query, Consumer<Book> clickHandler) {
         if (query == null || query.trim().isEmpty()) {
@@ -576,12 +773,22 @@ public class ContentArea {
         }
     }
 
+    /**
+     * Gestisce ricerca normale su titolo e autore.
+     */
     private void handleTitleSearch(String query, Consumer<Book> clickHandler) {
         System.out.println("📖 Ricerca GENERALE (titolo + autore): " + query);
         // La ricerca normale dalla barra cerca in titolo E autore
         sectionFactory.performSearch(query, content, clickHandler);
     }
 
+    /**
+     * Gestisce ricerca specifica solo nel titolo con fallback automatico.
+     * <p>
+     * Tenta prima una ricerca specifica per titolo tramite BookService,
+     * in caso di fallimento utilizza ricerca generale con filtro lato client.
+     * </p>
+     */
     private void handleTitleOnlySearch(String title, Consumer<Book> clickHandler) {
         System.out.println("📖 Ricerca SPECIFICA solo titolo: " + title);
 
@@ -610,7 +817,7 @@ public class ContentArea {
                 .exceptionally(throwable -> {
                     System.err.println("❌ Errore ricerca titolo: " + throwable.getMessage());
 
-                    // ✅ FALLBACK: ricerca generale + filtro lato client
+                    // Ricerca generale + filtro lato client
                     Platform.runLater(() -> {
                         System.out.println("🔄 Fallback: ricerca generale con filtro titolo");
                         handleTitleSearchFallback(title, clickHandler);
@@ -619,13 +826,16 @@ public class ContentArea {
                 });
     }
 
+    /**
+     * Fallback per ricerca titolo usando filtro lato client.
+     */
     private void handleTitleSearchFallback(String title, Consumer<Book> clickHandler) {
         System.out.println("🔄 Fallback ricerca titolo con filtro client");
 
         bookService.searchBooksAsync(title)
                 .thenAccept(results -> {
                     Platform.runLater(() -> {
-                        // ✅ FILTRO SOLO PER TITOLO
+                        // FILTRO SOLO PER TITOLO
                         List<Book> titleResults = filterBooksByTitleOnly(results, title);
                         this.advancedSearchResults = new ArrayList<>(titleResults);
                         displaySearchResults(titleResults, "📖 Titolo: " + title + " (filtrato)", clickHandler);
@@ -642,6 +852,9 @@ public class ContentArea {
                 });
     }
 
+    /**
+     * Gestisce ricerca per autore con filtro lato client.
+     */
     private void handleAuthorSearch(String author, Consumer<Book> clickHandler) {
         System.out.println("👤 Ricerca per autore: " + author);
 
@@ -651,11 +864,9 @@ public class ContentArea {
         loadingLabel.setTextFill(Color.WHITE);
         content.getChildren().add(loadingLabel);
 
-        // ✅ FIX: USA SOLO searchBooksAsync() che funziona
         bookService.searchBooksAsync(author)
                 .thenAccept(results -> {
                     Platform.runLater(() -> {
-                        // ✅ FILTRO LATO CLIENT per solo autori
                         List<Book> authorResults = filterBooksByAuthor(results, author);
                         this.advancedSearchResults = new ArrayList<>(authorResults);
                         displaySearchResults(authorResults, "👤 Autore: " + author, clickHandler);
@@ -672,6 +883,17 @@ public class ContentArea {
                 });
     }
 
+    /**
+     * Filtra libri per corrispondenza solo nel titolo.
+     * <p>
+     * Implementa filtro case-insensitive per ricerche specifiche nel titolo,
+     * utilizzato per ricerche avanzate e fallback.
+     * </p>
+     *
+     * @param books lista libri da filtrare
+     * @param targetTitle titolo target per il filtro
+     * @return lista filtrata di libri corrispondenti
+     */
     private List<Book> filterBooksByTitleOnly(List<Book> books, String targetTitle) {
         if (targetTitle == null || targetTitle.trim().isEmpty()) {
             return books;
@@ -691,6 +913,13 @@ public class ContentArea {
         return filtered;
     }
 
+    /**
+     * Filtra libri per corrispondenza nell'autore.
+     *
+     * @param books lista libri da filtrare
+     * @param targetAuthor autore target per il filtro
+     * @return lista filtrata di libri dell'autore
+     */
     private List<Book> filterBooksByAuthor(List<Book> books, String targetAuthor) {
         if (targetAuthor == null || targetAuthor.trim().isEmpty()) {
             return books;
@@ -710,10 +939,12 @@ public class ContentArea {
         return filtered;
     }
 
+    /**
+     * Gestisce ricerca combinata autore + anno con parsing query complessa.
+     */
     private void handleYearFilteredSearch(String query, Consumer<Book> clickHandler) {
         System.out.println("📅 Ricerca combinata autore + anno: " + query);
 
-        // Parsing della query "author:James year:2002-2003"
         String author = "";
         String yearRange = "";
 
@@ -737,11 +968,10 @@ public class ContentArea {
         loadingLabel.setTextFill(Color.WHITE);
         content.getChildren().add(loadingLabel);
 
-        // ✅ FIX: USA SOLO searchBooksAsync() che funziona
         bookService.searchBooksAsync(finalAuthor)
                 .thenAccept(results -> {
                     Platform.runLater(() -> {
-                        // ✅ FILTRO LATO CLIENT per autore e anno
+                        // FILTRO LATO CLIENT per autore e anno
                         List<Book> authorResults = filterBooksByAuthor(results, finalAuthor);
                         List<Book> filteredResults = filterBooksByYearRange(authorResults, finalYearRange);
 
@@ -761,6 +991,19 @@ public class ContentArea {
                 });
     }
 
+    /**
+     * Filtra libri per range di anni di pubblicazione.
+     * <p>
+     * Supporta diverse sintassi per range anni:
+     * - "1950-1970" per range completo
+     * - "1950-" per dal 1950 in poi
+     * - "-1970" per fino al 1970
+     * </p>
+     *
+     * @param books lista libri da filtrare
+     * @param yearRange stringa range anni (formato: "inizio-fine")
+     * @return lista filtrata per range anni
+     */
     private List<Book> filterBooksByYearRange(List<Book> books, String yearRange) {
         if (yearRange == null || yearRange.trim().isEmpty()) {
             return books;
@@ -768,7 +1011,6 @@ public class ContentArea {
 
         List<Book> filtered = new ArrayList<>();
 
-        // Parse "2002-2003" o "2002"
         String[] yearParts = yearRange.split("-");
         Integer yearFrom = null;
         Integer yearTo = null;
@@ -816,6 +1058,17 @@ public class ContentArea {
         return filtered;
     }
 
+    /**
+     * Visualizza risultati di ricerca con layout ottimizzato.
+     * <p>
+     * Crea interfaccia per visualizzare risultati con header informativo,
+     * griglia libri responsive, e gestione caso "nessun risultato".
+     * </p>
+     *
+     * @param results lista risultati da visualizzare
+     * @param searchTitle titolo descrittivo della ricerca
+     * @param clickHandler callback per click sui risultati
+     */
     private void displaySearchResults(List<Book> results, String searchTitle, Consumer<Book> clickHandler) {
         content.getChildren().clear();
 
@@ -853,7 +1106,7 @@ public class ContentArea {
             ScrollPane scroll = new ScrollPane(bookGrid);
             scroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
             scroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-            scroll.setFitToWidth(true); // ✅ IMPORTANTE: Adatta alla larghezza
+            scroll.setFitToWidth(true);
             scroll.setStyle("-fx-background-color: transparent;");
 
             resultsContainer.getChildren().add(scroll);
@@ -861,6 +1114,15 @@ public class ContentArea {
         }
     }
 
+    /**
+     * Visualizza contenuto personalizzato nell'area principale.
+     * <p>
+     * Utility method per mostrare contenuto custom, utile per integrazioni
+     * esterne o viste specializzate.
+     * </p>
+     *
+     * @param customContent contenuto personalizzato da visualizzare
+     */
     public void showCustomContent(VBox customContent) {
         content.getChildren().clear();
         content.getChildren().add(customContent);
@@ -868,17 +1130,16 @@ public class ContentArea {
     }
 
     /**
-     * Imposta callback per libri cachati (per MainWindow)
+     * Configura callback per gestione cache libri (compatibilità MainWindow).
      */
     public void setCachedBooksCallback(Consumer<List<Book>> callback) {
-        this.cachedBooksCallback = callback;
         if (this.sectionFactory != null) {
             this.sectionFactory.setCachedBooksCallback(callback);
         }
     }
 
     /**
-     * Mostra risultati ricerca avanzata (per MainWindow)
+     * Mostra risultati ricerca avanzata (compatibilità MainWindow).
      */
     public void showAdvancedSearchResults(Object searchResult) {
         System.out.println("🔍 Mostra risultati ricerca avanzata: " + searchResult);
@@ -890,7 +1151,7 @@ public class ContentArea {
     }
 
     /**
-     * Debug dello stato cache (per MainWindow)
+     * Debug dello stato cache per monitoring e troubleshooting.
      */
     public void debugCacheState() {
         System.out.println("🔍 ===== CONTENTAREA CACHE DEBUG =====");
@@ -902,7 +1163,7 @@ public class ContentArea {
     }
 
     /**
-     * Cleanup delle risorse (per MainWindow)
+     * Cleanup delle risorse e reset stato per shutdown applicazione.
      */
     public void cleanup() {
         System.out.println("🧹 ContentArea cleanup");
@@ -914,16 +1175,21 @@ public class ContentArea {
         currentCategoryView = null;
     }
 
-    // Getter per compatibilità
+    /**
+     * Ottiene il container VBox principale del contenuto.
+     *
+     * @return container principale per compatibilità
+     */
     public VBox getContent() {
         return content;
     }
 
+    /**
+     * Ottiene il servizio libri utilizzato.
+     *
+     * @return istanza BookService per operazioni sui libri
+     */
     public BookService getBookService() {
         return bookService;
-    }
-
-    public boolean isServerAvailable() {
-        return serverAvailable;
     }
 }

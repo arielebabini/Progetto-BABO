@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-services.sh - Controlla lo stato di tutti i servizi
 
-echo "📊 STATO SERVIZI APPLE BOOKS CLIENT"
+echo "📊 STATO SERVIZI BOOKS CLIENT"
 echo "===================================="
 
 # Funzione per test HTTP
@@ -73,18 +73,18 @@ echo ""
 echo "📱 CLIENT JAVAFX"
 echo "================"
 
-if [ -f "dist/AppleBooksClient.jar" ]; then
-    JAR_SIZE=$(du -h "dist/AppleBooksClient.jar" | cut -f1)
+if [ -f "dist/BooksClient.jar" ]; then
+    JAR_SIZE=$(du -h "dist/BooksClient.jar" | cut -f1)
     echo "✅ JAR client presente: $JAR_SIZE"
 
     # Test contenuto JAR
-    if jar tf "dist/AppleBooksClient.jar" | grep -q "javafx/application/Application.class"; then
+    if jar tf "dist/BooksClient.jar" | grep -q "javafx/application/Application.class"; then
         echo "✅ JAR contiene JavaFX"
     else
         echo "⚠️  JAR non contiene JavaFX"
     fi
 
-    if jar tf "dist/AppleBooksClient.jar" | grep -q "org/BABO/client/ClientApplication.class"; then
+    if jar tf "dist/BooksClient.jar" | grep -q "org/BABO/client/ClientApplication.class"; then
         echo "✅ Main class presente"
     else
         echo "❌ Main class non trovata"
@@ -95,10 +95,10 @@ else
 fi
 
 # Controlla se il client è in esecuzione
-if pgrep -f "AppleBooksClient.jar" >/dev/null; then
+if pgrep -f "BooksClient.jar" >/dev/null; then
     echo "✅ Client in esecuzione"
     echo "📋 Processi client:"
-    ps aux | grep AppleBooksClient | grep -v grep
+    ps aux | grep BooksClient | grep -v grep
 else
     echo "⭕ Client non in esecuzione"
 fi
@@ -126,13 +126,13 @@ echo "📝 RIASSUNTO"
 echo "============"
 
 # Determina stato generale
-if check_port 8080 && test_http "http://localhost:8080/api/books/health" && [ -f "dist/AppleBooksClient.jar" ]; then
+if check_port 8080 && test_http "http://localhost:8080/api/books/health" && [ -f "dist/BooksClient.jar" ]; then
     echo "🟢 SISTEMA PRONTO"
     echo "   👉 Avvia con: ./start-complete-app.sh"
 elif check_port 8080; then
     echo "🟡 SERVER ATTIVO, CLIENT DA PREPARARE"
     echo "   👉 Rigenera client: ./build-executables.sh"
-    echo "   👉 Avvia client: ./dist/macos/AppleBooksClient.command"
+    echo "   👉 Avvia client: ./dist/macos/BooksClient.command"
 else
     echo "🔴 SERVIZI NON ATTIVI"
     echo "   👉 Avvio completo: ./start-complete-app.sh"

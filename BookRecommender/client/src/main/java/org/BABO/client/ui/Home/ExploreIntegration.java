@@ -1,7 +1,7 @@
 package org.BABO.client.ui.Home;
 
 import org.BABO.client.service.ClientRatingService;
-import org.BABO.client.ui.AppleBooksClient;
+import org.BABO.client.ui.BooksClient;
 import org.BABO.client.ui.Authentication.AuthenticationManager;
 import org.BABO.client.ui.Category.CategoryView;
 import org.BABO.shared.model.Book;
@@ -29,42 +29,240 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 
 /**
- * Gestisce la sezione Esplora in stile Apple Books autentico
- * VERSIONE CORRETTA - Layout fisso senza scroll orizzontale
+ * Componente di integrazione per la sezione Esplora dell'applicazione BABO.
+ * <p>
+ * Questa classe implementa un Books Store per l'esplorazione
+ * di contenuti, integrando classifiche dinamiche basate su recensioni e valutazioni
+ * con una griglia di categorie per la scoperta di libri. Fornisce un'esperienza
+ * utente ricca e coinvolgente per la navigazione e scoperta di contenuti.
+ * </p>
+ *
+ * <h3>Funzionalità principali:</h3>
+ * <ul>
+ *   <li><strong>Classifiche Dinamiche:</strong> Libri più recensiti e meglio valutati</li>
+ *   <li><strong>Navigazione Categorie:</strong> Griglia colorata per esplorazione per genere</li>
+ *   <li><strong>Vista Categoria:</strong> Transizioni fluide tra esplorazione e categorie specifiche</li>
+ *   <li><strong>Rating Integration:</strong> Visualizzazione stelle e valutazioni numeriche</li>
+ *   <li><strong>Responsive Design:</strong> Layout adattivo per diverse risoluzioni</li>
+ *   <li><strong>Interactive Elements:</strong> Hover effects e transizioni animate</li>
+ * </ul>
+ *
+ * <h3>Architettura delle Classifiche:</h3>
+ * <p>
+ * Il sistema di classifiche integra dati da {@link ClientRatingService} per creare
+ * liste dinamiche e aggiornate:
+ * </p>
+ * <ul>
+ *   <li><strong>Più Recensiti:</strong> Libri ordinati per numero di recensioni</li>
+ *   <li><strong>Migliori Valutazioni:</strong> Libri ordinati per rating medio</li>
+ *   <li><strong>Cache Intelligente:</strong> Mantenimento dati per navigazione rapida</li>
+ *   <li><strong>Fallback Graceful:</strong> Gestione scenari con dati mancanti</li>
+ * </ul>
+ *
+ * <h3>Sistema di Categorie:</h3>
+ * <p>
+ * La griglia categorie implementa un design moderno con:
+ * </p>
+ * <ul>
+ *   <li>Palette colori curata per ogni categoria</li>
+ *   <li>Layout grid 3x3 responsive</li>
+ *   <li>Animazioni micro-interazioni</li>
+ *   <li>Integrazione con {@link CategoryView} per drill-down</li>
+ * </ul>
+ *
+ * <h3>Gestione Vista Categoria:</h3>
+ * <p>
+ * Implementa un sistema di overlay per transizioni fluide:
+ * </p>
+ * <ul>
+ *   <li>Stack-based navigation con overlay system</li>
+ *   <li>Breadcrumb navigation integrata</li>
+ *   <li>State management per back navigation</li>
+ *   <li>Container isolation per performance</li>
+ * </ul>
+ *
+ * <h3>Design Patterns Implementati:</h3>
+ * <ul>
+ *   <li><strong>Observer Pattern:</strong> Callback per eventi book click</li>
+ *   <li><strong>Factory Pattern:</strong> Creazione dinamica category objects</li>
+ *   <li><strong>Strategy Pattern:</strong> Diverse strategie per rating visualization</li>
+ *   <li><strong>State Pattern:</strong> Gestione stati vista (explore vs category)</li>
+ * </ul>
+ *
+ * <h3>Esempio di utilizzo:</h3>
+ * <pre>{@code
+ * // Inizializzazione componente
+ * BookService bookService = new BookService();
+ * ExploreIntegration exploreIntegration = new ExploreIntegration(bookService, true);
+ *
+ * // Configurazione container principale
+ * StackPane mainContainer = new StackPane();
+ * exploreIntegration.setContainer(mainContainer);
+ *
+ * // Configurazione gestori eventi
+ * exploreIntegration.setBookClickHandler(book -> {
+ *     System.out.println("Libro selezionato: " + book.getTitle());
+ *     showBookDetails(book);
+ * });
+ *
+ * // Configurazione autenticazione
+ * AuthenticationManager authManager = new AuthenticationManager();
+ * exploreIntegration.setAuthManager(authManager);
+ *
+ * // Creazione vista esplora
+ * ScrollPane exploreView = exploreIntegration.createExploreView();
+ *
+ * // Integrazione in layout principale
+ * VBox mainLayout = new VBox();
+ * mainLayout.getChildren().add(exploreView);
+ *
+ * // Il componente gestisce automaticamente:
+ * // - Caricamento classifiche da rating service
+ * // - Click handling per categorie
+ * // - Transizioni tra vista esplora e categorie
+ * // - Back navigation con state management
+ * }</pre>
+ *
+ * <h3>Integrazione con Rating System:</h3>
+ * <p>
+ * Il componente si integra strettamente con il sistema di rating per:
+ * </p>
+ * <ul>
+ *   <li>Caricamento asincrono dati rating</li>
+ *   <li>Visualizzazione stelle e rating numerici</li>
+ *   <li>Fallback per libri senza rating</li>
+ *   <li>Cache per performance ottimizzate</li>
+ * </ul>
+ *
+ * <h3>Performance e Ottimizzazioni:</h3>
+ * <ul>
+ *   <li>Lazy loading delle categorie e classifiche</li>
+ *   <li>Image caching tramite ImageUtils integration</li>
+ *   <li>Memory management per liste grandi</li>
+ *   <li>Async operations per non bloccare UI thread</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see BookService
+ * @see ClientRatingService
+ * @see CategoryView
+ * @see AuthenticationManager
  */
 public class ExploreIntegration {
 
+    /** Servizio per operazioni sui libri */
     private final BookService bookService;
+
+    /** Servizio per gestione rating e recensioni */
     private final ClientRatingService ratingService;
-    private final boolean serverAvailable;
+
+    /** Callback per gestire click sui libri */
     private Consumer<Book> bookClickHandler;
+
+    /** Container principale per overlay di categoria */
     private StackPane containerPane;
+
+    /** Flag che indica se si sta visualizzando una categoria */
     private boolean isViewingCategory = false;
+
+    /** Cache libri più recensiti per navigazione */
     private List<Book> mostReviewedBooks = new ArrayList<>();
+
+    /** Cache libri meglio valutati per navigazione */
     private List<Book> topRatedBooks = new ArrayList<>();
+
+    /** Manager di autenticazione per operazioni protette */
     private AuthenticationManager authManager;
 
+    /**
+     * Costruttore del componente di integrazione Esplora.
+     * <p>
+     * Inizializza i servizi necessari per il funzionamento del componente.
+     * Il flag serverAvailable è mantenuto per compatibilità ma non utilizzato
+     * nella versione corrente.
+     * </p>
+     *
+     * @param bookService servizio per operazioni sui libri
+     * @param serverAvailable flag disponibilità server (legacy)
+     * @throws IllegalArgumentException se bookService è {@code null}
+     */
     public ExploreIntegration(BookService bookService, boolean serverAvailable) {
+        if (bookService == null) {
+            throw new IllegalArgumentException("BookService non può essere null");
+        }
+
         this.bookService = bookService;
-        this.serverAvailable = serverAvailable;
         this.ratingService = new ClientRatingService();
-        System.out.println("🚀🚀🚀 NUOVO EXPLOREINTEGRATION CREATO! 🚀🚀🚀");
     }
 
+    /**
+     * Configura il container principale per gestione overlay categoria.
+     * <p>
+     * Il container viene utilizzato per implementare il sistema di navigazione
+     * stack-based che permette transizioni fluide tra vista esplora e
+     * visualizzazione categorie specifiche.
+     * </p>
+     *
+     * @param container lo StackPane principale per overlay
+     */
     public void setContainer(StackPane container) {
         this.containerPane = container;
     }
 
+    /**
+     * Configura il gestore per click sui libri.
+     * <p>
+     * Il callback viene utilizzato per gestire le interazioni utente sui libri
+     * nelle classifiche e nelle categorie, delegando la logica di visualizzazione
+     * dettagli al componente padre.
+     * </p>
+     *
+     * @param handler callback per gestire click sui libri
+     */
     public void setBookClickHandler(Consumer<Book> handler) {
         this.bookClickHandler = handler;
     }
 
+    /**
+     * Configura il manager di autenticazione.
+     * <p>
+     * Necessario per operazioni che richiedono autenticazione utente,
+     * come aggiunta ai favoriti o accesso a contenuti premium.
+     * </p>
+     *
+     * @param authManager manager di autenticazione
+     */
     public void setAuthManager(AuthenticationManager authManager) {
         this.authManager = authManager;
     }
 
     /**
-     * Crea la vista Esplora stile Apple Books
+     * Crea la vista Esplora completa con classifiche e categorie.
+     * <p>
+     * Factory method principale che costruisce l'intera esperienza di esplorazione,
+     * includendo sezioni classifiche dinamiche e griglia categorie interattiva.
+     * La vista è ottimizzata per scroll fluido e layout responsive.
+     * </p>
+     *
+     * <h4>Struttura della vista:</h4>
+     * <ol>
+     *   <li><strong>Header Classifiche:</strong> Titolo e introduzione</li>
+     *   <li><strong>Sezioni Classifiche:</strong> Più recensiti e meglio valutati</li>
+     *   <li><strong>Header Generi:</strong> Titolo sezione categorie</li>
+     *   <li><strong>Griglia Categorie:</strong> Layout 3x3 interattivo</li>
+     *   <li><strong>Padding Finale:</strong> Spacing per scroll completo</li>
+     * </ol>
+     *
+     * <h4>Configurazioni scroll:</h4>
+     * <ul>
+     *   <li>Fit to width per responsività</li>
+     *   <li>Vertical scroll only per UX ottimale</li>
+     *   <li>Smooth scrolling per transizioni fluide</li>
+     * </ul>
+     *
+     * @return {@link ScrollPane} configurato con vista esplora completa
      */
     public ScrollPane createExploreView() {
         System.out.println("🔍 DEBUG: createExploreView() chiamato!");
@@ -115,7 +313,26 @@ public class ExploreIntegration {
     }
 
     /**
-     * Crea le sezioni delle classifiche - CORRETTE
+     * Crea le sezioni delle classifiche con caricamento asincrono.
+     * <p>
+     * Costruisce le sezioni per libri più recensiti e meglio valutati,
+     * gestendo il caricamento asincrono dei dati tramite ClientRatingService
+     * e implementando fallback appropriati per scenari di errore.
+     * </p>
+     *
+     * <h4>Sezioni create:</h4>
+     * <ul>
+     *   <li><strong>Più Recensiti:</strong> Top 10 libri per numero recensioni</li>
+     *   <li><strong>Migliori Valutazioni:</strong> Top 10 libri per rating medio</li>
+     * </ul>
+     *
+     * <h4>Gestione asincrona:</h4>
+     * <p>
+     * Ogni sezione viene inizializzata con placeholder e popolata
+     * asincrono quando i dati sono disponibili, garantendo UI responsiva.
+     * </p>
+     *
+     * @param parent container VBox dove aggiungere le sezioni
      */
     private void createClassificheSection(VBox parent) {
         // PIÙ RECENSITI
@@ -130,7 +347,6 @@ public class ExploreIntegration {
                     Platform.runLater(() -> {
                         System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri più recensiti dal rating service");
                         if (!books.isEmpty()) {
-                            // ✅ SALVA LA LISTA COMPLETA per la navigazione
                             this.mostReviewedBooks = new ArrayList<>(books);
 
                             populateBookSection(mostReviewedSection, books.subList(0, Math.min(10, books.size())), "mostReviewed");
@@ -161,7 +377,6 @@ public class ExploreIntegration {
                     Platform.runLater(() -> {
                         System.out.println("🔍 DEBUG: Ricevuti " + books.size() + " libri meglio valutati dal rating service");
                         if (!books.isEmpty()) {
-                            // ✅ SALVA LA LISTA COMPLETA per la navigazione
                             this.topRatedBooks = new ArrayList<>(books);
 
                             populateBookSection(topRatedSection, books.subList(0, Math.min(10, books.size())), "topRated");
@@ -182,7 +397,16 @@ public class ExploreIntegration {
     }
 
     /**
-     * ✅ METODO MANCANTE: Crea una sezione classifiche
+     * Crea una sezione classifiche con header e container per libri.
+     * <p>
+     * Factory method per creare la struttura base di una sezione classifica
+     * con titolo, sottotitolo e container per i libri che verrà popolato
+     * asincrono quando i dati sono disponibili.
+     * </p>
+     *
+     * @param title titolo principale della sezione
+     * @param subtitle descrizione della sezione
+     * @return VBox configurato per la sezione classifica
      */
     private VBox createChartSection(String title, String subtitle) {
         VBox section = new VBox(15);
@@ -210,7 +434,16 @@ public class ExploreIntegration {
     }
 
     /**
-     * Popola una sezione con libri
+     * Popola una sezione classifiche con i libri forniti.
+     * <p>
+     * Trova il container dei libri nella sezione e lo popola con le book card
+     * generate dai dati forniti. Limita la visualizzazione a 8 libri per
+     * ottimizzare l'esperienza scroll orizzontale.
+     * </p>
+     *
+     * @param section la sezione VBox da popolare
+     * @param books lista di libri da visualizzare
+     * @param sectionType tipo di sezione per identificazione click context
      */
     private void populateBookSection(VBox section, List<Book> books, String sectionType) {
         // Trova il container dei libri (ultimo figlio della sezione)
@@ -227,7 +460,14 @@ public class ExploreIntegration {
     }
 
     /**
-     * Mostra errore in una sezione
+     * Visualizza messaggio di errore in una sezione classifiche.
+     * <p>
+     * Utility method per gestire scenari di errore nelle sezioni,
+     * sostituendo il contenuto con un messaggio di errore appropriato.
+     * </p>
+     *
+     * @param section sezione dove mostrare l'errore
+     * @param errorMessage messaggio di errore da visualizzare
      */
     private void showErrorInSection(VBox section, String errorMessage) {
         if (section.getChildren().size() >= 2 && section.getChildren().get(1) instanceof HBox) {
@@ -241,6 +481,33 @@ public class ExploreIntegration {
         }
     }
 
+    /**
+     * Crea una book card per le classifiche con rating e interattività.
+     * <p>
+     * Costruisce un componente UI completo per rappresentare un libro nelle
+     * classifiche, includendo copertina, metadati, rating visuale, e gestione
+     * click con navigazione contestuale. Include hover effects per migliore UX.
+     * </p>
+     *
+     * <h4>Struttura della card:</h4>
+     * <ul>
+     *   <li>Copertina 90x130px con clipping arrotondato</li>
+     *   <li>Titolo in bold con text wrapping</li>
+     *   <li>Autore in grigio secondario</li>
+     *   <li>Rating box con stelle e valore numerico (se disponibile)</li>
+     * </ul>
+     *
+     * <h4>Features interattive:</h4>
+     * <ul>
+     *   <li>Click handler con navigazione contestuale</li>
+     *   <li>Hover effects con scale animation</li>
+     *   <li>Cursor pointer per indicare clickability</li>
+     * </ul>
+     *
+     * @param book il libro da rappresentare
+     * @param sectionType tipo di sezione per determinare lista di navigazione
+     * @return VBox configurato come book card interattiva
+     */
     private VBox createBookCard(Book book, String sectionType) {
         VBox card = new VBox(8);
         card.setAlignment(Pos.TOP_CENTER);
@@ -285,7 +552,7 @@ public class ExploreIntegration {
         VBox ratingBox = new VBox(2);
         ratingBox.setAlignment(Pos.CENTER);
 
-        // Controllo più robusto per il rating
+        // Controllo per il rating
         Double rating = book.getAverageRating();
         if (rating != null && rating > 0.0) {
             // Stelle
@@ -337,7 +604,7 @@ public class ExploreIntegration {
                     break;
             }
 
-            AppleBooksClient.openBookDetails(book, sectionBooks, authManager);
+            BooksClient.openBookDetails(book, sectionBooks, authManager);
         });
 
         // Effetti hover
@@ -369,7 +636,21 @@ public class ExploreIntegration {
     }
 
     /**
-     * Crea stringa di stelle per il rating
+     * Genera stringa di stelle per visualizzazione rating.
+     * <p>
+     * Converte un rating numerico in rappresentazione visuale con stelle
+     * piene (★) e vuote (☆), supportando mezze stelle per rating decimali.
+     * </p>
+     *
+     * <h4>Logica di conversione:</h4>
+     * <ul>
+     *   <li>Parte intera: stelle piene</li>
+     *   <li>Decimale >= 0.5: mezza stella aggiuntiva</li>
+     *   <li>Rimanenti: stelle vuote fino a 5 totali</li>
+     * </ul>
+     *
+     * @param rating valore numerico del rating (0.0-5.0)
+     * @return stringa con rappresentazione stelle
      */
     private String createStarString(double rating) {
         int fullStars = (int) rating;
@@ -397,7 +678,27 @@ public class ExploreIntegration {
     }
 
     /**
-     * Crea la griglia delle categorie
+     * Crea la griglia delle categorie con design moderno e colorato.
+     * <p>
+     * Costruisce una griglia 3x3 di pulsanti categoria con palette colori
+     * curata e categorie predefinite. Ogni pulsante include hover effects
+     * e gestione click per navigazione categoria.
+     * </p>
+     *
+     * <h4>Categorie predefinite:</h4>
+     * <ul>
+     *   <li>Narrativa per giovani adulti</li>
+     *   <li>Scienze sociali</li>
+     *   <li>Biografia e autobiografia</li>
+     *   <li>Storia</li>
+     *   <li>Narrativa per ragazzi</li>
+     *   <li>Umore</li>
+     *   <li>Religione</li>
+     *   <li>Economia e Commercio</li>
+     *   <li>Narrativa</li>
+     * </ul>
+     *
+     * @param parent container VBox dove aggiungere la griglia
      */
     private void createCategoriesGrid(VBox parent) {
         GridPane categoriesGrid = new GridPane();
@@ -449,7 +750,16 @@ public class ExploreIntegration {
     }
 
     /**
-     * Crea un pulsante categoria
+     * Crea un pulsante categoria con design personalizzato e interattività.
+     * <p>
+     * Genera un pulsante con styling custom, colore di background specifico,
+     * hover effects, e gestione click per navigazione categoria. Il testo
+     * viene formattato per multi-line quando necessario.
+     * </p>
+     *
+     * @param category nome della categoria
+     * @param color codice colore hex per il background
+     * @return Button configurato per la categoria
      */
     private Button createCategoryButton(String category, String color) {
         Button button = new Button(category.replace(" ", "\n"));
@@ -487,7 +797,13 @@ public class ExploreIntegration {
     }
 
     /**
-     * Gestisce il click su una categoria
+     * Gestisce il click su una categoria avviando navigazione specifica.
+     * <p>
+     * Crea e visualizza una CategoryView per la categoria selezionata,
+     * implementando transizione fluida tramite overlay system.
+     * </p>
+     *
+     * @param category nome della categoria selezionata
      */
     private void handleCategoryClick(String category) {
         System.out.println("🎭 Click categoria: " + category);
@@ -508,7 +824,15 @@ public class ExploreIntegration {
     }
 
     /**
-     * Crea un oggetto Category da una stringa
+     * Crea un oggetto Category da stringa nome categoria.
+     * <p>
+     * Factory method per convertire nomi stringa in oggetti Category
+     * validi, rimuovendo caratteri non alfabetici e mantenendo
+     * formato pulito.
+     * </p>
+     *
+     * @param categoryString nome categoria come stringa
+     * @return oggetto Category configurato
      */
     private Category createCategoryFromString(String categoryString) {
         // Mantieni il formato originale, rimuovi solo eventuali emoji
@@ -519,7 +843,14 @@ public class ExploreIntegration {
     }
 
     /**
-     * Mostra la vista categoria
+     * Visualizza la vista categoria tramite overlay system.
+     * <p>
+     * Implementa transizione fluida creando overlay StackPane che
+     * sostituisce temporaneamente la vista esplora, con sistema
+     * di back navigation integrato.
+     * </p>
+     *
+     * @param categoryView vista categoria da visualizzare
      */
     private void showCategoryView(CategoryView categoryView) {
         if (containerPane == null) {
@@ -533,7 +864,7 @@ public class ExploreIntegration {
             // Imposta il callback per tornare indietro nel testo integrato
             categoryView.setOnBackCallback(() -> closeCategoryView());
 
-            // Crea overlay per la categoria (SENZA bottone separato)
+            // Crea overlay per la categoria
             StackPane categoryOverlay = new StackPane();
             categoryOverlay.setStyle("-fx-background-color: #1a1a1c;");
 
@@ -550,7 +881,12 @@ public class ExploreIntegration {
     }
 
     /**
-     * Chiude la vista categoria
+     * Chiude la vista categoria e ripristina vista esplora.
+     * <p>
+     * Rimuove l'overlay categoria dal container principale,
+     * ripristinando la vista esplora sottostante e aggiornando
+     * lo stato di navigazione.
+     * </p>
      */
     private void closeCategoryView() {
         if (containerPane != null && isViewingCategory) {
@@ -562,19 +898,5 @@ public class ExploreIntegration {
             );
             isViewingCategory = false;
         }
-    }
-
-    /**
-     * Verifica se è attualmente visualizzata una categoria
-     */
-    public boolean isViewingCategory() {
-        return isViewingCategory;
-    }
-
-    /**
-     * Torna alla vista principale Esplora
-     */
-    public void backToExplore() {
-        closeCategoryView();
     }
 }

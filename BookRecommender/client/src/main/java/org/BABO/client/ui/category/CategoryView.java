@@ -5,7 +5,7 @@ import org.BABO.client.ui.Home.ImageUtils;
 import org.BABO.shared.model.Book;
 import org.BABO.shared.model.Category;
 import org.BABO.client.service.BookService;
-import org.BABO.client.ui.AppleBooksClient;
+import org.BABO.client.ui.BooksClient;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -26,40 +26,202 @@ import java.util.ArrayList;
 import java.util.function.Consumer;
 
 /**
- * Vista per mostrare i libri di una categoria specifica
+ * Vista specializzata per la visualizzazione e navigazione di libri per categoria nell'applicazione BABO.
+ * <p>
+ * Questa classe fornisce un'interfaccia completa per esplorare libri organizzati per categoria,
+ * con funzionalità di navigazione, ricerca filtrata, e visualizzazione ottimizzata. Implementa
+ * un design immersivo che permette agli utenti di scoprire contenuti correlati e navigare
+ * efficacemente tra diverse categorie del catalogo.
+ * </p>
+ *
+ * <h3>Funzionalità principali:</h3>
+ * <ul>
+ *   <li><strong>Visualizzazione Categoria:</strong> Header descrittivo con navigazione breadcrumb</li>
+ *   <li><strong>Griglia Libri:</strong> Layout responsive per browsing ottimale</li>
+ *   <li><strong>Navigazione Contestuale:</strong> Integrazione con dettagli libro e lista di navigazione</li>
+ *   <li><strong>Gestione Stati:</strong> Loading, successo, errore, e risultati vuoti</li>
+ *   <li><strong>Descrizioni Intelligenti:</strong> Descrizioni contextual per categorie predefinite</li>
+ *   <li><strong>Ricerca Filtrata:</strong> Caricamento asincrono con filtri per categoria</li>
+ * </ul>
+ *
+ * <h3>Architettura di Navigazione:</h3>
+ * <p>
+ * La classe implementa un sistema di navigazione a breadcrumb che permette:
+ * </p>
+ * <ul>
+ *   <li>Navigazione back alla vista principale</li>
+ *   <li>Context preservation per la lista di libri corrente</li>
+ *   <li>Deep linking ai dettagli di singoli libri</li>
+ *   <li>Mantenimento dello stato di navigazione</li>
+ * </ul>
+ *
+ * <h3>Sistema di Layout Responsive:</h3>
+ * <p>
+ * Utilizza FlowPane con property binding per creare un layout che si adatta
+ * automaticamente a diverse risoluzioni e dimensioni dello schermo:
+ * </p>
+ * <ul>
+ *   <li>Grid dinamica con spacing ottimizzato</li>
+ *   <li>Book cards di dimensioni standardizzate</li>
+ *   <li>Scroll verticale fluido per liste lunghe</li>
+ *   <li>Header fisso per context costante</li>
+ * </ul>
+ *
+ * <h3>Gestione Contenuti Dinamici:</h3>
+ * <p>
+ * La vista gestisce intelligentemente diversi tipi di contenuto:
+ * </p>
+ * <ul>
+ *   <li><strong>Descrizioni Categoria:</strong> Mapping predefinito per categorie comuni</li>
+ *   <li><strong>Fallback Content:</strong> Gestione graceful di dati mancanti</li>
+ *   <li><strong>Loading States:</strong> Feedback visivo durante operazioni asincrone</li>
+ *   <li><strong>Error Handling:</strong> Messaggi user-friendly per problemi di rete</li>
+ * </ul>
+ *
+ * <h3>Integrazione con Servizi:</h3>
+ * <p>
+ * La vista si integra con diversi servizi per funzionalità complete:
+ * </p>
+ * <ul>
+ *   <li>{@link BookService} per ricerca e caricamento libri</li>
+ *   <li>{@link AuthenticationManager} per gestione permessi utente</li>
+ *   <li>{@link BooksClient} per navigazione ai dettagli</li>
+ *   <li>{@link ImageUtils} per gestione sicura delle immagini</li>
+ * </ul>
+ *
+ * <h3>Esempio di utilizzo:</h3>
+ * <pre>{@code
+ * // Creazione vista categoria
+ * Category sciFiCategory = new Category("Fantascienza", "Esplorazioni del futuro");
+ * BookService bookService = new BookService();
+ *
+ * CategoryView categoryView = new CategoryView(
+ *     sciFiCategory,
+ *     bookService,
+ *     book -> System.out.println("Libro cliccato: " + book.getTitle())
+ * );
+ *
+ * // Configurazione navigazione
+ * categoryView.setOnBackCallback(() -> {
+ *     navigationManager.goBack();
+ *     analytics.trackCategoryExit(sciFiCategory.getName());
+ * });
+ *
+ * // Configurazione autenticazione
+ * categoryView.setAuthManager(authenticationManager);
+ *
+ * // Creazione e integrazione UI
+ * ScrollPane categoryPane = categoryView.createCategoryView();
+ * mainContainer.getChildren().setAll(categoryPane);
+ *
+ * // La vista gestisce automaticamente:
+ * // - Caricamento libri per categoria
+ * // - Stati di loading e errore
+ * // - Click handling per singoli libri
+ * // - Navigazione contestuale
+ * }</pre>
+ *
+ * <h3>Personalizzazione e Estensibilità:</h3>
+ * <ul>
+ *   <li>Descrizioni categoria facilmente estensibili tramite switch case</li>
+ *   <li>Layout modificabile attraverso override dei metodi di creazione</li>
+ *   <li>Styling personalizzabile tramite CSS classes</li>
+ *   <li>Event handling configurabile per diverse logiche di navigazione</li>
+ * </ul>
+ *
+ * <h3>Performance e Ottimizzazioni:</h3>
+ * <ul>
+ *   <li>Caricamento asincrono per non bloccare UI thread</li>
+ *   <li>Lazy loading delle immagini per performance</li>
+ *   <li>Memory management per liste grandi</li>
+ *   <li>Event debouncing per interazioni rapide</li>
+ * </ul>
+ *
+ * @author BABO Team
+ * @version 1.0
+ * @since 1.0
+ * @see Category
+ * @see BookService
+ * @see AuthenticationManager
+ * @see Book
  */
 public class CategoryView {
-
+    /** La categoria di libri da visualizzare */
     private final Category category;
+
+    /** Servizio per operazioni sui libri */
     private final BookService bookService;
-    private final Consumer<Book> bookClickHandler;
+
+    /** Container principale per il contenuto della vista */
     private VBox content;
+
+    /** Flag per prevenire caricamenti multipli simultanei */
     private boolean isLoading = false;
 
+    /** Label cliccabile per navigazione back */
     private Label backText;
+
+    /** Callback per gestire navigazione indietro */
     private Runnable onBackCallback;
 
+    /** Lista cache dei libri della categoria corrente per navigazione */
     private List<Book> categoryBooks = new ArrayList<>();
 
+    /** Manager di autenticazione per controllo permessi */
     private AuthenticationManager authManager;
 
+    /**
+     * Configura il manager di autenticazione per la vista categoria.
+     * <p>
+     * Il manager è utilizzato per verificare permessi utente e gestire
+     * accesso a funzionalità che richiedono autenticazione, come
+     * aggiunta ai favoriti o acquisti.
+     * </p>
+     *
+     * @param authManager il manager di autenticazione da utilizzare.
+     *                   Può essere {@code null} se non sono richieste
+     *                   funzionalità di autenticazione.
+     */
     public void setAuthManager(AuthenticationManager authManager) {
         this.authManager = authManager;
     }
 
+    /**
+     * Costruttore per la vista categoria.
+     * <p>
+     * Inizializza la vista con la categoria da visualizzare e il servizio
+     * per il caricamento dei libri. Il book click handler è mantenuto
+     * per compatibilità ma la gestione click è implementata internamente.
+     * </p>
+     *
+     * @param category la categoria di libri da visualizzare
+     * @param bookService il servizio per operazioni sui libri
+     * @param bookClickHandler callback per gestire click sui libri (legacy)
+     * @throws IllegalArgumentException se category o bookService sono {@code null}
+     */
     public CategoryView(Category category, BookService bookService, Consumer<Book> bookClickHandler) {
+        if (category == null) {
+            throw new IllegalArgumentException("La categoria non può essere null");
+        }
+        if (bookService == null) {
+            throw new IllegalArgumentException("Il BookService non può essere null");
+        }
+
         this.category = category;
         this.bookService = bookService;
-        this.bookClickHandler = bookClickHandler;
     }
 
-    // Costruttore alternativo per compatibilità con ContentArea
-    public CategoryView(BookService bookService, Category category) {
-        this.category = category;
-        this.bookService = bookService;
-        this.bookClickHandler = null; // Sarà impostato dopo
-    }
-
+    /**
+     * Configura il callback per la navigazione indietro.
+     * <p>
+     * Imposta il callback che verrà eseguito quando l'utente clicca
+     * sul link "Torna a Esplora". Il callback viene applicato automaticamente
+     * al componente UI se già creato.
+     * </p>
+     *
+     * @param callback il {@link Runnable} da eseguire per la navigazione indietro.
+     *                Può essere {@code null} per disabilitare la navigazione.
+     */
     public void setOnBackCallback(Runnable callback) {
         this.onBackCallback = callback;
 
@@ -74,7 +236,29 @@ public class CategoryView {
     }
 
     /**
-     * Crea la vista della categoria
+     * Crea e configura la vista completa della categoria.
+     * <p>
+     * Factory method principale che costruisce l'intera interfaccia
+     * per la visualizzazione della categoria, includendo header,
+     * area contenuti, e gestione scroll. Avvia automaticamente
+     * il caricamento dei libri per la categoria.
+     * </p>
+     *
+     * <h4>Componenti della vista:</h4>
+     * <ul>
+     *   <li>Header con breadcrumb navigation e descrizione categoria</li>
+     *   <li>Area contenuti con indicatore loading iniziale</li>
+     *   <li>ScrollPane configurato per navigazione fluida</li>
+     * </ul>
+     *
+     * <h4>Configurazioni scroll:</h4>
+     * <ul>
+     *   <li>FitToWidth per adattamento automatico</li>
+     *   <li>Scroll orizzontale disabilitato</li>
+     *   <li>Scroll verticale automatico quando necessario</li>
+     * </ul>
+     *
+     * @return un {@link ScrollPane} configurato con la vista categoria completa
      */
     public ScrollPane createCategoryView() {
         content = new VBox(20);
@@ -100,7 +284,29 @@ public class CategoryView {
     }
 
     /**
-     * Crea l'header della categoria
+     * Crea l'header della categoria con navigazione e informazioni descrittive.
+     * <p>
+     * Costruisce la sezione superiore della vista includendo link di navigazione
+     * indietro, titolo della categoria, e descrizione contextual. Applica
+     * styling moderno con effetti hover per migliorare l'interattività.
+     * </p>
+     *
+     * <h4>Elementi dell'header:</h4>
+     * <ul>
+     *   <li><strong>Back Link:</strong> "← Torna a Esplora" con styling iOS-like</li>
+     *   <li><strong>Category Title:</strong> Nome categoria con font bold 36pt</li>
+     *   <li><strong>Description:</strong> Testo descrittivo con word wrap</li>
+     * </ul>
+     *
+     * <h4>Interattività back link:</h4>
+     * <ul>
+     *   <li>Colore base: #007AFF (iOS blue)</li>
+     *   <li>Hover: #0056CC con underline</li>
+     *   <li>Cursor pointer per indicare clickability</li>
+     *   <li>Event handler configurabile tramite callback</li>
+     * </ul>
+     *
+     * @see #getCategoryDescription()
      */
     private void createCategoryHeader() {
         VBox header = new VBox(15);
@@ -130,7 +336,6 @@ public class CategoryView {
             }
         });
 
-        // Resto dell'header...
         Label categoryTitle = new Label(category.getName());
         categoryTitle.setFont(Font.font("System", FontWeight.BOLD, 36));
         categoryTitle.setTextFill(Color.WHITE);
@@ -150,41 +355,50 @@ public class CategoryView {
     }
 
     /**
-     * Ottiene la descrizione della categoria
+     * Genera descrizioni contextual per categorie predefinite.
+     * <p>
+     * Fornisce descrizioni user-friendly e marketing-oriented per categorie
+     * comuni nel catalogo. Utilizza un mapping case-insensitive per robustezza
+     * e include un fallback generico per categorie non mappate.
+     * </p>
+     *
+     * <h4>Categorie mappate:</h4>
+     * <ul>
+     *   <li><strong>Narrativa per giovani adulti:</strong> Focus su target demografico</li>
+     *   <li><strong>Scienze sociali:</strong> Enfasi su aspetti culturali e comportamentali</li>
+     *   <li><strong>Biografia e autobiografia:</strong> Storie personali e biografie</li>
+     *   <li><strong>Storia:</strong> Eventi che hanno cambiato il mondo</li>
+     *   <li><strong>Narrativa per ragazzi:</strong> Avventure per giovani lettori</li>
+     *   <li><strong>Umore:</strong> Contenuti divertenti e umoristici</li>
+     *   <li><strong>Religione:</strong> Spiritualità e riflessioni esistenziali</li>
+     *   <li><strong>Economia e commercio:</strong> Business e strategie aziendali</li>
+     *   <li><strong>Narrativa:</strong> Letteratura contemporanea e classica</li>
+     * </ul>
+     *
+     * @return una stringa descrittiva per la categoria corrente
+     * @apiNote Le descrizioni sono progettate per essere accattivanti e informative,
+     *          bilanciando brevità e chiarezza per migliorare user engagement.
      */
     private String getCategoryDescription() {
         String name = category.getName().toLowerCase();
 
         switch (name) {
-            case "young adult fiction":
-            case "youngadultfiction":
+            case "narrativa per giovani adulti":
                 return "Storie coinvolgenti per giovani lettori tra adolescenza e età adulta";
-            case "social science":
-            case "socialscience":
+            case "scienze sociali":
                 return "Esplorazioni della società, cultura e comportamento umano";
-            case "biography & autobiography":
-            case "biography and autobiography":
-            case "biographyautobiography":
+            case "biografia e autobiografia":
                 return "Vite straordinarie raccontate in prima persona o da esperti biografi";
-            case "history":
             case "storia":
                 return "Viaggia nel tempo attraverso eventi che hanno cambiato il mondo";
-            case "juvenile fiction":
-            case "juvenilefiction":
+            case "narrativa per ragazzi":
                 return "Avventure e storie pensate per i lettori più giovani";
-            case "humor":
-            case "umorismo":
+            case "umore":
                 return "Risate garantite con storie divertenti e umoristico";
-            case "religion":
             case "religione":
                 return "Spiritualità, fede e riflessioni sui grandi temi dell'esistenza";
-            case "business & economics":
-            case "businessandeconomics":
-            case "business":
-            case "economics":
-            case "economia":
+            case "economia e commercio":
                 return "Strategie aziendali, economia e mondo degli affari";
-            case "fiction":
             case "narrativa":
                 return "Il meglio della narrativa contemporanea e classica";
             default:
@@ -193,7 +407,11 @@ public class CategoryView {
     }
 
     /**
-     * Crea l'area per i libri
+     * Inizializza l'area contenuti con separatore e indicatore di loading.
+     * <p>
+     * Prepara lo spazio per la visualizzazione dei libri aggiungendo
+     * spacing appropriato e un indicatore di caricamento iniziale.
+     * </p>
      */
     private void createBooksArea() {
         // Separatore
@@ -206,7 +424,19 @@ public class CategoryView {
     }
 
     /**
-     * Mostra indicatore di caricamento
+     * Visualizza un indicatore di caricamento per operazioni asincrone.
+     * <p>
+     * Crea e aggiunge un componente di loading con progress indicator
+     * e messaggio descrittivo per informare l'utente che i dati sono
+     * in fase di caricamento.
+     * </p>
+     *
+     * <h4>Componenti dell'indicatore:</h4>
+     * <ul>
+     *   <li>ProgressIndicator circolare di 50x50 pixel</li>
+     *   <li>Label "Caricamento libri..." con font 16pt</li>
+     *   <li>Layout centrato con altezza fissa 200px</li>
+     * </ul>
      */
     private void showLoadingIndicator() {
         VBox loadingBox = new VBox(15);
@@ -225,7 +455,31 @@ public class CategoryView {
     }
 
     /**
-     * Carica i libri della categoria
+     * Carica asincrono i libri della categoria tramite BookService.
+     * <p>
+     * Esegue una ricerca filtrata per categoria utilizzando il servizio
+     * libri, gestisce stati di loading per prevenire chiamate multiple,
+     * e processa i risultati nel JavaFX Application Thread.
+     * </p>
+     *
+     * <h4>Flusso di esecuzione:</h4>
+     * <ol>
+     *   <li>Verifica flag loading per prevenire chiamate duplicate</li>
+     *   <li>Esegue ricerca asincrona tramite BookService</li>
+     *   <li>Processa risultati nel thread UI</li>
+     *   <li>Visualizza libri o gestisce casi di errore</li>
+     *   <li>Reset flag loading al completamento</li>
+     * </ol>
+     *
+     * <h4>Gestione risultati:</h4>
+     * <ul>
+     *   <li><strong>Successo con dati:</strong> Visualizza griglia libri</li>
+     *   <li><strong>Successo senza dati:</strong> Logging per debugging</li>
+     *   <li><strong>Errore:</strong> Logging errore e reset stato</li>
+     * </ul>
+     *
+     * @see BookService#searchBooksByCategoryAsync(String)
+     * @see #displayBooks(List)
      */
     private void loadCategoryBooks() {
         if (isLoading) {
@@ -235,18 +489,12 @@ public class CategoryView {
         isLoading = true;
         System.out.println("🎭 Caricamento libri per categoria: " + category.getName());
 
-        String dbCategoryName = mapCategoryToDbFormat(category.getName());
-
-        bookService.searchBooksByCategoryAsync(dbCategoryName)
+        bookService.searchBooksByCategoryAsync(category.getName())
                 .thenAccept(books -> {
                     Platform.runLater(() -> {
                         if (!books.isEmpty()) {
                             displayBooks(books);
                             System.out.println("✅ Caricati " + books.size() + " libri per categoria " + category.getName());
-                        } else {
-                            // Fallback: prova con ricerca generica se categoria specifica non trova nulla
-                            System.out.println("⚠️ Nessun libro per categoria specifica, provo ricerca generica");
-                            loadWithGenericSearch();
                         }
                         isLoading = false;
                     });
@@ -254,7 +502,6 @@ public class CategoryView {
                 .exceptionally(throwable -> {
                     Platform.runLater(() -> {
                         System.err.println("❌ Errore caricamento categoria: " + throwable.getMessage());
-                        loadWithGenericSearch(); // Fallback
                         isLoading = false;
                     });
                     return null;
@@ -262,161 +509,40 @@ public class CategoryView {
     }
 
     /**
-     * Estrae il termine di ricerca dalla categoria
-     */
-    private String extractSearchTermFromCategory() {
-        String name = category.getName().toLowerCase();
-
-        // Mappa categorie a termini di ricerca più generici
-        switch (name) {
-            case "narrativa per giovani adulti":
-            case "narrativapergiovaniadulti":
-                return "giovani adulti";
-            case "scienze sociali":
-            case "scienzesociali":
-                return "sociale";
-            case "biografia & autobiografia":
-            case "biografia e autobiografia":
-            case "biografiaautobiografia":
-                return "biografia";
-            case "storia":
-                return "storia";
-            case "narrativa ragazzi":
-            case "narrativaragazzi":
-                return "ragazzi";
-            case "umore":
-                return "divertente";
-            case "religione":
-                return "spirituale";
-            case "economia & commercio":
-            case "economiaecommercio":
-            case "economia":
-            case "commercio":
-                return "commercio";
-            case "narrativa":
-                return "narrativa";
-            default:
-                return category.getName();
-        }
-    }
-
-    /**
-     * Mappa le categorie dei bottoni con quelle del database
-     */
-    private String mapCategoryToDbFormat(String buttonCategoryName) {
-        switch (buttonCategoryName.toLowerCase()) {
-            case "young adult fiction":
-                return "Young Adult Fiction";
-            case "social science":
-                return "Social Science";
-            case "biography & autobiography":
-                return "Biography & Autobiography";
-            case "history":
-                return "History";
-            case "juvenile fiction":
-                return "Juvenile Fiction";
-            case "humor":
-                return "Humor";
-            case "religion":
-                return "Religion";
-            case "business & economics":
-                return "Business & Economics";
-            case "fiction":
-                return "Fiction";
-            default:
-                return buttonCategoryName; // Usa il nome originale come fallback
-        }
-    }
-
-    /**
-     * Fallback con ricerca generica se categoria specifica non funziona
-     */
-    private void loadWithGenericSearch() {
-        String searchTerm = extractSearchTermFromCategory();
-        bookService.searchBooksAsync(searchTerm)
-                .thenAccept(books -> {
-                    Platform.runLater(() -> {
-                        List<Book> filteredBooks = filterBooksForCategory(books);
-
-                        if (filteredBooks.size() < 3) {
-                            // Se ancora pochi risultati, prova con tutti i libri
-                            loadAllBooksAndFilter();
-                        } else {
-                            displayBooks(filteredBooks);
-                        }
-                    });
-                });
-    }
-
-    /**
-     * Fallback: carica tutti i libri e filtra
-     */
-    private void loadAllBooksAndFilter() {
-        bookService.getAllBooksAsync()
-                .thenAccept(allBooks -> {
-                    Platform.runLater(() -> {
-                        List<Book> filteredBooks = filterBooksForCategory(allBooks);
-
-                        // Se ancora non trova abbastanza, usa i primi libri disponibili
-                        if (filteredBooks.size() < 3) {
-                            filteredBooks = allBooks.subList(0, Math.min(12, allBooks.size()));
-                        }
-
-                        displayBooks(filteredBooks);
-                    });
-                })
-                .exceptionally(throwable -> {
-                    Platform.runLater(() -> {
-                        showErrorMessage("Errore caricamento libri: " + throwable.getMessage());
-                    });
-                    return null;
-                });
-    }
-
-    /**
-     * Filtra i libri per la categoria corrente
-     */
-    private List<Book> filterBooksForCategory(List<Book> books) {
-        List<Book> filtered = new ArrayList<>();
-        String categoryName = category.getName().toLowerCase();
-        String searchTerm = extractSearchTermFromCategory().toLowerCase();
-
-        for (Book book : books) {
-            boolean matches = false;
-
-            // Controlla titolo
-            if (book.getTitle() != null &&
-                    (book.getTitle().toLowerCase().contains(searchTerm) ||
-                            book.getTitle().toLowerCase().contains(categoryName))) {
-                matches = true;
-            }
-
-            // Controlla descrizione
-            if (!matches && book.getDescription() != null &&
-                    (book.getDescription().toLowerCase().contains(searchTerm) ||
-                            book.getDescription().toLowerCase().contains(categoryName))) {
-                matches = true;
-            }
-
-            // Controlla autore (per biografie)
-            if (!matches && "biografia".equals(categoryName) && book.getAuthor() != null) {
-                matches = true; // Include tutti per biografie
-            }
-
-            if (matches) {
-                filtered.add(book);
-            }
-        }
-
-        System.out.println("📚 Filtrati " + filtered.size() + " libri per categoria " + categoryName);
-        return filtered;
-    }
-
-    /**
-     * Libri in griglia standard
+     * Visualizza i libri della categoria in una griglia responsive.
+     * <p>
+     * Rimuove gli indicatori di loading e crea una griglia FlowPane
+     * ottimizzata per la visualizzazione dei libri con header dei risultati
+     * e book cards individuali. Mantiene una cache dei libri per navigazione.
+     * </p>
+     *
+     * <h4>Operazioni eseguite:</h4>
+     * <ol>
+     *   <li>Rimozione componenti di loading tramite filtering</li>
+     *   <li>Gestione caso lista vuota con messaggio appropriato</li>
+     *   <li>Cache libri per navigazione contestuale</li>
+     *   <li>Creazione header con conteggio risultati</li>
+     *   <li>Generazione griglia responsive con property binding</li>
+     * </ol>
+     *
+     * <h4>Configurazione griglia:</h4>
+     * <ul>
+     *   <li>Gap orizzontale: 20px</li>
+     *   <li>Gap verticale: 25px</li>
+     *   <li>Allineamento: CENTER_LEFT</li>
+     *   <li>Wrap length: Binding dinamico alla larghezza</li>
+     * </ul>
+     *
+     * @param books la lista di libri da visualizzare
+     * @throws IllegalArgumentException se books è {@code null}
+     * @see #createBookCard(Book)
+     * @see #showNoResults()
      */
     private void displayBooks(List<Book> books) {
-        // Rimuovi indicatore di caricamento
+        if (books == null) {
+            throw new IllegalArgumentException("La lista dei libri non può essere null");
+        }
+
         content.getChildren().removeIf(node ->
                 node instanceof VBox &&
                         ((VBox) node).getChildren().stream().anyMatch(child -> child instanceof ProgressIndicator)
@@ -454,9 +580,46 @@ public class CategoryView {
     }
 
     /**
-     * Card libro con click handler
+     * Crea una book card interattiva per un singolo libro.
+     * <p>
+     * Costruisce un componente UI completo per rappresentare un libro
+     * nella griglia categoria, includendo copertina, metadati, styling
+     * avanzato, e gestione click per navigazione ai dettagli.
+     * </p>
+     *
+     * <h4>Struttura della card:</h4>
+     * <ul>
+     *   <li><strong>Container:</strong> VBox 150px larghezza con padding 10px</li>
+     *   <li><strong>Copertina:</strong> ImageView 120x170px con clipping arrotondato</li>
+     *   <li><strong>Titolo:</strong> Label bianco con wrap automatico</li>
+     *   <li><strong>Autore:</strong> Label grigio secondario</li>
+     * </ul>
+     *
+     * <h4>Effetti visivi:</h4>
+     * <ul>
+     *   <li>Drop shadow per profondità copertina</li>
+     *   <li>Clipping con corner radius 8px</li>
+     *   <li>Cursor pointer per indicare interattività</li>
+     *   <li>Color scheme ottimizzato per leggibilità</li>
+     * </ul>
+     *
+     * <h4>Gestione click:</h4>
+     * <p>
+     * Il click handler integra con {@link BooksClient} per aprire
+     * i dettagli del libro, passando la lista completa dei libri della
+     * categoria per navigazione contestuale next/previous.
+     * </p>
+     *
+     * @param book l'oggetto {@link Book} per cui creare la card
+     * @return un {@link VBox} configurato come book card interattiva
+     * @throws IllegalArgumentException se book è {@code null}
+     * @see BooksClient#openBookDetails(Book, List, AuthenticationManager)
      */
     private VBox createBookCard(Book book) {
+        if (book == null) {
+            throw new IllegalArgumentException("L'oggetto Book non può essere null");
+        }
+
         VBox card = new VBox(10);
         card.setAlignment(Pos.TOP_CENTER);
         card.setPrefWidth(150);
@@ -498,7 +661,7 @@ public class CategoryView {
             System.out.println("📖 Click libro categoria: " + book.getTitle());
             System.out.println("📚 Aprendo con lista di " + categoryBooks.size() + " libri per navigazione");
 
-            AppleBooksClient.openBookDetails(book, categoryBooks, authManager);
+            BooksClient.openBookDetails(book, categoryBooks, authManager);
         });
 
         card.getChildren().addAll(bookCover, titleLabel, authorLabel);
@@ -506,7 +669,21 @@ public class CategoryView {
     }
 
     /**
-     * Mostra messaggio quando non ci sono risultati
+     * Visualizza un messaggio informativo quando non ci sono risultati.
+     * <p>
+     * Crea un'interfaccia placeholder user-friendly per comunicare
+     * l'assenza di libri nella categoria, includendo suggerimenti
+     * per azioni alternative come esplorazione di altre categorie
+     * o utilizzo della funzione di ricerca.
+     * </p>
+     *
+     * <h4>Componenti del messaggio:</h4>
+     * <ul>
+     *   <li>Messaggio principale con icona libro</li>
+     *   <li>Suggerimento per azioni alternative</li>
+     *   <li>Layout centrato con altezza fissa</li>
+     *   <li>Styling grigio per aspetto non invasivo</li>
+     * </ul>
      */
     private void showNoResults() {
         VBox noResultsBox = new VBox(15);
@@ -526,10 +703,37 @@ public class CategoryView {
     }
 
     /**
-     * Mostra messaggio di errore
+     * Visualizza un messaggio di errore generico nell'area contenuti.
+     * <p>
+     * Crea un'interfaccia di errore per comunicare problemi durante
+     * il caricamento dei dati, rimuovendo prima eventuali indicatori
+     * di loading per evitare sovrapposizioni visive.
+     * </p>
+     *
+     * <h4>Operazioni eseguite:</h4>
+     * <ol>
+     *   <li>Rimozione componenti loading tramite filtering</li>
+     *   <li>Creazione layout errore centrato</li>
+     *   <li>Applicazione styling per messaggi di errore</li>
+     *   <li>Aggiunta al container principale</li>
+     * </ol>
+     *
+     * <h4>Styling errore:</h4>
+     * <ul>
+     *   <li>Colore rosso (#e74c3c) per visibilità errore</li>
+     *   <li>Font 16pt per leggibilità</li>
+     *   <li>Word wrap per messaggi lunghi</li>
+     *   <li>Layout centrato con altezza fissa</li>
+     * </ul>
+     *
+     * @param message il messaggio di errore da visualizzare
+     * @throws IllegalArgumentException se message è {@code null}
      */
     private void showErrorMessage(String message) {
-        // Rimuovi indicatore di caricamento
+        if (message == null) {
+            throw new IllegalArgumentException("Il messaggio di errore non può essere null");
+        }
+
         content.getChildren().removeIf(node ->
                 node instanceof VBox &&
                         ((VBox) node).getChildren().stream().anyMatch(child -> child instanceof ProgressIndicator)
@@ -546,10 +750,5 @@ public class CategoryView {
 
         errorBox.getChildren().add(errorLabel);
         content.getChildren().add(errorBox);
-    }
-
-    // ✅ GETTER per permettere l'accesso alla lista di libri (se necessario)
-    public List<Book> getCategoryBooks() {
-        return new ArrayList<>(categoryBooks); // Copia difensiva
     }
 }

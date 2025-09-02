@@ -7,10 +7,10 @@ echo "🖥️  AVVIO SERVER SPRING BOOT"
 echo "============================"
 
 # Verifica se è già in esecuzione
-if lsof -i :8080 >/dev/null 2>&1; then
-    echo "✅ Server già in esecuzione sulla porta 8080"
+if lsof -i :5432 >/dev/null 2>&1; then
+    echo "✅ Server già in esecuzione sulla porta 5432"
     echo "   Per fermarlo: pkill -f 'spring-boot:run'"
-    echo "   Test: curl http://localhost:8080/api/books/health"
+    echo "   Test: curl http://localhost:5432/api/books/health"
     exit 0
 fi
 
@@ -40,10 +40,10 @@ attempts=0
 max_attempts=30
 
 while [ $attempts -lt $max_attempts ]; do
-    if curl -s http://localhost:8080/api/books/health >/dev/null 2>&1; then
+    if curl -s http://localhost:5432/api/books/health >/dev/null 2>&1; then
         echo "✅ Server pronto!"
-        echo "   Health check: $(curl -s http://localhost:8080/api/books/health)"
-        echo "   API: http://localhost:8080/api/books"
+        echo "   Health check: $(curl -s http://localhost:5432/api/books/health)"
+        echo "   API: http://localhost:5432/api/books"
         break
     fi
 
