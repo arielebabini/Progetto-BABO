@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0          http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.BABO</groupId>
+    <artifactId>BookRecommender</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Books - Client/Server</name>
+    <description>Progetto Client/Server </description>
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring.boot.version>3.2.0</spring.boot.version>
+        <!-- Configurazione Javadoc -->
+        <javadoc.failOnError>false</javadoc.failOnError>
+        <javadoc.failOnWarnings>false</javadoc.failOnWarnings>
+    </properties>
+    <!-- Moduli del progetto -->
+    <modules>
+        <module>shared</module>
+        <module>server</module>
+        <module>client</module>
+    </modules>
+    <!-- Dependency Management per versioni consistenti -->
+    <dependencyManagement>
+        <dependencies>
+            <!-- Jackson BOM -->
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>2.15.2</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- Spring Boot BOM -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring.boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+    <build>
+        <plugins>
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                    <release>17</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+            <!-- Maven Javadoc Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <release>17</release>
+                    <encoding>UTF-8</encoding>
+                    <docencoding>UTF-8</docencoding>
+                    <charset>UTF-8</charset>
+                    <failOnError>${javadoc.failOnError}</failOnError>
+                    <failOnWarnings>${javadoc.failOnWarnings}</failOnWarnings>
+                    <quiet>true</quiet>
+                    <doclint>none</doclint>
+                    <additionalJOptions>
+                        <additionalJOption>-Xdoclint:none</additionalJOption>
+                        <additionalJOption>-quiet</additionalJOption>
+                        <additionalJOption>-private</additionalJOption>
+                    </additionalJOptions>
+                    <show>private</show>
+                    <windowTitle>BookRecommender - Documentazione API</windowTitle>
+                    <doctitle> Books - API Documentation</doctitle>
+                    <bottom>
+                        Copyright &amp;#169; 2024 BABO BookRecommender. Tutti i diritti riservati.
+
+                    </bottom>
+                    <!-- Configurazione gruppi pacchetti -->
+                    <groups>
+                        <group>
+                            <title>Server Components</title>
+                            <packages>org.BABO.server*</packages>
+                        </group>
+                        <group>
+                            <title>Client Components</title>
+                            <packages>org.BABO.client*</packages>
+                        </group>
+                        <group>
+                            <title>Shared Models</title>
+                            <packages>org.BABO.shared*</packages>
+                        </group>
+                    </groups>
+                </configuration>
+                <!-- Esecuzioni automatiche -->
+                <executions>
+                    <execution>
+                        <id>generate-javadoc</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>javadoc</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>aggregate-javadoc</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>aggregate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    <!-- Configurazione reporting per sito Maven -->
+    <reporting>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.6.3</version>
+                <configuration>
+                    <release>17</release>
+                    <failOnError>false</failOnError>
+                    <doclint>none</doclint>
+                    <additionalJOptions>
+                        <additionalJOption>-Xdoclint:none</additionalJOption>
+                    </additionalJOptions>
+                </configuration>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>javadoc</report>
+                        </reports>
+                    </reportSet>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <inherited>false</inherited>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+        </plugins>
+    </reporting>
+</project>

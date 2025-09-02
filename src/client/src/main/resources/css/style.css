@@ -1,0 +1,156 @@
+/* SIDEBAR */
+#sidebar {
+    -fx-background-color: #2c2c2e;
+    -fx-padding: 15;
+    -fx-pref-width: 180px;
+    -fx-pref-height: 700px;
+}
+
+#menu-item {
+    -fx-text-fill: white;
+    -fx-font-size: 14px;
+    -fx-padding: 8 0 8 20;
+}
+
+#avatar {
+    -fx-cursor: hand;
+}
+
+/* HEADER */
+#header {
+    -fx-font-family: 'New York Extra Large', sans-serif;
+    -fx-font-weight: bold;
+    -fx-font-size: 28px;
+    -fx-text-fill: white;
+    -fx-padding: 20 30 20 30;
+    -fx-background-color: #1e1e1e;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-effect: dropshadow(one-pass-box, rgba(0, 0, 0, 0.4), 5, 0.0, 0, 2);
+}
+
+/* CONTENUTO CENTRALE */
+#content {
+    -fx-background-color: #1e1e1e;
+    -fx-padding: 20px;
+}
+
+/* Sezione singola (Consigliati, Nuovi, ecc.) */
+.book-section {
+    -fx-background-color: #1e1e1e;
+    -fx-padding: 10 30 30 30;
+}
+
+/* Griglia di libri */
+.books-grid {
+    -fx-hgap: 20;
+    -fx-vgap: 30;
+    -fx-padding: 10;
+    -fx-alignment: top-left;
+}
+
+/* Singolo libro */
+.book-item {
+    -fx-pref-width: 120px;
+    -fx-pref-height: 220px;
+    -fx-padding: 10;
+    -fx-alignment: center;
+}
+
+/* Copertina libro */
+.book-cover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 6, 0.2, 0, 2);
+    -fx-background-radius: 10;
+    -fx-background-color: transparent;
+}
+
+/* ScrollPane */
+.scroll-pane {
+    -fx-background-color: transparent;
+}
+
+Button, ImageView {
+    -fx-transition: none !important;
+}
+
+/* Transizioni specifiche per elementi che ne hanno bisogno */
+.menu-item-box,
+.see-all-button,
+.search-field {
+    -fx-transition: all 0.15s ease-in-out;
+}
+
+/* Transizioni specifiche per le copertine dei libri */
+.book-cover {
+    -fx-transition: -fx-effect 0.15s ease-in-out, -fx-opacity 0.15s ease-in-out;
+}
+
+/* ============================= */
+/*  STILE GLOBALE STELLE BIANCHE  */
+/* ============================= */
+
+/* Stelle bianche per tutti i Label che contengono stelle */
+.stars-white,
+.rating-stars,
+.star-display,
+.book-rating-stars,
+.user-rating-stars,
+.average-rating-stars {
+    -fx-text-fill: white !important;
+}
+
+/* Stelle bianche nei diversi contesti */
+.book-item .stars-white,
+.rating-dialog .stars-white,
+.dialog-pane .stars-white,
+.popup .stars-white,
+.tooltip .stars-white {
+    -fx-text-fill: white !important;
+}
+
+/* Stelle bianche per elementi specifici dell'interfaccia */
+#averageRatingLabel,
+#userRatingLabel,
+#bookStarsLabel,
+#ratingStarsDisplay {
+    -fx-text-fill: white !important;
+}
+
+/* Override per stelle in stati speciali */
+.stars-white:hover,
+.stars-white:focused,
+.stars-white:pressed {
+    -fx-text-fill: white !important;
+}
+
+.stars-white:hover,
+.rating-stars:hover,
+.star-display:hover,
+.book-rating-stars:hover,
+.user-rating-stars:hover,
+.average-rating-stars:hover,
+Label.stars-white:hover,
+Label.rating-stars:hover,
+Label.star-display:hover,
+Label.book-rating-stars:hover,
+Label.user-rating-stars:hover,
+Label.average-rating-stars:hover {
+    -fx-text-fill: white !important;
+}
+
+/* Override ancora più specifico per essere sicuri */
+.book-item .stars-white:hover,
+.rating-dialog .stars-white:hover,
+.dialog-pane .stars-white:hover,
+.popup .stars-white:hover,
+.tooltip .stars-white:hover {
+    -fx-text-fill: white !important;
+}
+
+/* REGOLA ANTI-INHERIT: impedisce l'ereditarietà del colore durante l'hover */
+VBox:hover .stars-white,
+HBox:hover .stars-white,
+StackPane:hover .stars-white,
+.book-item:hover .stars-white {
+    -fx-text-fill: white !important;
+}
